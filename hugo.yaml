@@ -1,9 +1,12 @@
-baseURL: 'https://MCRYII.github.io/'
+﻿baseURL: 'https://MCRYII.github.io/'
 locale: 'zh-cn'
-title: '我的博客'
+title: 'MCRYII的博客'
 theme: 'PaperMod'
+relativeURLs: true
 
 params:
+  assets:
+    disableFingerprinting: true
   homeInfoParams:
     Title: 欢迎来到我的博客
     Content: 这里记录我的学习、思考和见闻。
@@ -18,5 +21,3 @@ menu:
       name: 关于
       url: /about/
       weight: 20
-      publishDir: docs
-      
