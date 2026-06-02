@@ -2,7 +2,7 @@
 title: "美图"
 date: 2026-06-02T20:00:00+08:00
 draft: false
-categories: ["摄影"]
+categories: ["MCRYII形象"]
 tags: ["风景", "分享"]
 ---
 
