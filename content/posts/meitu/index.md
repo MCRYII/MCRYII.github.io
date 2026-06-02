@@ -2,6 +2,7 @@
 title: "MCRYII形象的诞生！！！！"
 date: 2026-06-01T20:00:00+08:00
 draft: false
+comments: true
 categories: ["MCRYII"]
 tags: ["美少女", "分享"]
 ---
