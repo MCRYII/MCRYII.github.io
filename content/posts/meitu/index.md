@@ -8,4 +8,4 @@ tags: ["风景", "分享"]
 
 分享一张我很喜欢的图片：
 
-![美图欣赏](https://picsum.photos/600/400)
+![美图欣赏](https://ibb.co/Fq5JptvF)
