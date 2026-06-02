@@ -3,4 +3,7 @@ title: "关于我"
 draft: false
 ---
 
-这里是关于我的介绍。
+b站主页：https://m.bilibili.com/space/678345234
+github主页：https://github.com/MCRYII
+steam主页：https://steamcommunity.com/id/mcryii
+
