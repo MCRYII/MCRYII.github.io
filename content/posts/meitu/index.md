@@ -8,4 +8,4 @@ tags: ["风景", "分享"]
 
 分享一张我很喜欢的图片：
 
-![美图欣赏](meitu.png)<img width="1109" height="1419" alt="meitu" src="https://github.com/user-attachments/assets/b2983055-dc7d-4bb8-bf72-287139f067e2" />
+![美图欣赏](https://picsum.photos/600/400)
