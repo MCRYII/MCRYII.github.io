@@ -5,6 +5,12 @@ theme: 'PaperMod'
 
 params:
   ShowSearch: true
+  Search: true
+  fuseOpts:
+    isCaseSensitive: false
+    shouldSort: true
+    threshold: 0.4
+    minMatchCharLength: 2
   favicon: https://i.ibb.co/nsJfJmfy/favicon.jpg
   homeInfoParams:
     Title: 欢迎来到MCRYII的博客
