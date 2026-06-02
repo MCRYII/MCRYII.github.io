@@ -8,4 +8,4 @@ tags: ["风景", "分享"]
 
 分享一张我很喜欢的图片：
 
-![美图欣赏](https://ibb.co/Fq5JptvF)
+![美图欣赏]([url=https://ibb.co/Fq5JptvF][img]https://i.ibb.co/Xk7pHTBq/meitu.png[/img][/url])
