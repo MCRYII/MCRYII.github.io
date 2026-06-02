@@ -4,6 +4,7 @@ title: 'MCRYII的博客'
 theme: 'PaperMod'
 
 params:
+  favicon: https://i.ibb.co/7JG5Dpwc/favicon.jpg
   homeInfoParams:
     Title: 欢迎来到MCRYII的博客
     Content: 这里记录我的学习、思考和见闻。
