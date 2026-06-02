@@ -9,6 +9,16 @@ params:
     Content: 这里记录我的学习、思考和见闻。
   ShowBreadCrumbs: true
   ShowReadingTime: true
+  socialIcons:
+    - name: 关于
+      url: /about/
+      icon: https://i.ibb.co/FkD90K5g/1000218129.jpg
+    - name: bilibili
+      url: https://m.bilibili.com/space/678345234
+    - name: github
+      url: https://github.com/MCRYII
+    - name: steam
+      url: https://steamcommunity.com/id/mcryii
 
 menu:
   main:
@@ -28,10 +38,6 @@ menu:
       name: 下载
       url: /downloads/
       weight: 40
-    - identifier: about
-      name: 关于
-      url: /about/
-      weight: 50
 
 taxonomies:
   category: categories
