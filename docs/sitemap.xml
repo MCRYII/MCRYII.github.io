@@ -3,20 +3,20 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>https://MCRYII.github.io/about/</loc>
+    <loc>/about/</loc>
     <lastmod>2026-06-02T07:07:21+08:00</lastmod>
   </url><url>
-    <loc>https://MCRYII.github.io/</loc>
+    <loc>/</loc>
     <lastmod>2026-06-02T07:07:21+08:00</lastmod>
   </url><url>
-    <loc>https://MCRYII.github.io/posts/my-first-post/</loc>
+    <loc>/posts/my-first-post/</loc>
     <lastmod>2026-06-02T07:07:08+08:00</lastmod>
   </url><url>
-    <loc>https://MCRYII.github.io/posts/</loc>
+    <loc>/posts/</loc>
     <lastmod>2026-06-02T07:07:08+08:00</lastmod>
   </url><url>
-    <loc>https://MCRYII.github.io/categories/</loc>
+    <loc>/categories/</loc>
   </url><url>
-    <loc>https://MCRYII.github.io/tags/</loc>
+    <loc>/tags/</loc>
   </url>
 </urlset>
