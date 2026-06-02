@@ -10,15 +10,9 @@ params:
   ShowBreadCrumbs: true
   ShowReadingTime: true
   socialIcons:
-    - name: 关于
+    - name: 关于我
       url: /about/
       icon: https://i.ibb.co/FkD90K5g/1000218129.jpg
-    - name: bilibili
-      url: https://m.bilibili.com/space/678345234
-    - name: github
-      url: https://github.com/MCRYII
-    - name: steam
-      url: https://steamcommunity.com/id/mcryii
 
 menu:
   main:
