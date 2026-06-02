@@ -2,8 +2,8 @@
 title: "我的分类测试文章"
 date: 2026-06-01T20:00:00+08:00
 draft: false
-categories: ["旅行"]
-tags: ["日本", "京都"]
+categories: ["测试"]
+tags: ["测试"]
 ---
 
 这是一篇带分类和标签的测试文章。
