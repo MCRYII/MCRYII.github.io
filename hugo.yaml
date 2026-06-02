@@ -18,4 +18,5 @@ menu:
       name: 关于
       url: /about/
       weight: 20
+      publishDir: docs
       
