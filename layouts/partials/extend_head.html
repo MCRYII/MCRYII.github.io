@@ -381,18 +381,17 @@ nextBtn.addEventListener('click', playNext);
 loadTrack(0);
 </script>
 
-<!-- ==================== 顶部居中搜索栏（实时搜索文章） ==================== -->
+{{- if or .IsHome .IsPage -}}
+<!-- ==================== 搜索栏（仅主页和文章页，随页面滚动） ==================== -->
 <style>
-/* 搜索栏容器 - 固定在顶部居中 */
+/* 搜索栏容器 - 相对定位，随页面滚动 */
 #search-container {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 10000;
+    position: relative;
+    margin: 80px auto 20px auto;   /* 顶部距离导航栏80px，可自行调整 */
     width: 300px;
     max-width: 80vw;
     text-align: center;
+    z-index: 10000;
 }
 
 /* 搜索输入框 */
@@ -455,7 +454,6 @@ loadTrack(0);
     color: #aaa;
     margin-top: 4px;
 }
-/* 滚动条美化 */
 #search-results::-webkit-scrollbar {
     width: 6px;
 }
@@ -477,18 +475,15 @@ loadTrack(0);
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
 <script>
 (function() {
-    // 等待页面加载完成
     document.addEventListener('DOMContentLoaded', function() {
         const searchInput = document.getElementById('search-input');
         const resultsContainer = document.getElementById('search-results');
         let fuse = null;
         let postsData = [];
 
-        // 从 /index.json 获取数据
         fetch('/index.json')
             .then(response => response.json())
             .then(data => {
-                // 只保留需要搜索的字段（标题、内容、分类、标签）
                 postsData = data.map(item => ({
                     title: item.title || '无标题',
                     permalink: item.permalink,
@@ -497,7 +492,6 @@ loadTrack(0);
                     categories: item.categories || [],
                     tags: item.tags || []
                 }));
-                // 初始化 Fuse.js 搜索引擎
                 fuse = new Fuse(postsData, {
                     keys: ['title', 'summary', 'categories', 'tags'],
                     threshold: 0.3,
@@ -507,7 +501,6 @@ loadTrack(0);
             })
             .catch(err => console.error('无法加载 index.json', err));
 
-        // 实时搜索
         searchInput.addEventListener('input', function() {
             const query = this.value.trim();
             if (!fuse || query.length < 2) {
@@ -520,7 +513,6 @@ loadTrack(0);
                 resultsContainer.style.display = 'block';
                 return;
             }
-            // 显示最多10条结果
             const html = result.slice(0, 10).map(res => {
                 const item = res.item;
                 let summary = item.summary.replace(/<[^>]*>/g, '').substring(0, 100);
@@ -538,7 +530,6 @@ loadTrack(0);
             resultsContainer.style.display = 'block';
         });
 
-        // 点击页面其他地方关闭结果框
         document.addEventListener('click', function(e) {
             if (!searchInput.contains(e.target) && !resultsContainer.contains(e.target)) {
                 resultsContainer.style.display = 'none';
@@ -547,3 +538,4 @@ loadTrack(0);
     });
 })();
 </script>
+{{- end -}}
