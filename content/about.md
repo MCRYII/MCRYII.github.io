@@ -1,6 +1,7 @@
 ---
 title: "关于我"
 draft: false
+comments: false
 ---
 
 - [b站主页](https://m.bilibili.com/space/678345234)
