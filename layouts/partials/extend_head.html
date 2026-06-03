@@ -214,16 +214,23 @@ body {
 </style>
 
 <div id="global-music-player">
+    <!-- 专辑封面（动态） -->
     <div class="player-cover">
         <img id="album-cover" src="" alt="专辑封面">
     </div>
+
+    <!-- 歌曲名称和艺术家（动态） -->
     <div class="song-title" id="song-title">加载中...</div>
     <div class="song-artist" id="song-artist"></div>
+
+    <!-- 主控制按钮（上一首、播放/暂停、下一首） -->
     <div class="controls-row">
         <button id="prev-btn" title="上一首">⏮️</button>
         <button id="play-pause-btn">▶️</button>
         <button id="next-btn" title="下一首">⏭️</button>
     </div>
+
+    <!-- 进度条区域 -->
     <div class="progress-area">
         <input type="range" id="seek-bar" class="progress-bar" value="0" step="1">
         <div class="time-info">
@@ -231,29 +238,31 @@ body {
             <span id="duration-time">00:00</span>
         </div>
     </div>
+
+    <!-- 音量控制滑块 -->
     <div class="volume-control">
         <span>🔊</span>
         <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.7">
     </div>
 </div>
 
-<!-- 修复：audio 标签加上 id="bg-music" -->
-<audio id="bg-music" src="" preload="metadata"></audio>
+<audio src="..." preload="metadata"></audio>
 
 <script>
 // ==================== 播放列表配置 ====================
+// 请根据你的实际音乐文件修改以下数组中的内容（标题、艺术家、封面路径、音频路径）
 const playlist = [
     {
         title: "夜の向日葵",
         artist: "松本文紀",
-        cover: "https://picsum.photos/id/106/140/140",
+        cover: "https://picsum.photos/id/106/140/140",   // 临时占位封面，可换成你自己的图片路径
         src: "/music/night-sunflower.mp3"
     },
     {
         title: "示例歌曲2",
         artist: "示例艺术家",
         cover: "https://picsum.photos/id/100/140/140",
-        src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
+        src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"  // 公网测试音频，可换成你自己的
     },
     {
         title: "示例歌曲3",
@@ -261,10 +270,13 @@ const playlist = [
         cover: "https://picsum.photos/id/101/140/140",
         src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"
     }
+    // 你可以继续添加更多曲目，遵循上述格式
 ];
 
+// 当前播放索引
 let currentTrackIndex = 0;
 
+// DOM 元素
 const audio = document.getElementById('bg-music');
 const playPauseBtn = document.getElementById('play-pause-btn');
 const prevBtn = document.getElementById('prev-btn');
@@ -277,27 +289,37 @@ const albumCover = document.getElementById('album-cover');
 const songTitleSpan = document.getElementById('song-title');
 const songArtistSpan = document.getElementById('song-artist');
 
+// ========== 加载指定索引的曲目 ==========
 function loadTrack(index) {
     const track = playlist[index];
     if (!track) return;
+
+    // 更新封面、标题、艺术家
     albumCover.src = track.cover;
     songTitleSpan.textContent = track.title;
     songArtistSpan.textContent = track.artist;
+
+    // 更新音频源
     audio.src = track.src;
-    audio.load();
+    audio.load();  // 重新加载
+
+    // 重置播放按钮图标和进度条
     playPauseBtn.textContent = '▶️';
     seekBar.value = 0;
     currentTimeSpan.textContent = '00:00';
     durationTimeSpan.textContent = '00:00';
 }
 
+// ========== 上一首 ==========
 function playPrev() {
     currentTrackIndex = (currentTrackIndex - 1 + playlist.length) % playlist.length;
     loadTrack(currentTrackIndex);
-    audio.play().catch(e => console.log("自动播放被阻止"));
+    // 切换后自动播放（如果浏览器策略允许）
+    audio.play().catch(e => console.log("自动播放被阻止，需要用户点击"));
     playPauseBtn.textContent = '⏸️';
 }
 
+// ========== 下一首 ==========
 function playNext() {
     currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
     loadTrack(currentTrackIndex);
@@ -305,6 +327,7 @@ function playNext() {
     playPauseBtn.textContent = '⏸️';
 }
 
+// ========== 播放/暂停 ==========
 function togglePlay() {
     if (audio.paused) {
         audio.play().catch(e => console.error("播放失败:", e));
@@ -315,6 +338,7 @@ function togglePlay() {
     }
 }
 
+// ========== 音量控制 ==========
 audio.volume = volumeSlider.value;
 volumeSlider.addEventListener('input', function() {
     audio.volume = this.value;
@@ -323,6 +347,7 @@ volumeSlider.addEventListener('input', function() {
     else muteSpan.textContent = '🔊';
 });
 
+// ========== 进度条更新 ==========
 audio.addEventListener('loadedmetadata', function() {
     seekBar.max = Math.floor(audio.duration);
     durationTimeSpan.textContent = formatTime(audio.duration);
@@ -342,30 +367,33 @@ function formatTime(seconds) {
     return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
 }
 
+// ========== 曲目结束时自动下一首 ==========
 audio.addEventListener('ended', function() {
     playNext();
 });
 
+// ========== 绑定按钮事件 ==========
 playPauseBtn.addEventListener('click', togglePlay);
 prevBtn.addEventListener('click', playPrev);
 nextBtn.addEventListener('click', playNext);
 
+// ========== 初始化加载第一首 ==========
 loadTrack(0);
 </script>
 
 {{- if or .IsHome .IsPage -}}
 <!-- ==================== 搜索栏（仅主页和文章页，随页面滚动） ==================== -->
 <style>
-/* 搜索栏容器 - 相对定位，随页面滚动，强制在导航栏下方 */
+/* 搜索栏容器 - 相对定位，随页面滚动 */
 #search-container {
-    position: relative;
-    clear: both;
-    display: block;
-    margin: 200px auto 20px auto;   /* 加大顶部间距，确保在导航栏下方 */
+    position: absolute;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
     width: 300px;
     max-width: 80vw;
     text-align: center;
-    z-index: 1;   /* 降低层级，避免遮挡导航栏 */
+    z-index: 1;
 }
 
 /* 搜索输入框 */
