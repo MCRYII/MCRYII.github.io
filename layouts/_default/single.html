@@ -59,7 +59,8 @@
     {{- end }}
   </footer>
 
-  {{- partial "comments.html" . }}
-</article>
+{{- if .Params.comments }}
+{{- partial "comments.html" . }}
+{{- end }}</article>
 
 {{- end }}{{/* end main */}}
