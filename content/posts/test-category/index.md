@@ -2,6 +2,7 @@
 title: "我的分类测试文章"
 date: 2026-06-01T20:00:00+08:00
 draft: false
+comments: true
 categories: ["测试"]
 tags: ["测试"]
 ---
