@@ -14,7 +14,7 @@ draft: false
 function searchSite(e) {
   e.preventDefault();
   var keyword = document.getElementById('searchInput').value;
-  var url = 'https://www.google.com/search?q=site%3Amcryii.fun+' + encodeURIComponent(keyword);
+  var url = 'https://www.baidu.com/s?wd=site%3Amcryii.fun+' + encodeURIComponent(keyword);
   window.open(url, '_blank');
 }
 </script>
