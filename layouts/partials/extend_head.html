@@ -1,3 +1,4 @@
+<!-- ==================== 不同页面的背景样式 ==================== -->
 {{- if .IsHome -}}
 <style>
 body {
@@ -82,10 +83,11 @@ body {
 </style>
 {{- end -}}
 
+<!-- ==================== 第三方脚本和自定义样式 ==================== -->
 <script src="/js/cusdis-resize.js"></script>
 <link rel="stylesheet" href="/css/custom.css">
 
-<!-- ========== 左侧悬浮音乐播放器（带封面和音量滑块） ========== -->
+<!-- ==================== 左侧悬浮音乐播放器（多曲目 + 上一首/下一首） ==================== -->
 <style>
 /* 播放器容器：固定在左侧中央 */
 #global-music-player {
@@ -98,7 +100,7 @@ body {
     backdrop-filter: blur(12px);
     border-radius: 24px;
     padding: 16px 12px;
-    width: 220px;
+    width: 240px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -109,15 +111,15 @@ body {
 }
 #global-music-player:hover {
     background: rgba(0, 0, 0, 0.85);
-    width: 240px;
+    width: 260px;
 }
 
-/* 专辑封面 ———— 修改为 flex 居中，保证图片始终水平居中 */
+/* 专辑封面：flex 居中 */
 .player-cover {
     width: 100%;
     display: flex;
-    justify-content: center;   /* 水平居中 */
-    align-items: center;       /* 垂直居中（如果父容器有高度） */
+    justify-content: center;
+    align-items: center;
 }
 .player-cover img {
     width: 140px;
@@ -126,7 +128,7 @@ body {
     border-radius: 16px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     transition: transform 0.2s;
-    display: block;            /* 避免行内元素产生额外间隙 */
+    display: block;
 }
 .player-cover img:hover {
     transform: scale(1.02);
@@ -140,6 +142,7 @@ body {
     text-align: center;
     letter-spacing: 1px;
     margin-top: 4px;
+    word-break: keep-all;
 }
 .song-artist {
     font-size: 0.7rem;
@@ -147,7 +150,7 @@ body {
     text-align: center;
 }
 
-/* 控制按钮区域 */
+/* 控制按钮区域（三个按钮） */
 .controls-row {
     display: flex;
     justify-content: center;
@@ -211,23 +214,25 @@ body {
 </style>
 
 <div id="global-music-player">
-    <!-- 专辑封面 -->
+    <!-- 专辑封面（动态） -->
     <div class="player-cover">
-        <img id="album-cover" src="https://picsum.photos/id/106/140/140" alt="专辑封面">
+        <img id="album-cover" src="" alt="专辑封面">
     </div>
 
-    <!-- 歌曲名称和艺术家 -->
-    <div class="song-title">夜の向日葵</div>
-    <div class="song-artist">素晴らしき日々</div>
+    <!-- 歌曲名称和艺术家（动态） -->
+    <div class="song-title" id="song-title">加载中...</div>
+    <div class="song-artist" id="song-artist"></div>
 
-    <!-- 主控制按钮 -->
+    <!-- 主控制按钮（上一首、播放/暂停、下一首） -->
     <div class="controls-row">
-        <button id="play-pause-btn" onclick="togglePlay()">▶️</button>
+        <button id="prev-btn" title="上一首">⏮️</button>
+        <button id="play-pause-btn">▶️</button>
+        <button id="next-btn" title="下一首">⏭️</button>
     </div>
 
     <!-- 进度条区域 -->
     <div class="progress-area">
-        <input type="range" id="seek-bar" class="progress-bar" value="0" step="1" oninput="seekAudio(this.value)">
+        <input type="range" id="seek-bar" class="progress-bar" value="0" step="1">
         <div class="time-info">
             <span id="current-time">00:00</span>
             <span id="duration-time">00:00</span>
@@ -241,29 +246,91 @@ body {
     </div>
 </div>
 
-<audio id="bg-music" src="/music/night-sunflower.mp3" preload="auto"></audio>
+<audio id="bg-music" preload="auto"></audio>
 
 <script>
+// ==================== 播放列表配置 ====================
+// 请根据你的实际音乐文件修改以下数组中的内容（标题、艺术家、封面路径、音频路径）
+const playlist = [
+    {
+        title: "夜の向日葵",
+        artist: "素晴らしき日々",
+        cover: "https://picsum.photos/id/106/140/140",   // 临时占位封面，可换成你自己的图片路径
+        src: "/music/night-sunflower.mp3"
+    },
+    {
+        title: "示例歌曲2",
+        artist: "示例艺术家",
+        cover: "https://picsum.photos/id/100/140/140",
+        src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"  // 公网测试音频，可换成你自己的
+    },
+    {
+        title: "示例歌曲3",
+        artist: "另一位艺术家",
+        cover: "https://picsum.photos/id/101/140/140",
+        src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"
+    }
+    // 你可以继续添加更多曲目，遵循上述格式
+];
+
+// 当前播放索引
+let currentTrackIndex = 0;
+
+// DOM 元素
 const audio = document.getElementById('bg-music');
 const playPauseBtn = document.getElementById('play-pause-btn');
+const prevBtn = document.getElementById('prev-btn');
+const nextBtn = document.getElementById('next-btn');
 const seekBar = document.getElementById('seek-bar');
 const currentTimeSpan = document.getElementById('current-time');
 const durationTimeSpan = document.getElementById('duration-time');
 const volumeSlider = document.getElementById('volume-slider');
+const albumCover = document.getElementById('album-cover');
+const songTitleSpan = document.getElementById('song-title');
+const songArtistSpan = document.getElementById('song-artist');
 
-// 音量滑块控制
-audio.volume = volumeSlider.value;
-volumeSlider.addEventListener('input', function() {
-    audio.volume = this.value;
-    // 可选：改变静音按钮图标，这里简单处理
-    const muteSpan = document.querySelector('.volume-control span');
-    if (audio.volume === 0) muteSpan.textContent = '🔇';
-    else muteSpan.textContent = '🔊';
-});
+// ========== 加载指定索引的曲目 ==========
+function loadTrack(index) {
+    const track = playlist[index];
+    if (!track) return;
 
+    // 更新封面、标题、艺术家
+    albumCover.src = track.cover;
+    songTitleSpan.textContent = track.title;
+    songArtistSpan.textContent = track.artist;
+
+    // 更新音频源
+    audio.src = track.src;
+    audio.load();  // 重新加载
+
+    // 重置播放按钮图标和进度条
+    playPauseBtn.textContent = '▶️';
+    seekBar.value = 0;
+    currentTimeSpan.textContent = '00:00';
+    durationTimeSpan.textContent = '00:00';
+}
+
+// ========== 上一首 ==========
+function playPrev() {
+    currentTrackIndex = (currentTrackIndex - 1 + playlist.length) % playlist.length;
+    loadTrack(currentTrackIndex);
+    // 切换后自动播放（如果浏览器策略允许）
+    audio.play().catch(e => console.log("自动播放被阻止，需要用户点击"));
+    playPauseBtn.textContent = '⏸️';
+}
+
+// ========== 下一首 ==========
+function playNext() {
+    currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
+    loadTrack(currentTrackIndex);
+    audio.play().catch(e => console.log("自动播放被阻止"));
+    playPauseBtn.textContent = '⏸️';
+}
+
+// ========== 播放/暂停 ==========
 function togglePlay() {
     if (audio.paused) {
-        audio.play();
+        audio.play().catch(e => console.error("播放失败:", e));
         playPauseBtn.textContent = '⏸️';
     } else {
         audio.pause();
@@ -271,7 +338,16 @@ function togglePlay() {
     }
 }
 
-// 更新进度条
+// ========== 音量控制 ==========
+audio.volume = volumeSlider.value;
+volumeSlider.addEventListener('input', function() {
+    audio.volume = this.value;
+    const muteSpan = document.querySelector('.volume-control span');
+    if (audio.volume === 0) muteSpan.textContent = '🔇';
+    else muteSpan.textContent = '🔊';
+});
+
+// ========== 进度条更新 ==========
 audio.addEventListener('loadedmetadata', function() {
     seekBar.max = Math.floor(audio.duration);
     durationTimeSpan.textContent = formatTime(audio.duration);
@@ -280,9 +356,10 @@ audio.addEventListener('timeupdate', function() {
     seekBar.value = Math.floor(audio.currentTime);
     currentTimeSpan.textContent = formatTime(audio.currentTime);
 });
-function seekAudio(value) {
-    audio.currentTime = value;
-}
+seekBar.addEventListener('input', function() {
+    audio.currentTime = this.value;
+});
+
 function formatTime(seconds) {
     if (isNaN(seconds)) return '00:00';
     const min = Math.floor(seconds / 60);
@@ -290,10 +367,16 @@ function formatTime(seconds) {
     return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
 }
 
-// 可选：当歌曲结束时重置播放按钮图标
+// ========== 曲目结束时自动下一首 ==========
 audio.addEventListener('ended', function() {
-    playPauseBtn.textContent = '▶️';
-    seekBar.value = 0;
-    currentTimeSpan.textContent = '00:00';
+    playNext();
 });
+
+// ========== 绑定按钮事件 ==========
+playPauseBtn.addEventListener('click', togglePlay);
+prevBtn.addEventListener('click', playPrev);
+nextBtn.addEventListener('click', playNext);
+
+// ========== 初始化加载第一首 ==========
+loadTrack(0);
 </script>
