@@ -32,3 +32,10 @@ menu:
 taxonomies:
   category: categories
   tag: tags
+
+# 👇 新增这部分，让 Hugo 生成 index.json
+outputs:
+  home:
+    - HTML
+    - RSS
+    - JSON
