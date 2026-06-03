@@ -380,3 +380,170 @@ nextBtn.addEventListener('click', playNext);
 // ========== 初始化加载第一首 ==========
 loadTrack(0);
 </script>
+
+<!-- ==================== 顶部居中搜索栏（实时搜索文章） ==================== -->
+<style>
+/* 搜索栏容器 - 固定在顶部居中 */
+#search-container {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+    width: 300px;
+    max-width: 80vw;
+    text-align: center;
+}
+
+/* 搜索输入框 */
+#search-input {
+    width: 100%;
+    padding: 10px 16px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 40px;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    color: white;
+    outline: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    text-align: center;
+}
+#search-input:focus {
+    background: rgba(0, 0, 0, 0.85);
+    width: 360px;
+}
+#search-input::placeholder {
+    color: #ccc;
+    font-size: 0.9rem;
+}
+
+/* 搜索结果下拉框 */
+#search-results {
+    position: absolute;
+    top: 48px;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(12px);
+    border-radius: 20px;
+    max-height: 400px;
+    overflow-y: auto;
+    list-style: none;
+    margin: 0;
+    padding: 8px 0;
+    display: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    text-align: left;
+}
+#search-results li {
+    padding: 8px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+#search-results li a {
+    color: #fff;
+    text-decoration: none;
+    display: block;
+    font-size: 0.9rem;
+}
+#search-results li a:hover {
+    color: #5c4ee5;
+}
+#search-results .search-summary {
+    font-size: 0.75rem;
+    color: #aaa;
+    margin-top: 4px;
+}
+/* 滚动条美化 */
+#search-results::-webkit-scrollbar {
+    width: 6px;
+}
+#search-results::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+}
+#search-results::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.3);
+    border-radius: 10px;
+}
+</style>
+
+<div id="search-container">
+    <input type="text" id="search-input" placeholder="🔍 搜索文章..." autocomplete="off">
+    <ul id="search-results"></ul>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
+<script>
+(function() {
+    // 等待页面加载完成
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('search-input');
+        const resultsContainer = document.getElementById('search-results');
+        let fuse = null;
+        let postsData = [];
+
+        // 从 /index.json 获取数据
+        fetch('/index.json')
+            .then(response => response.json())
+            .then(data => {
+                // 只保留需要搜索的字段（标题、内容、分类、标签）
+                postsData = data.map(item => ({
+                    title: item.title || '无标题',
+                    permalink: item.permalink,
+                    summary: item.summary || item.content || '',
+                    date: item.date,
+                    categories: item.categories || [],
+                    tags: item.tags || []
+                }));
+                // 初始化 Fuse.js 搜索引擎
+                fuse = new Fuse(postsData, {
+                    keys: ['title', 'summary', 'categories', 'tags'],
+                    threshold: 0.3,
+                    includeScore: true,
+                    minMatchCharLength: 2
+                });
+            })
+            .catch(err => console.error('无法加载 index.json', err));
+
+        // 实时搜索
+        searchInput.addEventListener('input', function() {
+            const query = this.value.trim();
+            if (!fuse || query.length < 2) {
+                resultsContainer.style.display = 'none';
+                return;
+            }
+            const result = fuse.search(query);
+            if (result.length === 0) {
+                resultsContainer.innerHTML = '<li style="color:#ccc; text-align:center;">未找到相关文章</li>';
+                resultsContainer.style.display = 'block';
+                return;
+            }
+            // 显示最多10条结果
+            const html = result.slice(0, 10).map(res => {
+                const item = res.item;
+                let summary = item.summary.replace(/<[^>]*>/g, '').substring(0, 100);
+                if (summary.length === 100) summary += '...';
+                return `
+                    <li>
+                        <a href="${item.permalink}">
+                            <strong>${item.title}</strong>
+                            <div class="search-summary">${summary}</div>
+                        </a>
+                    </li>
+                `;
+            }).join('');
+            resultsContainer.innerHTML = html;
+            resultsContainer.style.display = 'block';
+        });
+
+        // 点击页面其他地方关闭结果框
+        document.addEventListener('click', function(e) {
+            if (!searchInput.contains(e.target) && !resultsContainer.contains(e.target)) {
+                resultsContainer.style.display = 'none';
+            }
+        });
+    });
+})();
+</script>
