@@ -112,10 +112,12 @@ body {
     width: 240px;
 }
 
-/* 专辑封面 */
+/* 专辑封面 ———— 修改为 flex 居中，保证图片始终水平居中 */
 .player-cover {
     width: 100%;
-    text-align: center;
+    display: flex;
+    justify-content: center;   /* 水平居中 */
+    align-items: center;       /* 垂直居中（如果父容器有高度） */
 }
 .player-cover img {
     width: 140px;
@@ -124,6 +126,7 @@ body {
     border-radius: 16px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     transition: transform 0.2s;
+    display: block;            /* 避免行内元素产生额外间隙 */
 }
 .player-cover img:hover {
     transform: scale(1.02);
