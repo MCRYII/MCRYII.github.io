@@ -1,7 +1,23 @@
-body {
-    background-image: url('/bg-main.jpg');
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
-    background-repeat: no-repeat;
+/* 只在首页显示背景图 */
+body.home {
+    background-image: url('https://www.mcryii.fun/bg-main.jpg') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-attachment: fixed !important;
+    background-repeat: no-repeat !important;
+    background-color: #111;
+}
+
+/* 让首页的欢迎信息区域半透明，能透出背景 */
+body.home .home-info {
+    background-color: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(8px);
+    border-radius: 12px;
+}
+
+/* 让首页的文章列表卡片半透明 */
+body.home .post-entry {
+    background-color: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(4px);
+    border-radius: 8px;
 }
