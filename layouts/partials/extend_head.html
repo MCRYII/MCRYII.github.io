@@ -14,7 +14,73 @@ body {
     border-radius: 12px;
 }
 </style>
+{{- else if eq .RelPermalink "/posts/" -}}
+<style>
+body {
+    background-image: url('https://www.mcryii.fun/bg-posts.jpg') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-attachment: fixed !important;
+    background-repeat: no-repeat !important;
+    background-color: #111;
+}
+.post-entry {
+    background-color: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(8px);
+    border-radius: 12px;
+}
+</style>
+{{- else if eq .RelPermalink "/categories/" -}}
+<style>
+body {
+    background-image: url('https://www.mcryii.fun/bg-categories.jpg') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-attachment: fixed !important;
+    background-repeat: no-repeat !important;
+    background-color: #111;
+}
+.terms, .post-entry {
+    background-color: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(8px);
+    border-radius: 12px;
+}
+</style>
+{{- else if eq .RelPermalink "/tags/" -}}
+<style>
+body {
+    background-image: url('https://www.mcryii.fun/bg-tags.jpg') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-attachment: fixed !important;
+    background-repeat: no-repeat !important;
+    background-color: #111;
+}
+.terms, .post-entry {
+    background-color: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(8px);
+    border-radius: 12px;
+}
+</style>
+{{- else if eq .RelPermalink "/downloads/" -}}
+<style>
+body {
+    background-image: url('https://www.mcryii.fun/bg-downloads.jpg') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-attachment: fixed !important;
+    background-repeat: no-repeat !important;
+    background-color: #111;
+}
+.post-single {
+    background-color: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(8px);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px;
+}
+</style>
 {{- end -}}
+
 <script src="/js/cusdis-resize.js"></script>
 <link rel="stylesheet" href="/css/custom.css">
-
