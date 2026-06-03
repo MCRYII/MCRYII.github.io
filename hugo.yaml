@@ -9,7 +9,6 @@ params:
     Content: 这里记录我的学习、思考和见闻。
   ShowBreadCrumbs: true
   ShowReadingTime: true
-  ShowSearch: true
 
 menu:
   main:
@@ -33,9 +32,3 @@ menu:
 taxonomies:
   category: categories
   tag: tags
-
-outputs:
-  home:
-    - HTML
-    - RSS
-    - JSON
