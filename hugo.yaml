@@ -5,12 +5,12 @@ theme: 'PaperMod'
 
 params:
   homeInfoParams:
-    Title: 欢迎来到MCRYII的博客
+    标题: 欢迎来到MCRYII的博客
     Content: 这里记录我的学习、思考和见闻。
   ShowBreadCrumbs: true
   ShowReadingTime: true
   ShowSearch: true
-  Search: true
+  搜索: true
   fuseOpts:
     isCaseSensitive: false
     shouldSort: true
@@ -35,6 +35,10 @@ menu:
       name: 下载
       url: /downloads/
       weight: 40
+    - identifier: search
+      name: 搜索
+      url: /search/
+      weight: 50
 
 taxonomies:
   category: categories
