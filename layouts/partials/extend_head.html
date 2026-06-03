@@ -84,3 +84,105 @@ body {
 
 <script src="/js/cusdis-resize.js"></script>
 <link rel="stylesheet" href="/css/custom.css">
+
+<!-- ========== 全局音乐播放器 - 左上角 ========== -->
+<style>
+#global-music-player {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
+    border-radius: 30px;
+    padding: 5px 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    transition: all 0.3s ease;
+}
+#global-music-player:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+#global-music-player button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 5px;
+    line-height: 1;
+}
+#global-music-player input[type="range"] {
+    width: 80px;
+    accent-color: #5c4ee5;
+}
+#global-music-player .time, #global-music-player .song-title {
+    color: #ddd;
+    font-size: 12px;
+    font-family: monospace;
+    min-width: 40px;
+    white-space: nowrap;
+}
+.song-title {
+    margin-right: 5px;
+    font-weight: bold;
+    color: #fff !important;
+}
+</style>
+
+<div id="global-music-player">
+    <div class="song-title">夜の向日葵</div>
+    <button id="play-pause-btn" onclick="togglePlay()">▶️</button>
+    <span class="time" id="current-time">00:00</span>
+    <input type="range" id="seek-bar" value="0" oninput="seekAudio(this.value)">
+    <span class="time" id="duration-time">00:00</span>
+    <button onclick="toggleMute()">🔊</button>
+</div>
+
+<audio id="bg-music" src="/music/%E6%9D%BE%E6%9C%AC%E6%96%87%E7%B4%80%20-%20%E5%A4%9C%E3%81%AE%E5%90%91%E6%97%A5%E8%91%B5.mp3" preload="auto"></audio>
+
+<script>
+const audio = document.getElementById('bg-music');
+const playPauseBtn = document.getElementById('play-pause-btn');
+const seekBar = document.getElementById('seek-bar');
+const currentTimeSpan = document.getElementById('current-time');
+const durationTimeSpan = document.getElementById('duration-time');
+
+function togglePlay() {
+    if (audio.paused) {
+        audio.play();
+        playPauseBtn.textContent = '⏸️';
+    } else {
+        audio.pause();
+        playPauseBtn.textContent = '▶️';
+    }
+}
+
+function toggleMute() {
+    audio.muted = !audio.muted;
+    event.target.textContent = audio.muted ? '🔇' : '🔊';
+}
+
+audio.addEventListener('loadedmetadata', function() {
+    seekBar.max = Math.floor(audio.duration);
+    durationTimeSpan.textContent = formatTime(audio.duration);
+});
+
+audio.addEventListener('timeupdate', function() {
+    seekBar.value = Math.floor(audio.currentTime);
+    currentTimeSpan.textContent = formatTime(audio.currentTime);
+});
+
+function seekAudio(value) {
+    audio.currentTime = value;
+}
+
+function formatTime(seconds) {
+    if (isNaN(seconds)) return '00:00';
+    const min = Math.floor(seconds / 60);
+    const sec = Math.floor(seconds % 60);
+    return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+}
+</script>
