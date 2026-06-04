@@ -540,4 +540,113 @@ loadTrack(0);
     });
 })();
 </script>
+
+<!-- ==================== 图片懒加载 ==================== -->
+<script>
+// 自动为所有 <img> 添加 loading="lazy"
+document.addEventListener('DOMContentLoaded', function() {
+    const images = document.querySelectorAll('img');
+    images.forEach(img => {
+        if (!img.hasAttribute('loading')) {
+            img.setAttribute('loading', 'lazy');
+        }
+    });
+});
+</script>
+
 {{- end -}}
+
+<!-- ==================== 阅读进度条（仅文章页） + 回到顶部按钮（全站） ==================== -->
+<style>
+/* 顶部阅读进度条 - 样式始终存在，但容器只在文章页显示 */
+.progress-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: rgba(0, 0, 0, 0.15);
+    z-index: 10000;
+}
+.progress-bar {
+    width: 0%;
+    height: 100%;
+    background: #5c4ee5;
+    transition: width 0.08s ease;
+    box-shadow: 0 0 2px #5c4ee5;
+}
+/* 回到顶部按钮 */
+#go-top {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 44px;
+    height: 44px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 9999;
+    border: none;
+    color: white;
+    font-size: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+#go-top:hover {
+    background: rgba(0, 0, 0, 0.8);
+    transform: scale(1.05);
+}
+#go-top.show {
+    opacity: 1;
+    visibility: visible;
+}
+</style>
+
+{{- if .IsPage -}}
+<div class="progress-container">
+    <div class="progress-bar" id="reading-progress-bar"></div>
+</div>
+{{- end -}}
+
+<button id="go-top" title="回到顶部">↑</button>
+
+<script>
+(function() {
+    // 阅读进度条（仅在文章页面存在时执行）
+    const progressBar = document.getElementById('reading-progress-bar');
+    if (progressBar) {
+        function updateProgress() {
+            const scrollTop = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop;
+            const docHeight = document.documentElement.scrollHeight;
+            const winHeight = window.innerHeight;
+            const scrollPercent = (scrollTop / (docHeight - winHeight)) * 100;
+            progressBar.style.width = scrollPercent + '%';
+        }
+        window.addEventListener('scroll', updateProgress);
+        window.addEventListener('resize', updateProgress);
+        updateProgress();
+    }
+
+    // 回到顶部按钮（全站有效）
+    const goTopBtn = document.getElementById('go-top');
+    function toggleGoTop() {
+        if (window.scrollY > 300) {
+            goTopBtn.classList.add('show');
+        } else {
+            goTopBtn.classList.remove('show');
+        }
+    }
+    window.addEventListener('scroll', toggleGoTop);
+    toggleGoTop();
+
+    goTopBtn.addEventListener('click', function() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+})();
+</script>
