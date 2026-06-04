@@ -13,13 +13,68 @@ body {
     background-color: rgba(255, 255, 255, 0.75) !important;
     backdrop-filter: blur(8px);
     border-radius: 12px;
+    transition: all 0.3s ease !important;
 }
-/* 单独给欢迎语加居中，无背景 */
+.post-entry:hover {
+    transform: translateY(-4px) !important;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15) !important;
+}
+.post-entry .post-title a:hover {
+    color: #d4af37 !important;
+}
+/* 优化后的欢迎语样式（半透背景版）+ 入场动画 */
+/* 纯文字欢迎语，无任何背景 */
 .home-info {
     text-align: center !important;
     background: transparent !important;
     backdrop-filter: none !important;
     box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    max-width: none !important;
+    margin: 10vh auto 8rem auto !important; /* 调整垂直位置，更居中 */
+    position: relative;
+    z-index: 10;
+}
+
+/* 主标题：延迟1秒开始，1.2秒缓慢浮现 */
+.home-info h1 {
+    color: #d4af37 !important;
+    font-size: 3.5rem !important;
+    font-weight: 700 !important;
+    font-family: 'Georgia', 'Times New Roman', '宋体', serif !important;
+    /* 超强文字阴影，彻底隔离背景 */
+    text-shadow: 
+        0 0 2px rgba(0,0,0,0.9),
+        0 0 6px rgba(0,0,0,0.7),
+        2px 2px 10px rgba(0,0,0,0.6),
+        0 0 15px rgba(212,175,55,0.3) !important;
+    margin-bottom: 1.2rem !important;
+    opacity: 0; /* 初始完全透明 */
+    animation: fadeInSlow 1.2s ease-out 1s forwards !important;
+}
+
+/* 副标题：延迟1.5秒开始，1秒缓慢浮现 */
+.home-info p {
+    color: #f8f0e3 !important; /* 更亮的米白色 */
+    font-size: 1.25rem !important;
+    font-weight: 500 !important;
+    text-shadow: 
+        0 0 2px rgba(0,0,0,0.9),
+        1px 1px 6px rgba(0,0,0,0.8) !important;
+    letter-spacing: 1px !important;
+    opacity: 0; /* 初始完全透明 */
+    animation: fadeInSlow 1s ease-out 1.5s forwards !important;
+}
+
+/* 定义缓慢浮现动画（只有透明度变化，没有位移） */
+@keyframes fadeInSlow {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 </style>
 {{- else if eq .RelPermalink "/posts/" -}}
@@ -36,6 +91,14 @@ body {
     background-color: rgba(255, 255, 255, 0.75) !important;
     backdrop-filter: blur(8px);
     border-radius: 12px;
+    transition: all 0.3s ease !important;
+}
+.post-entry:hover {
+    transform: translateY(-4px) !important;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15) !important;
+}
+.post-entry .post-title a:hover {
+    color: #d4af37 !important;
 }
 </style>
 {{- else if eq .RelPermalink "/categories/" -}}
@@ -52,6 +115,14 @@ body {
     background-color: rgba(255, 255, 255, 0.75) !important;
     backdrop-filter: blur(8px);
     border-radius: 12px;
+    transition: all 0.3s ease !important;
+}
+.post-entry:hover {
+    transform: translateY(-4px) !important;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15) !important;
+}
+.post-entry .post-title a:hover {
+    color: #d4af37 !important;
 }
 </style>
 {{- else if eq .RelPermalink "/tags/" -}}
@@ -68,6 +139,14 @@ body {
     background-color: rgba(255, 255, 255, 0.75) !important;
     backdrop-filter: blur(8px);
     border-radius: 12px;
+    transition: all 0.3s ease !important;
+}
+.post-entry:hover {
+    transform: translateY(-4px) !important;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15) !important;
+}
+.post-entry .post-title a:hover {
+    color: #d4af37 !important;
 }
 </style>
 {{- else if eq .RelPermalink "/downloads/" -}}
@@ -90,7 +169,50 @@ body {
 </style>
 {{- end -}}
 
-<!-- ==================== 左侧悬浮音乐播放器【修复完整版】 ==================== -->
+<!-- ==================== 全局通用样式 ==================== -->
+<style>
+/* ========== 导航栏不随页面滑动 ========== */
+body > .header {
+    position: relative !important;
+    background: transparent !important;
+    padding: 12px 20px !important;
+    margin: 0 !important;
+}
+
+body > .header a {
+    transition: color 0.2s ease !important;
+}
+body > .header a:hover {
+    color: #d4af37 !important;
+    text-decoration: none !important;
+}
+body > .header .avatar {
+    transition: transform 0.2s ease !important;
+}
+body > .header .avatar:hover {
+    transform: scale(1.1) !important;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(212, 175, 55, 0.6);
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(212, 175, 55, 0.8);
+}
+</style>
+
+<!-- ==================== 左侧悬浮音乐播放器【优化完整版】 ==================== -->
 <style>
 #global-music-player {
     position: fixed;
@@ -111,17 +233,18 @@ body {
     transition: all 0.3s ease;
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     box-sizing: border-box;
+    opacity: 0.85; /* 默认半透明，减少遮挡 */
 }
 #global-music-player.fold-status {
-    left: calc(-240px + 18px); /* 盒子左移隐藏，18px=按钮宽度，刚好按钮留在原位 */
+    left: calc(-240px + 18px);
 }
 #global-music-player:hover {
     background: rgba(0, 0, 0, 0.85);
+    opacity: 1; /* 鼠标悬停时完全显示 */
 }
-/* 折叠箭头按钮修复：统一圆角、尺寸、旋转 */
 .fold-toggle-btn {
     position: absolute;
-    right: -12px; /* 按钮卡在播放器边缘居中 */
+    right: -12px;
     top: 50%;
     transform: translateY(-50%);
     width: 24px;
@@ -140,10 +263,9 @@ body {
     justify-content:center;
 }
 .fold-toggle-btn:hover {
-    background: rgba(92, 78, 229, 0.7);
+    background: rgba(212, 175, 55, 0.7) !important; /* 鎏金色hover */
     color: #fff;
 }
-/* 收起状态按钮只旋转，不修改宽高圆角 */
 #global-music-player.fold-status .fold-toggle-btn {
     transform: translateY(-50%);
 }
@@ -161,6 +283,9 @@ body {
     border-radius: 16px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     transition: transform 0.2s;
+}
+.player-cover img.playing {
+    animation-play-state: running; /* 播放时旋转 */
 }
 .song-title {
     font-weight: bold;
@@ -194,7 +319,7 @@ body {
     transition: background 0.2s;
 }
 .controls-row button:hover{
-    background:#5c4ee5;
+    background: #d4af37 !important; /* 鎏金色按钮 */
 }
 .volume-control {
     display: flex;
@@ -216,8 +341,7 @@ body {
     margin-top:4px;
 }
 
-/* ==========重点：自定义滑动条，修复无法拖动+滑块难看问题========== */
-/* 全局重置range样式：进度条+音量条 */
+/* 自定义滑动条（鎏金色） */
 input[type="range"] {
     -webkit-appearance: none !important;
     appearance: none !important;
@@ -227,13 +351,12 @@ input[type="range"] {
     width:100%;
     margin:0;
 }
-/* 滑块样式（拖动圆点） */
 input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance:none;
     width:14px;
     height:14px;
     border-radius:50%;
-    background:#5c4ee5;
+    background: #d4af37 !important; /* 鎏金色滑块 */
     cursor:pointer;
     border:2px solid #fff;
     margin-top:-4px;
@@ -242,18 +365,18 @@ input[type="range"]::-moz-range-thumb {
     width:14px;
     height:14px;
     border-radius:50%;
-    background:#5c4ee5;
+    background: #d4af37 !important; /* 鎏金色滑块 */
     cursor:pointer;
     border:2px solid #fff;
 }
-/* 音量条单独宽度 */
 .volume-control input[type="range"]{
     width:100px;
 }
 </style>
 
-<div id="global-music-player">
-    <button class="fold-toggle-btn">◀</button>
+<!-- 播放器默认折叠 -->
+<div id="global-music-player" class="fold-status">
+    <button class="fold-toggle-btn">▶</button>
 
     <div class="player-cover">
         <img id="album-cover" src="" alt="专辑封面">
@@ -280,10 +403,12 @@ input[type="range"]::-moz-range-thumb {
 
 <audio id="bg-music" src="" preload="metadata"></audio>
 <script>
+// 注意：请将音乐文件上传到你博客的 static/music/ 目录下
 const playlist = [
     { title: "夜の向日葵", artist: "松本文紀", cover: "https://picsum.photos/id/106/140/140", src: "/music/night-sunflower.mp3" },
-    { title: "示例歌曲2", artist: "示例艺术家", cover: "https://picsum.photos/id/100/140/140", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
-    { title: "示例歌曲3", artist: "另一位艺术家", cover: "https://picsum.photos/id/101/140/140", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" }
+    // 请将以下两个替换为你自己的音乐文件
+    { title: "夏影", artist: "麻枝准", cover: "https://picsum.photos/id/100/140/140", src: "/music/summer-shadow.mp3" },
+    { title: "空に光る", artist: "折户伸治", cover: "https://picsum.photos/id/101/140/140", src: "/music/shine-in-sky.mp3" }
 ];
 let currentTrackIndex = 0;
 const audio = document.getElementById('bg-music');
@@ -302,11 +427,10 @@ const playerWrap = document.getElementById('global-music-player');
 const foldBtn = document.querySelector('.fold-toggle-btn');
 foldBtn.addEventListener('click', ()=>{
     playerWrap.classList.toggle('fold-status');
-    // 根据状态改变按钮内的字符，而不是旋转
     if (playerWrap.classList.contains('fold-status')) {
-        foldBtn.textContent = '▶';   // 收起状态：箭头朝右
+        foldBtn.textContent = '▶';
     } else {
-        foldBtn.textContent = '◀';   // 展开状态：箭头朝左
+        foldBtn.textContent = '◀';
     }
 })
 
@@ -341,8 +465,7 @@ function togglePlay() {
         playPauseBtn.textContent = '⏸';
     } else {
         audio.pause();
-        playPauseBtn.textContent = '▶';
-    }
+        playPauseBtn.textContent = '▶';    }
 }
 audio.volume = volumeSlider.value;
 volumeSlider.addEventListener('input', function() {
@@ -359,7 +482,6 @@ audio.addEventListener('timeupdate', function() {
     seekBar.value = Math.floor(audio.currentTime);
     currentTimeSpan.textContent = formatTime(audio.currentTime);
 });
-// 保留input+change双事件，保证拖动实时跳转
 seekBar.addEventListener('input', function() { audio.currentTime = this.value; });
 seekBar.addEventListener('change', function() { audio.currentTime = this.value; });
 function formatTime(seconds) {
@@ -376,7 +498,7 @@ loadTrack(0);
 </script>
 
 {{- if or .IsHome .IsPage -}}
-<!-- ==================== 搜索栏（仅主页和文章页，随页面滚动） ==================== -->
+<!-- ==================== 搜索栏（仅主页和文章页） ==================== -->
 <style>
 #search-container {
     position: absolute;
@@ -405,6 +527,7 @@ loadTrack(0);
 #search-input:focus {
     background: rgba(0, 0, 0, 0.85);
     width: 360px;
+    box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.5) !important; /* 鎏金色发光边框 */
 }
 #search-input::placeholder {
     color: #ccc;
@@ -438,7 +561,7 @@ loadTrack(0);
     font-size: 0.9rem;
 }
 #search-results li a:hover {
-    color: #5c4ee5;
+    color: #d4af37 !important;
 }
 #search-results .search-summary {
     font-size: 0.75rem;
@@ -453,7 +576,7 @@ loadTrack(0);
     border-radius: 10px;
 }
 #search-results::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.3);
+    background: rgba(212,175,55,0.3);
     border-radius: 10px;
 }
 </style>
@@ -463,7 +586,8 @@ loadTrack(0);
     <ul id="search-results"></ul>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
+<!-- 修复：使用国内可访问的Fuse.js CDN -->
+<script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/fuse.js/6.6.2/fuse.min.js"></script>
 <script>
 (function() {
     document.addEventListener('DOMContentLoaded', function() {
@@ -556,9 +680,9 @@ document.addEventListener('DOMContentLoaded', function() {
 .progress-bar {
     width: 0%;
     height: 100%;
-    background: #5c4ee5;
+    background: #d4af37 !important; /* 鎏金色进度条 */
     transition: width 0.08s ease;
-    box-shadow: 0 0 2px #5c4ee5;
+    box-shadow: 0 0 2px #d4af37 !important;
 }
 #go-top {
     position: fixed;
@@ -583,7 +707,7 @@ document.addEventListener('DOMContentLoaded', function() {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 #go-top:hover {
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(212, 175, 55, 0.8) !important; /* 鎏金色hover */
     transform: scale(1.05);
 }
 #go-top.show {
@@ -602,13 +726,40 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script>
 (function() {
+    // 导航栏滚动效果（需要确保主题导航栏有 .header 类）
+    const header = document.querySelector('.header');
+    if (header) {
+        window.addEventListener('scroll', function() {
+            if (window.scrollY > 50) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+        });
+    }
+
+    // 欢迎语滚动淡出效果（仅主页，通过 JS 判断路径）
+    if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+        const homeInfo = document.querySelector('.home-info');
+        if (homeInfo) {
+            window.addEventListener('scroll', function() {
+                const scrollY = window.scrollY;
+                const opacity = 1 - (scrollY / 300);
+                homeInfo.style.opacity = Math.max(0, opacity);
+                homeInfo.style.transform = `translateY(${scrollY * 0.3}px)`;
+            });
+        }
+    }
+
+    // 阅读进度条（仅在文章页，通过判断是否有进度条元素）
     const progressBar = document.getElementById('reading-progress-bar');
     if (progressBar) {
         function updateProgress() {
             const scrollTop = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop;
             const docHeight = document.documentElement.scrollHeight;
             const winHeight = window.innerHeight;
-            const scrollPercent = (scrollTop / (docHeight - winHeight)) * 100;
+            const maxScroll = docHeight - winHeight;
+            const scrollPercent = maxScroll > 0 ? (scrollTop / maxScroll) * 100 : 0;
             progressBar.style.width = scrollPercent + '%';
         }
         window.addEventListener('scroll', updateProgress);
@@ -616,19 +767,22 @@ document.addEventListener('DOMContentLoaded', function() {
         updateProgress();
     }
 
+    // 回到顶部按钮
     const goTopBtn = document.getElementById('go-top');
-    function toggleGoTop() {
-        if (window.scrollY > 300) {
-            goTopBtn.classList.add('show');
-        } else {
-            goTopBtn.classList.remove('show');
+    if (goTopBtn) {
+        function toggleGoTop() {
+            if (window.scrollY > 300) {
+                goTopBtn.classList.add('show');
+            } else {
+                goTopBtn.classList.remove('show');
+            }
         }
-    }
-    window.addEventListener('scroll', toggleGoTop);
-    toggleGoTop();
+        window.addEventListener('scroll', toggleGoTop);
+        toggleGoTop();
 
-    goTopBtn.addEventListener('click', function() {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
+        goTopBtn.addEventListener('click', function() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
 })();
 </script>
