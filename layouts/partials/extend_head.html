@@ -587,56 +587,81 @@ loadTrack(0);
 </div>
 
 <!-- 修复：使用国内可访问的Fuse.js CDN -->
-<script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/fuse.js/6.6.2/fuse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.6.2/fuse.min.js"></script>
 <script>
 (function() {
-    document.addEventListener('DOMContentLoaded', function() {
+    // 等待 DOM 完全加载
+    function init() {
         const searchInput = document.getElementById('search-input');
         const resultsContainer = document.getElementById('search-results');
+        if (!searchInput) return;
+
         let fuse = null;
         let postsData = [];
 
-        fetch('/index.json')
-            .then(response => response.json())
+        // 显示加载状态
+        resultsContainer.innerHTML = '<li style="color:#ccc; text-align:center;">🔍 正在加载索引...</li>';
+        resultsContainer.style.display = 'block';
+
+        // 获取索引文件
+        fetch('/index.json', { cache: 'no-store' })
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.json();
+            })
             .then(data => {
+                if (!Array.isArray(data) || data.length === 0) {
+                    throw new Error('索引数据为空');
+                }
                 postsData = data.map(item => ({
                     title: item.title || '无标题',
                     permalink: item.permalink,
-                    summary: item.summary || item.content || '',
-                    date: item.date,
+                    summary: (item.summary || item.content || '').replace(/<[^>]*>/g, '').substring(0, 200),
                     categories: item.categories || [],
                     tags: item.tags || []
                 }));
+                // 初始化 Fuse.js
                 fuse = new Fuse(postsData, {
                     keys: ['title', 'summary', 'categories', 'tags'],
                     threshold: 0.3,
                     includeScore: true,
                     minMatchCharLength: 2
                 });
+                // 隐藏加载提示
+                resultsContainer.innerHTML = '';
+                resultsContainer.style.display = 'none';
+                console.log(`✅ 搜索索引加载成功，共 ${postsData.length} 篇文章`);
             })
-            .catch(err => console.error('无法加载 index.json', err));
+            .catch(err => {
+                console.error('❌ 加载搜索索引失败:', err);
+                let errMsg = '搜索索引加载失败，请刷新重试';
+                if (err.message.includes('404')) errMsg = '索引文件不存在，请确认 hugo.yaml 已配置 outputs 并重启服务器';
+                resultsContainer.innerHTML = `<li style="color:#f66; text-align:center;">❌ ${errMsg}</li>`;
+                resultsContainer.style.display = 'block';
+            });
 
+        // 输入搜索
         searchInput.addEventListener('input', function() {
             const query = this.value.trim();
             if (!fuse || query.length < 2) {
                 resultsContainer.style.display = 'none';
                 return;
             }
-            const result = fuse.search(query);
-            if (result.length === 0) {
-                resultsContainer.innerHTML = '<li style="color:#ccc; text-align:center;">未找到相关文章</li>';
+            const results = fuse.search(query);
+            if (results.length === 0) {
+                resultsContainer.innerHTML = '<li style="color:#ccc; text-align:center;">😢 未找到相关文章</li>';
                 resultsContainer.style.display = 'block';
                 return;
             }
-            const html = result.slice(0, 10).map(res => {
+            const html = results.slice(0, 10).map(res => {
                 const item = res.item;
-                let summary = item.summary.replace(/<[^>]*>/g, '').substring(0, 100);
-                if (summary.length === 100) summary += '...';
+                let summary = item.summary;
+                if (summary.length > 100) summary = summary.substring(0, 100) + '…';
                 return `
                     <li>
                         <a href="${item.permalink}">
-                            <strong>${item.title}</strong>
-                            <div class="search-summary">${summary}</div>
+                            <strong>${escapeHtml(item.title)}</strong>
+                            <div class="search-summary">${escapeHtml(summary)}</div>
                         </a>
                     </li>
                 `;
@@ -645,15 +670,32 @@ loadTrack(0);
             resultsContainer.style.display = 'block';
         });
 
+        // 点击外部关闭结果框
         document.addEventListener('click', function(e) {
             if (!searchInput.contains(e.target) && !resultsContainer.contains(e.target)) {
                 resultsContainer.style.display = 'none';
             }
         });
-    });
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+    }
+
+    // 确保 DOM 加载完成后执行
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
 })();
 </script>
-
 <!-- ==================== 图片懒加载 ==================== -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
