@@ -8,6 +8,7 @@ import shutil
 import webbrowser
 import json
 from pathlib import Path
+from PIL import Image, ImageTk
 
 # ================== 配置区域 ==================
 BLOG_ROOT = r"D:\Downloads\Programs\myblog-new"   # 请修改为你的博客根目录
@@ -16,7 +17,7 @@ IMAGES_DIR = os.path.join(BLOG_ROOT, "static", "images")
 # =============================================
 
 class TagInputWidget(tk.Frame):
-    """分类/标签输入组件：支持按回车添加，显示为带删除按钮的色块"""
+    # ... (保持原有代码不变，省略以节省篇幅，实际使用时请保留完整)
     def __init__(self, master, title="", **kwargs):
         super().__init__(master, **kwargs)
         self.title = title
@@ -73,16 +74,18 @@ class HugoBlogTool:
     def __init__(self, root):
         self.root = root
         self.root.title("Hugo 博客写作助手 - MCRYII")
-        self.root.geometry("1100x800")
+        self.root.geometry("1200x900")
         self.root.resizable(True, True)
 
         self.current_file_path = None
         self.preview_process = None
+        self.image_preview_cache = {}
 
         self.create_widgets()
         self.refresh_article_list()
+        self.text_area.bind("<<Modified>>", self.on_text_modified)
+        self.after_id = None
 
-    # 注意：这里缩进必须是 4 个空格（或一个 tab），之前多了一个空格导致错误
     def create_widgets(self):
         # 主布局
         main_pane = tk.PanedWindow(self.root, orient=tk.HORIZONTAL, sashrelief=tk.RAISED, sashwidth=6)
@@ -99,35 +102,44 @@ class HugoBlogTool:
         self.article_listbox.config(yscrollcommand=scrollbar.set)
         self.article_listbox.bind("<Double-Button-1>", self.load_selected_article)
 
-        # 右侧编辑区
-        right_frame = tk.Frame(main_pane)
-        main_pane.add(right_frame, width=800)
+        # 右侧垂直分割
+        right_pane = tk.PanedWindow(main_pane, orient=tk.VERTICAL, sashrelief=tk.RAISED, sashwidth=6)
+        main_pane.add(right_pane, width=800)
+
+        top_frame = tk.Frame(right_pane)
+        right_pane.add(top_frame, height=500)
 
         # 文章元数据
-        meta_frame = tk.LabelFrame(right_frame, text="文章元数据", padx=10, pady=10)
+        meta_frame = tk.LabelFrame(top_frame, text="文章元数据", padx=10, pady=10)
         meta_frame.pack(fill=tk.X, pady=5)
 
-        # 标题
+        # 第0行：标题
         tk.Label(meta_frame, text="标题:").grid(row=0, column=0, sticky="w", pady=2)
         self.title_entry = tk.Entry(meta_frame, width=60)
         self.title_entry.grid(row=0, column=1, padx=5, pady=2, sticky="ew", columnspan=3)
 
-        # 分类组件
+        # 第1行：发布日期（新增）
+        tk.Label(meta_frame, text="发布日期:", anchor="w").grid(row=1, column=0, sticky="w", pady=2)
+        self.date_entry = tk.Entry(meta_frame, width=30)
+        self.date_entry.grid(row=1, column=1, sticky="w", padx=5, pady=2)
+        tk.Label(meta_frame, text="格式: 2026-06-06T21:24:37+08:00 (留空则自动生成当前时间)", fg="gray", font=("微软雅黑", 8)).grid(row=1, column=2, columnspan=2, sticky="w", padx=5)
+
+        # 第2行：分类组件
         self.categories_widget = TagInputWidget(meta_frame, title="分类（回车添加）")
-        self.categories_widget.grid(row=1, column=0, columnspan=4, sticky="ew", pady=5)
+        self.categories_widget.grid(row=2, column=0, columnspan=4, sticky="ew", pady=5)
 
-        # 标签组件
+        # 第3行：标签组件
         self.tags_widget = TagInputWidget(meta_frame, title="标签（回车添加）")
-        self.tags_widget.grid(row=2, column=0, columnspan=4, sticky="ew", pady=5)
+        self.tags_widget.grid(row=3, column=0, columnspan=4, sticky="ew", pady=5)
 
-        # 草稿标记
+        # 第4行：草稿标记
         self.draft_var = tk.BooleanVar()
-        tk.Checkbutton(meta_frame, text="草稿（draft: true）", variable=self.draft_var).grid(row=3, column=0, columnspan=4, sticky="w", pady=5)
+        tk.Checkbutton(meta_frame, text="草稿（draft: true）", variable=self.draft_var).grid(row=4, column=0, columnspan=4, sticky="w", pady=5)
 
         meta_frame.columnconfigure(1, weight=1)
 
-        # ========== 工具栏：放在正文标签和正文编辑区之间 ==========
-        tool_frame = tk.Frame(right_frame)
+        # 工具栏
+        tool_frame = tk.Frame(top_frame)
         tool_frame.pack(fill=tk.X, pady=5)
 
         btn_new = tk.Button(tool_frame, text="📄 新建文章", command=self.new_article, bg="#2196F3", fg="white")
@@ -146,9 +158,26 @@ class HugoBlogTool:
         btn_refresh.pack(side=tk.LEFT, padx=2)
 
         # 正文标签
-        tk.Label(right_frame, text="正文（Markdown格式）:", anchor="w").pack(fill=tk.X, pady=(10,0))
-        self.text_area = scrolledtext.ScrolledText(right_frame, wrap=tk.WORD, height=20, font=("Consolas", 11))
+        tk.Label(top_frame, text="正文（Markdown格式）:", anchor="w").pack(fill=tk.X, pady=(10,0))
+        self.text_area = scrolledtext.ScrolledText(top_frame, wrap=tk.WORD, height=15, font=("Consolas", 11))
         self.text_area.pack(fill=tk.BOTH, expand=True, pady=5)
+
+        # 图片预览区
+        bottom_frame = tk.LabelFrame(right_pane, text="📷 文章图片预览（点击路径可复制）", padx=5, pady=5)
+        right_pane.add(bottom_frame, height=200)
+
+        self.preview_canvas = tk.Canvas(bottom_frame, bg="#f0f0f0")
+        scrollbar_x = tk.Scrollbar(bottom_frame, orient=tk.HORIZONTAL, command=self.preview_canvas.xview)
+        scrollbar_y = tk.Scrollbar(bottom_frame, orient=tk.VERTICAL, command=self.preview_canvas.yview)
+        self.preview_canvas.configure(xscrollcommand=scrollbar_x.set, yscrollcommand=scrollbar_y.set)
+        self.preview_inner = tk.Frame(self.preview_canvas)
+        self.preview_canvas.create_window((0,0), window=self.preview_inner, anchor="nw")
+
+        self.preview_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar_x.pack(side=tk.BOTTOM, fill=tk.X)
+        scrollbar_y.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.preview_inner.bind("<Configure>", lambda e: self.preview_canvas.configure(scrollregion=self.preview_canvas.bbox("all")))
 
         # 状态栏
         self.status_var = tk.StringVar()
@@ -156,9 +185,94 @@ class HugoBlogTool:
         status_bar = tk.Label(self.root, textvariable=self.status_var, bd=1, relief=tk.SUNKEN, anchor=tk.W)
         status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
-    # 新建文章
+    def on_text_modified(self, event=None):
+        self.text_area.edit_modified(False)
+        if self.after_id:
+            self.root.after_cancel(self.after_id)
+        self.after_id = self.root.after(500, self.update_image_preview)
+
+    def update_image_preview(self):
+        for widget in self.preview_inner.winfo_children():
+            widget.destroy()
+        content = self.text_area.get("1.0", tk.END)
+        pattern = r'!\[.*?\]\((.*?)\)'
+        image_urls = re.findall(pattern, content)
+        if not image_urls:
+            tip = tk.Label(self.preview_inner, text="（当前文章中没有图片，使用“插入图片”按钮添加）", fg="gray")
+            tip.pack(padx=10, pady=10)
+            return
+
+        for url in image_urls:
+            frame = tk.Frame(self.preview_inner, relief=tk.RAISED, bd=1)
+            frame.pack(side=tk.LEFT, padx=5, pady=5, anchor="n")
+            # 加载缩略图
+            thumb = None
+            if url.startswith('/images/'):
+                local_path = os.path.join(BLOG_ROOT, "static", url[1:])
+                if os.path.exists(local_path):
+                    try:
+                        pil_img = Image.open(local_path)
+                        pil_img.thumbnail((100, 100))
+                        thumb = ImageTk.PhotoImage(pil_img)
+                    except:
+                        pass
+            if thumb:
+                img_label = tk.Label(frame, image=thumb)
+                img_label.image = thumb
+                img_label.pack(padx=2, pady=2)
+            else:
+                tk.Label(frame, text="⚠️ 无法预览", bg="#ddd", width=10, height=4).pack(padx=2, pady=2)
+            # 路径
+            path_short = url if len(url) < 40 else url[:37] + "..."
+            lbl_path = tk.Label(frame, text=path_short, fg="blue", cursor="hand2", font=("Consolas", 8))
+            lbl_path.pack(pady=2)
+            lbl_path.bind("<Button-1>", lambda e, u=url: self.copy_image_path(u))
+            # 删除按钮
+            del_btn = tk.Button(frame, text="删除", fg="red", command=lambda u=url: self.remove_image_from_text(u))
+            del_btn.pack(pady=2)
+
+        self.preview_canvas.configure(scrollregion=self.preview_canvas.bbox("all"))
+
+    def copy_image_path(self, url):
+        self.root.clipboard_clear()
+        self.root.clipboard_append(url)
+        self.status_var.set(f"已复制图片路径: {url}")
+
+    def remove_image_from_text(self, url):
+        content = self.text_area.get("1.0", tk.END)
+        pattern = r'!\[.*?\]\(' + re.escape(url) + r'\)'
+        new_content = re.sub(pattern, '', content, count=1)
+        self.text_area.delete("1.0", tk.END)
+        self.text_area.insert("1.0", new_content)
+        self.status_var.set(f"已删除图片: {url}")
+        self.update_image_preview()
+
+    # ------------------ 新增日期相关 ------------------
+    def get_current_time_str(self):
+        """返回当前时间的 Hugo 格式字符串"""
+        return datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S+08:00")
+
+    def validate_date(self, date_str):
+        """简单验证日期格式是否符合 Hugo 要求，不符合则返回当前时间"""
+        if not date_str:
+            return self.get_current_time_str()
+        # 尝试解析常见格式（允许用户输入 YYYY-MM-DD 自动补充时间）
+        if re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
+            date_str = date_str + "T00:00:00+08:00"
+        # 验证完整格式
+        pattern = r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+08:00$'
+        if re.match(pattern, date_str):
+            return date_str
+        else:
+            # 格式错误，提示并使用当前时间
+            messagebox.showwarning("日期格式错误", f"日期格式不正确，已使用当前时间。\n正确格式: 2026-06-06T21:24:37+08:00 或 2026-06-06")
+            return self.get_current_time_str()
+
+    # ------------------ 新建文章 ------------------
     def new_article(self):
         self.title_entry.delete(0, tk.END)
+        self.date_entry.delete(0, tk.END)
+        self.date_entry.insert(0, self.get_current_time_str())
         self.categories_widget.set_tags([])
         self.tags_widget.set_tags([])
         self.draft_var.set(False)
@@ -166,8 +280,9 @@ class HugoBlogTool:
         self.current_file_path = None
         self.status_var.set("新建文章，填写内容后保存即可")
         self.title_entry.focus_set()
+        self.update_image_preview()
 
-    # 递归获取所有 .md 文件
+    # ------------------ 文章列表扫描 ------------------
     def get_all_md_files(self):
         md_files = []
         if not os.path.isdir(POSTS_BASE):
@@ -186,7 +301,7 @@ class HugoBlogTool:
         for rel in self.get_all_md_files():
             self.article_listbox.insert(tk.END, rel)
 
-    # 加载选中文章
+    # ------------------ 加载文章 ------------------
     def load_selected_article(self, event=None):
         selection = self.article_listbox.curselection()
         if not selection:
@@ -204,7 +319,9 @@ class HugoBlogTool:
         if front_match:
             yaml_text = front_match.group(1)
             body = front_match.group(2)
+            # 提取各个字段
             title_match = re.search(r'title:\s*["\']?(.*?)["\']?\s*$', yaml_text, re.MULTILINE)
+            date_match = re.search(r'date:\s*(.*?)\s*$', yaml_text, re.MULTILINE)
             categories_match = re.search(r'categories:\s*\[(.*?)\]', yaml_text)
             tags_match = re.search(r'tags:\s*\[(.*?)\]', yaml_text)
             draft_match = re.search(r'draft:\s*(true|false)', yaml_text)
@@ -212,6 +329,12 @@ class HugoBlogTool:
             if title_match:
                 self.title_entry.delete(0, tk.END)
                 self.title_entry.insert(0, title_match.group(1).strip('"\' '))
+            if date_match:
+                self.date_entry.delete(0, tk.END)
+                self.date_entry.insert(0, date_match.group(1).strip())
+            else:
+                self.date_entry.delete(0, tk.END)
+                self.date_entry.insert(0, self.get_current_time_str())
             if categories_match:
                 cats_str = categories_match.group(1)
                 try:
@@ -237,15 +360,22 @@ class HugoBlogTool:
             self.categories_widget.set_tags([])
             self.tags_widget.set_tags([])
             self.draft_var.set(False)
+            self.date_entry.delete(0, tk.END)
+            self.date_entry.insert(0, self.get_current_time_str())
 
         self.text_area.delete("1.0", tk.END)
         self.text_area.insert("1.0", body.strip())
         self.current_file_path = full_path
         self.status_var.set(f"已加载: {rel_path}")
+        self.update_image_preview()
 
-    # 生成 Front Matter
-    def generate_front_matter(self, title, categories, tags, draft):
-        date_str = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S+08:00")
+    # ------------------ 生成 Front Matter ------------------
+    def generate_front_matter(self, title, date_str, categories, tags, draft):
+        # 如果用户没有输入日期，自动生成当前时间
+        if not date_str:
+            date_str = self.get_current_time_str()
+        else:
+            date_str = self.validate_date(date_str)
         cat_yaml = json.dumps(categories, ensure_ascii=False)
         tag_yaml = json.dumps(tags, ensure_ascii=False)
         draft_str = "true" if draft else "false"
@@ -259,12 +389,13 @@ draft: {draft_str}
 
 """
 
-    # 保存文章
+    # ------------------ 保存文章 ------------------
     def save_article(self):
         title = self.title_entry.get().strip()
         if not title:
             messagebox.showwarning("提示", "标题不能为空")
             return
+        date_str = self.date_entry.get().strip()
         categories = self.categories_widget.get_tags()
         tags = self.tags_widget.get_tags()
         draft = self.draft_var.get()
@@ -277,7 +408,7 @@ draft: {draft_str}
             filename = safe_title.replace(' ', '-') + ".md"
             filepath = os.path.join(POSTS_BASE, filename)
 
-        front = self.generate_front_matter(title, categories, tags, draft)
+        front = self.generate_front_matter(title, date_str, categories, tags, draft)
         full_content = front + body
 
         try:
@@ -292,7 +423,7 @@ draft: {draft_str}
         except Exception as e:
             messagebox.showerror("错误", f"保存失败: {e}")
 
-    # 插入图片
+    # ------------------ 插入图片 ------------------
     def insert_image(self):
         if not os.path.isdir(IMAGES_DIR):
             os.makedirs(IMAGES_DIR, exist_ok=True)
@@ -313,8 +444,9 @@ draft: {draft_str}
         img_md = f"![{alt}]({rel_path})\n\n"
         self.text_area.insert(tk.INSERT, img_md)
         self.status_var.set("图片已复制并插入")
+        self.update_image_preview()
 
-    # 预览网站
+    # ------------------ 预览网站 ------------------
     def preview_site(self):
         import socket
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -332,7 +464,7 @@ draft: {draft_str}
         self.status_var.set("预览服务器已启动，等待几秒后自动打开浏览器...")
         self.root.after(3000, lambda: webbrowser.open("http://localhost:1314"))
 
-    # 推送到 GitHub
+    # ------------------ 推送到 GitHub ------------------
     def push_to_github(self):
         if not messagebox.askyesno("确认推送", "确定要将所有本地更改推送到 GitHub 吗？\n请确保预览无误后再操作。"):
             return
@@ -359,7 +491,7 @@ draft: {draft_str}
             self.status_var.set("未知错误")
             messagebox.showerror("错误", str(e))
 
-    # 删除当前文章
+    # ------------------ 删除当前文章 ------------------
     def delete_article(self):
         if not self.current_file_path or not os.path.exists(self.current_file_path):
             messagebox.showwarning("提示", "没有打开的文章可删除")
@@ -376,7 +508,6 @@ draft: {draft_str}
                 messagebox.showerror("错误", f"删除失败: {e}")
 
 if __name__ == "__main__":
-    # 检查目录
     if not os.path.isdir(BLOG_ROOT):
         print(f"错误：博客目录不存在 - {BLOG_ROOT}")
         print("请修改代码中的 BLOG_ROOT 变量")
