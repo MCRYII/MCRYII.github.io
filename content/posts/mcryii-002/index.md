@@ -2,11 +2,11 @@
 title: "更多的MCRYII"
 date: 2026-06-05T22:29:22+08:00
 categories: ["MCRYII"]
-tags: ["分享", "可爱"]
+tags: ["分享", "可爱", "ai", "gpt"]
 draft: false
 ---
 
-可爱捏：
+可爱捏（gpt跑出来的）：
 ![1000218416](/images/1000218416_1.png)
 
 ![1000218418](/images/1000218418.png)

@@ -2,10 +2,10 @@
 title: "MCRYII形象的诞生！！！！"
 date: 2026-06-04T21:24:37+08:00
 categories: ["MCRYII"]
-tags: ["美少女", "分享"]
+tags: ["分享", "ai", "gpt"]
 draft: false
 ---
 
-MCRYII隆重登场（其实也相当有瑕疵）✪ω✪：
+MCRYII隆重登场（本地模型跑的图拿给gpt修改，眼睛有瑕疵）✪ω✪：
 
 ![MCRYII](https://i.ibb.co/Xk7pHTBq/meitu.png)
