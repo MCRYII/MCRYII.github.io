@@ -1,7 +1,6 @@
 <!-- ==================== 不同页面的背景样式 ==================== -->
 {{- if .IsHome -}}
 <style>
-/* 主页背景及卡片效果 */
 body {
     background-image: url('https://www.mcryii.fun/bg-main.jpg') !important;
     background-size: cover !important;
@@ -23,8 +22,7 @@ body {
 .post-entry .post-title a:hover {
     color: #d4af37 !important;
 }
-
-/* ========== 欢迎语样式（纯文字，无背景，入场动画） ========== */
+/* 欢迎语样式 */
 .home-info {
     text-align: center !important;
     background: transparent !important;
@@ -42,11 +40,7 @@ body {
     font-size: 3.5rem !important;
     font-weight: 700 !important;
     font-family: 'Georgia', 'Times New Roman', '宋体', serif !important;
-    text-shadow: 
-        0 0 2px rgba(0,0,0,0.9),
-        0 0 6px rgba(0,0,0,0.7),
-        2px 2px 10px rgba(0,0,0,0.6),
-        0 0 15px rgba(212,175,55,0.3) !important;
+    text-shadow: 0 0 2px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.7), 2px 2px 10px rgba(0,0,0,0.6), 0 0 15px rgba(212,175,55,0.3) !important;
     margin-bottom: 1.2rem !important;
     opacity: 0;
     animation: fadeInSlow 1.2s ease-out 1s forwards !important;
@@ -55,9 +49,7 @@ body {
     color: #f8f0e3 !important;
     font-size: 1.25rem !important;
     font-weight: 500 !important;
-    text-shadow: 
-        0 0 2px rgba(0,0,0,0.9),
-        1px 1px 6px rgba(0,0,0,0.8) !important;
+    text-shadow: 0 0 2px rgba(0,0,0,0.9), 1px 1px 6px rgba(0,0,0,0.8) !important;
     letter-spacing: 1px !important;
     opacity: 0;
     animation: fadeInSlow 1s ease-out 1.5s forwards !important;
@@ -165,8 +157,6 @@ body {
 
 <!-- ==================== 全局通用样式 ==================== -->
 <style>
-
-/* 导航栏不随页面滑动（需配合主题结构调整） */
 body > .header {
     position: relative !important;
     background: transparent !important;
@@ -186,8 +176,6 @@ body > .header .avatar {
 body > .header .avatar:hover {
     transform: scale(1.1) !important;
 }
-
-/* 自定义滚动条（鎏金色） */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -206,9 +194,8 @@ body > .header .avatar:hover {
 }
 </style>
 
-<!-- ==================== 左侧悬浮音乐播放器 ==================== -->
+<!-- ==================== 左侧悬浮音乐播放器（跨页面续播） ==================== -->
 <style>
-/* 播放器主容器 */
 #global-music-player {
     position: fixed;
     left: 20px;
@@ -230,7 +217,6 @@ body > .header .avatar:hover {
     box-sizing: border-box;
     opacity: 0.85;
 }
-/* 折叠状态：整体向左移出，只留按钮 */
 #global-music-player.fold-status {
     left: calc(-240px + 18px);
 }
@@ -238,7 +224,6 @@ body > .header .avatar:hover {
     background: rgba(0, 0, 0, 0.85);
     opacity: 1;
 }
-/* 折叠/展开按钮 */
 .fold-toggle-btn {
     position: absolute;
     right: -12px;
@@ -266,7 +251,6 @@ body > .header .avatar:hover {
 #global-music-player.fold-status .fold-toggle-btn {
     transform: translateY(-50%);
 }
-/* 专辑封面 */
 .player-cover {
     width: 100%;
     display: flex;
@@ -281,10 +265,6 @@ body > .header .avatar:hover {
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     transition: transform 0.2s;
 }
-.player-cover img.playing {
-    animation-play-state: running;
-}
-/* 歌曲信息 */
 .song-title {
     font-weight: bold;
     font-size: 1rem;
@@ -298,7 +278,6 @@ body > .header .avatar:hover {
     text-align: center;
     width: 100%;
 }
-/* 控制按钮行 */
 .controls-row {
     display: flex;
     justify-content: center;
@@ -320,7 +299,6 @@ body > .header .avatar:hover {
 .controls-row button:hover {
     background: #d4af37 !important;
 }
-/* 音量控制 */
 .volume-control {
     display: flex;
     align-items: center;
@@ -328,7 +306,6 @@ body > .header .avatar:hover {
     width: 100%;
     justify-content: center;
 }
-/* 进度条区域 */
 .progress-area {
     width: 100%;
     padding: 0 4px;
@@ -341,7 +318,6 @@ body > .header .avatar:hover {
     color: #ddd;
     margin-top: 4px;
 }
-/* 自定义滑动条（进度条+音量条） */
 input[type="range"] {
     -webkit-appearance: none !important;
     appearance: none !important;
@@ -374,7 +350,6 @@ input[type="range"]::-moz-range-thumb {
 }
 </style>
 
-<!-- 播放器默认折叠 -->
 <div id="global-music-player" class="fold-status">
     <button class="fold-toggle-btn">▶</button>
     <div class="player-cover">
@@ -403,13 +378,15 @@ input[type="range"]::-moz-range-thumb {
 <audio id="bg-music" src="" preload="metadata"></audio>
 
 <script>
-// ==================== 播放器脚本 ====================
+// ==================== 播放器脚本（支持页面跳转后继续播放） ====================
 const playlist = [
     { title: "夜の向日葵", artist: "松本文紀", cover: "https://picsum.photos/id/106/140/140", src: "/music/night-sunflower.mp3" },
     { title: "夏影", artist: "麻枝准", cover: "https://picsum.photos/id/100/140/140", src: "/music/summer-shadow.mp3" },
     { title: "空に光る", artist: "折户伸治", cover: "https://picsum.photos/id/101/140/140", src: "/music/shine-in-sky.mp3" }
 ];
 let currentTrackIndex = 0;
+let savedTime = 0;
+let shouldPlay = false;
 const audio = document.getElementById('bg-music');
 const playPauseBtn = document.getElementById('play-pause-btn');
 const prevBtn = document.getElementById('prev-btn');
@@ -424,12 +401,14 @@ const songArtistSpan = document.getElementById('song-artist');
 
 const playerWrap = document.getElementById('global-music-player');
 const foldBtn = document.querySelector('.fold-toggle-btn');
-foldBtn.addEventListener('click', () => {
-    playerWrap.classList.toggle('fold-status');
-    foldBtn.textContent = playerWrap.classList.contains('fold-status') ? '▶' : '◀';
-});
+if (foldBtn) {
+    foldBtn.addEventListener('click', () => {
+        playerWrap.classList.toggle('fold-status');
+        foldBtn.textContent = playerWrap.classList.contains('fold-status') ? '▶' : '◀';
+    });
+}
 
-function loadTrack(index) {
+function loadTrack(index, restoreTime = 0) {
     const track = playlist[index];
     if (!track) return;
     albumCover.src = track.cover;
@@ -441,6 +420,12 @@ function loadTrack(index) {
     seekBar.value = 0;
     currentTimeSpan.textContent = '00:00';
     durationTimeSpan.textContent = '00:00';
+    if (restoreTime > 0) {
+        audio.addEventListener('loadedmetadata', function onLoaded() {
+            audio.currentTime = restoreTime;
+            audio.removeEventListener('loadedmetadata', onLoaded);
+        });
+    }
 }
 function playPrev() {
     currentTrackIndex = (currentTrackIndex - 1 + playlist.length) % playlist.length;
@@ -489,11 +474,38 @@ audio.addEventListener('ended', () => playNext());
 playPauseBtn.addEventListener('click', togglePlay);
 prevBtn.addEventListener('click', playPrev);
 nextBtn.addEventListener('click', playNext);
-loadTrack(0);
+
+function savePlaybackState() {
+    const state = { index: currentTrackIndex, time: audio.currentTime, playing: !audio.paused };
+    localStorage.setItem('hugoPlayerState', JSON.stringify(state));
+}
+function restorePlaybackState() {
+    const saved = localStorage.getItem('hugoPlayerState');
+    if (saved) {
+        try {
+            const state = JSON.parse(saved);
+            currentTrackIndex = state.index;
+            savedTime = state.time;
+            shouldPlay = state.playing;
+            loadTrack(currentTrackIndex, savedTime);
+            if (shouldPlay) {
+                audio.addEventListener('canplay', function onCanPlay() {
+                    audio.play().catch(e => console.log("自动播放被阻止"));
+                    audio.removeEventListener('canplay', onCanPlay);
+                });
+                playPauseBtn.textContent = '⏸';
+            }
+        } catch(e) { console.warn("恢复状态失败", e); }
+    } else {
+        loadTrack(0);
+    }
+}
+window.addEventListener('beforeunload', savePlaybackState);
+document.addEventListener('DOMContentLoaded', restorePlaybackState);
 </script>
 
 {{- if or .IsHome .IsPage -}}
-<!-- ==================== 搜索栏（仅主页和文章页） ==================== -->
+<!-- ==================== 搜索栏 ==================== -->
 <style>
 #search-container {
     position: absolute;
@@ -581,7 +593,6 @@ loadTrack(0);
     <ul id="search-results"></ul>
 </div>
 
-<!-- 引入 Fuse.js 搜索库（国内 CDN） -->
 <script src="https://cdn.bootcdn.net/ajax/libs/fuse.js/6.6.2/fuse.min.js"></script>
 <script>
 (function() {
@@ -591,10 +602,8 @@ loadTrack(0);
         if (!searchInput) return;
         let fuse = null;
         let postsData = [];
-
         resultsContainer.innerHTML = '<li style="color:#ccc; text-align:center;">🔍 正在加载索引...</li>';
         resultsContainer.style.display = 'block';
-
         fetch('/index.json', { cache: 'no-store' })
             .then(response => {
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -623,7 +632,6 @@ loadTrack(0);
                 resultsContainer.innerHTML = '<li style="color:#f66; text-align:center;">❌ 搜索索引加载失败，请刷新重试</li>';
                 resultsContainer.style.display = 'block';
             });
-
         searchInput.addEventListener('input', function() {
             const query = this.value.trim();
             if (!fuse || query.length < 2) {
@@ -640,25 +648,16 @@ loadTrack(0);
                 const item = res.item;
                 let summary = item.summary;
                 if (summary.length > 100) summary = summary.substring(0, 100) + '…';
-                return `
-                    <li>
-                        <a href="${item.permalink}">
-                            <strong>${escapeHtml(item.title)}</strong>
-                            <div class="search-summary">${escapeHtml(summary)}</div>
-                        </a>
-                    </li>
-                `;
+                return `<li><a href="${item.permalink}"><strong>${escapeHtml(item.title)}</strong><div class="search-summary">${escapeHtml(summary)}</div></a></li>`;
             }).join('');
             resultsContainer.innerHTML = html;
             resultsContainer.style.display = 'block';
         });
-
         document.addEventListener('click', function(e) {
             if (!searchInput.contains(e.target) && !resultsContainer.contains(e.target)) {
                 resultsContainer.style.display = 'none';
             }
         });
-
         function escapeHtml(str) {
             if (!str) return '';
             return str.replace(/[&<>]/g, function(m) {
@@ -672,13 +671,10 @@ loadTrack(0);
 })();
 </script>
 
-<!-- ==================== 图片懒加载 ==================== -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('img').forEach(img => {
-        if (!img.hasAttribute('loading')) {
-            img.setAttribute('loading', 'lazy');
-        }
+        if (!img.hasAttribute('loading')) img.setAttribute('loading', 'lazy');
     });
 });
 </script>
@@ -744,19 +740,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script>
 (function() {
-    // 导航栏滚动效果（需要主题导航栏有 .header 类）
     const header = document.querySelector('.header');
     if (header) {
         window.addEventListener('scroll', function() {
-            if (window.scrollY > 50) {
-                header.classList.add('scrolled');
-            } else {
-                header.classList.remove('scrolled');
-            }
+            if (window.scrollY > 50) header.classList.add('scrolled');
+            else header.classList.remove('scrolled');
         });
     }
-
-    // 欢迎语滚动淡出效果（仅主页）
     if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
         const homeInfo = document.querySelector('.home-info');
         if (homeInfo) {
@@ -768,8 +758,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
-
-    // 阅读进度条（仅在文章页）
     const progressBar = document.getElementById('reading-progress-bar');
     if (progressBar) {
         function updateProgress() {
@@ -784,20 +772,14 @@ document.addEventListener('DOMContentLoaded', function() {
         window.addEventListener('resize', updateProgress);
         updateProgress();
     }
-
-    // 回到顶部按钮
     const goTopBtn = document.getElementById('go-top');
     if (goTopBtn) {
         function toggleGoTop() {
-            if (window.scrollY > 300) {
-                goTopBtn.classList.add('show');
-            } else {
-                goTopBtn.classList.remove('show');
-            }
+            if (window.scrollY > 300) goTopBtn.classList.add('show');
+            else goTopBtn.classList.remove('show');
         }
         window.addEventListener('scroll', toggleGoTop);
         toggleGoTop();
-
         goTopBtn.addEventListener('click', function() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });

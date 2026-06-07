@@ -17,7 +17,6 @@ IMAGES_DIR = os.path.join(BLOG_ROOT, "static", "images")
 # =============================================
 
 class TagInputWidget(tk.Frame):
-    # ... (保持原有代码不变，省略以节省篇幅，实际使用时请保留完整)
     def __init__(self, master, title="", **kwargs):
         super().__init__(master, **kwargs)
         self.title = title
@@ -80,6 +79,7 @@ class HugoBlogTool:
         self.current_file_path = None
         self.preview_process = None
         self.image_preview_cache = {}
+        self.title_to_path = {}   # 新增：存储显示标题到相对路径的映射
 
         self.create_widgets()
         self.refresh_article_list()
@@ -118,7 +118,7 @@ class HugoBlogTool:
         self.title_entry = tk.Entry(meta_frame, width=60)
         self.title_entry.grid(row=0, column=1, padx=5, pady=2, sticky="ew", columnspan=3)
 
-        # 第1行：发布日期（新增）
+        # 第1行：发布日期
         tk.Label(meta_frame, text="发布日期:", anchor="w").grid(row=1, column=0, sticky="w", pady=2)
         self.date_entry = tk.Entry(meta_frame, width=30)
         self.date_entry.grid(row=1, column=1, sticky="w", padx=5, pady=2)
@@ -247,24 +247,19 @@ class HugoBlogTool:
         self.status_var.set(f"已删除图片: {url}")
         self.update_image_preview()
 
-    # ------------------ 新增日期相关 ------------------
+    # ------------------ 日期相关 ------------------
     def get_current_time_str(self):
-        """返回当前时间的 Hugo 格式字符串"""
         return datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S+08:00")
 
     def validate_date(self, date_str):
-        """简单验证日期格式是否符合 Hugo 要求，不符合则返回当前时间"""
         if not date_str:
             return self.get_current_time_str()
-        # 尝试解析常见格式（允许用户输入 YYYY-MM-DD 自动补充时间）
         if re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
             date_str = date_str + "T00:00:00+08:00"
-        # 验证完整格式
         pattern = r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+08:00$'
         if re.match(pattern, date_str):
             return date_str
         else:
-            # 格式错误，提示并使用当前时间
             messagebox.showwarning("日期格式错误", f"日期格式不正确，已使用当前时间。\n正确格式: 2026-06-06T21:24:37+08:00 或 2026-06-06")
             return self.get_current_time_str()
 
@@ -282,7 +277,7 @@ class HugoBlogTool:
         self.title_entry.focus_set()
         self.update_image_preview()
 
-    # ------------------ 文章列表扫描 ------------------
+    # ------------------ 获取文章列表（返回(相对路径, 标题)）------------------
     def get_all_md_files(self):
         md_files = []
         if not os.path.isdir(POSTS_BASE):
@@ -292,21 +287,48 @@ class HugoBlogTool:
                 if file.endswith(".md"):
                     full_path = os.path.join(root, file)
                     rel_path = os.path.relpath(full_path, POSTS_BASE)
-                    md_files.append(rel_path)
-        md_files.sort(key=lambda rel: os.path.getmtime(os.path.join(POSTS_BASE, rel)), reverse=True)
+                    title = self.extract_title_from_file(full_path)
+                    md_files.append((rel_path, title))
+        # 按修改时间倒序
+        md_files.sort(key=lambda item: os.path.getmtime(os.path.join(POSTS_BASE, item[0])), reverse=True)
         return md_files
 
-    def refresh_article_list(self):
-        self.article_listbox.delete(0, tk.END)
-        for rel in self.get_all_md_files():
-            self.article_listbox.insert(tk.END, rel)
+    def extract_title_from_file(self, filepath):
+        """从 markdown 文件中提取 Front Matter 的 title 字段，失败则返回文件名（不含扩展名）"""
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                content = f.read()
+            match = re.search(r'^---\s*\ntitle:\s*["\']?(.*?)["\']?\s*$', content, re.MULTILINE)
+            if match:
+                return match.group(1).strip()
+        except:
+            pass
+        return os.path.splitext(os.path.basename(filepath))[0]
 
-    # ------------------ 加载文章 ------------------
+    def refresh_article_list(self):
+        """刷新左侧文章列表，显示标题，并建立标题到路径的映射"""
+        self.article_listbox.delete(0, tk.END)
+        self.title_to_path.clear()
+        for rel_path, title in self.get_all_md_files():
+            # 确保标题唯一（处理重名）
+            display_title = title
+            count = 1
+            while display_title in self.title_to_path:
+                display_title = f"{title} ({count})"
+                count += 1
+            self.title_to_path[display_title] = rel_path
+            self.article_listbox.insert(tk.END, display_title)
+
+    # ------------------ 加载选中文章 ------------------
     def load_selected_article(self, event=None):
         selection = self.article_listbox.curselection()
         if not selection:
             return
-        rel_path = self.article_listbox.get(selection[0])
+        display_title = self.article_listbox.get(selection[0])
+        rel_path = self.title_to_path.get(display_title)
+        if not rel_path:
+            messagebox.showerror("错误", "无法找到文章路径")
+            return
         full_path = os.path.join(POSTS_BASE, rel_path)
         try:
             with open(full_path, "r", encoding="utf-8") as f:
@@ -319,7 +341,6 @@ class HugoBlogTool:
         if front_match:
             yaml_text = front_match.group(1)
             body = front_match.group(2)
-            # 提取各个字段
             title_match = re.search(r'title:\s*["\']?(.*?)["\']?\s*$', yaml_text, re.MULTILINE)
             date_match = re.search(r'date:\s*(.*?)\s*$', yaml_text, re.MULTILINE)
             categories_match = re.search(r'categories:\s*\[(.*?)\]', yaml_text)
@@ -371,7 +392,6 @@ class HugoBlogTool:
 
     # ------------------ 生成 Front Matter ------------------
     def generate_front_matter(self, title, date_str, categories, tags, draft):
-        # 如果用户没有输入日期，自动生成当前时间
         if not date_str:
             date_str = self.get_current_time_str()
         else:
