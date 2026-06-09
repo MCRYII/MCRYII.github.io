@@ -9,3 +9,5 @@ draft: false
 MCRYII隆重登场（本地模型跑的图拿给gpt修改，眼睛有瑕疵）✪ω✪：
 
 ![MCRYII](https://i.ibb.co/Xk7pHTBq/meitu.png)
+形象来源于之前的头像，所以也加入了萤石作为头上的发饰
+![1000000799](/images/1000000799.jpg)
