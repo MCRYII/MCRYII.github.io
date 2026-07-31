@@ -4,6 +4,8 @@ date: 2026-06-06T22:05:38+08:00
 categories: ["MCRYII"]
 tags: ["lora", "ai"]
 draft: false
+cover:
+  image: "/images/1000218368-cover.png"
 ---
 
 一开始是用的waiIllustriousSDXL_v170随便跑几张图，从里面逐步筛选出自己满意的，然后丢给gpt修改，改完之后还不赖，就用这张做底图（gpt生成的眼睛有瑕疵，后来用ai重绘了一下）：

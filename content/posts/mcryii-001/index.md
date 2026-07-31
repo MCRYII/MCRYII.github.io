@@ -4,6 +4,8 @@ date: 2026-06-04T21:24:37+08:00
 categories: ["MCRYII"]
 tags: ["分享", "ai", "gpt"]
 draft: false
+cover:
+  image: "/images/1000000799.jpg"
 ---
 
 MCRYII隆重登场（本地模型跑的图拿给gpt修改，眼睛有瑕疵）✪ω✪：

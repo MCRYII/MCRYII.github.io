@@ -1,7 +1,6 @@
 ---
 title: "网站导航"
+layout: site-nav
 draft: false
 comments: false
 ---
-
-**页面建设中，敬请期待。**

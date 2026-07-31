@@ -4,6 +4,8 @@ date: 2026-06-09T19:44:23+08:00
 categories: ["MCRYII"]
 tags: ["lora", "ai"]
 draft: false
+cover:
+  image: "/images/tp.png"
 ---
 
 用gpt生成的20组素材练了个第二版，相当不赖，主要是打标优化过

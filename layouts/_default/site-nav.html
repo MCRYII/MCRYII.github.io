@@ -1,0 +1,419 @@
+{{ define "main" }}
+<style>main.main { max-width: none !important; }</style>
+<style>
+.bookmarks-page { padding: 24px !important; }
+.bm-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin: 4px 0 24px;
+    padding: 14px 18px;
+    border-radius: 16px;
+    background: rgba(212, 175, 55, 0.08);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+}
+#bm-search {
+    flex: 1;
+    min-width: 220px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    background: rgba(255, 255, 255, 0.75);
+    color: var(--primary);
+    font-size: 0.9rem;
+    outline: none;
+    transition: all 0.2s;
+}
+html[data-theme="dark"] #bm-search { background: rgba(0, 0, 0, 0.35); }
+#bm-search:focus {
+    border-color: #d4af37;
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.18);
+}
+.bm-count {
+    font-size: 0.78rem;
+    color: #d4af37;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.bm-cat {
+    margin-bottom: 26px;
+    padding: 18px;
+    border-radius: 18px;
+    background: rgba(212, 175, 55, 0.05);
+    border: 1px solid rgba(212, 175, 55, 0.22);
+}
+.bm-cat-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.05rem;
+    margin: 0 0 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed rgba(212, 175, 55, 0.3);
+}
+.bm-cat-count {
+    font-size: 0.7rem;
+    background: rgba(212, 175, 55, 0.16);
+    color: #d4af37;
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-weight: 700;
+}
+.bm-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+}
+.bm-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    text-decoration: none;
+    color: var(--primary);
+    min-width: 0;
+    transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+}
+html[data-theme="dark"] .bm-card { background: #262216; border-color: rgba(212, 175, 55, 0.15); }
+.bm-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(212, 175, 55, 0.7);
+    box-shadow: 0 8px 20px rgba(212, 175, 55, 0.16);
+}
+.bm-icon {
+    position: relative;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    background: rgba(212, 175, 55, 0.12);
+    overflow: hidden;
+}
+.bm-fallback {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #d4af37;
+}
+.bm-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 9px;
+}
+.bm-name {
+    font-size: 0.8rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.lock-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    background: rgba(212, 175, 55, 0.1);
+    color: #d4af37;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.lock-btn:hover {
+    background: rgba(212, 175, 55, 0.22);
+    border-color: #d4af37;
+}
+.lock-btn.unlocked {
+    background: rgba(111, 191, 115, 0.12);
+    border-color: rgba(111, 191, 115, 0.5);
+    color: #6fbf73;
+}
+.bm-cat--nsfw .bm-cat-title::after {
+    content: '🔞 隐藏内容';
+    font-size: 0.66rem;
+    font-weight: 700;
+    color: #e5484d;
+    border: 1px solid rgba(229, 72, 77, 0.5);
+    border-radius: 999px;
+    padding: 2px 9px;
+    margin-left: auto;
+}
+#lock-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(6px);
+    z-index: 12000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+#lock-modal.open { display: flex; }
+.lock-modal-card {
+    width: min(320px, 90vw);
+    text-align: center;
+    padding: 32px 28px 26px;
+    border-radius: 20px;
+    background: #ffffff;
+    border: 2px solid rgba(212, 175, 55, 0.5);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+}
+html[data-theme="dark"] .lock-modal-card { background: #262216; }
+.lock-modal-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    margin-bottom: 18px;
+}
+#lock-password {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 11px 14px;
+    border-radius: 11px;
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    background: rgba(0, 0, 0, 0.04);
+    color: var(--primary);
+    font-size: 1rem;
+    outline: none;
+    text-align: center;
+}
+html[data-theme="dark"] #lock-password { background: rgba(255, 255, 255, 0.06); }
+#lock-password:focus {
+    border-color: #d4af37;
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.18);
+}
+.lock-modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+.lock-modal-actions button {
+    flex: 1;
+    padding: 10px 0;
+    border: none;
+    border-radius: 11px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter 0.2s;
+}
+#lock-cancel {
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--secondary);
+}
+html[data-theme="dark"] #lock-cancel { background: rgba(255, 255, 255, 0.08); }
+#lock-confirm {
+    background: linear-gradient(135deg, #f4d35e 0%, #d4af37 60%, #b8860b 100%);
+    color: #241a02;
+}
+.lock-modal-actions button:hover { filter: brightness(1.08); }
+#lock-msg {
+    min-height: 18px;
+    color: #e5484d;
+    font-size: 0.78rem;
+    margin-top: 8px;
+}
+@media (max-width: 720px) {
+    .bm-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+    .bookmarks-page { padding: 14px !important; }
+}
+</style>
+
+<div class="three-col">
+    {{ partial "sidebar-left.html" . }}
+    <div class="col-main">
+        <article class="post-single bookmarks-page">
+            <header class="post-header">
+                <h1 class="post-title">网站导航</h1>
+            </header>
+            <div class="post-content">
+                <div id="bm-content"></div>
+                <div id="lock-modal">
+                    <div class="lock-modal-card">
+                        <div class="lock-modal-title">MCRYII666</div>
+                        <input type="password" id="lock-password" autocomplete="off">
+                        <div class="lock-modal-actions">
+                            <button type="button" id="lock-cancel">取消</button>
+                            <button type="button" id="lock-confirm">确认</button>
+                        </div>
+                        <div id="lock-msg"></div>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <script>
+        (function () {
+            var STORAGE_KEY = 'site-nav-unlock-v1';
+            var HIDDEN_CATS = ['ACG', '呃呃'];
+            var contentBox = document.getElementById('bm-content');
+            var modal = document.getElementById('lock-modal');
+            var lockPwd = document.getElementById('lock-password');
+            var lockMsg = document.getElementById('lock-msg');
+            var latestData = null;
+            var LOCK_HASH = '227f4780cd0c4b9f89723fc7e63f0df41b0eeb3f109199b554a58d366595de67';
+
+            function verify(pwd) {
+                try {
+                    return crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd)).then(function (buf) {
+                        var hex = Array.prototype.map.call(new Uint8Array(buf), function (b) {
+                            return b.toString(16).padStart(2, '0');
+                        }).join('');
+                        return hex === LOCK_HASH;
+                    });
+                } catch (e) {
+                    return Promise.resolve(false);
+                }
+            }
+
+            function openModal() {
+                modal.classList.add('open');
+                lockPwd.value = '';
+                lockMsg.textContent = '';
+                setTimeout(function () { lockPwd.focus(); }, 60);
+            }
+
+            function closeModal() {
+                modal.classList.remove('open');
+            }
+
+            document.getElementById('lock-cancel').addEventListener('click', closeModal);
+            modal.addEventListener('click', function (e) {
+                if (e.target === modal) closeModal();
+            });
+            document.getElementById('lock-confirm').addEventListener('click', function () {
+                var pwd = lockPwd.value;
+                if (!pwd) return;
+                verify(pwd).then(function (ok) {
+                    if (ok) {
+                        localStorage.setItem(STORAGE_KEY, '1');
+                        closeModal();
+                        renderBookmarks(latestData, true);
+                    } else {
+                        lockMsg.textContent = '密码错误';
+                        lockPwd.value = '';
+                        lockPwd.focus();
+                    }
+                });
+            });
+            lockPwd.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') document.getElementById('lock-confirm').click();
+            });
+
+            function esc(s) {
+                return String(s).replace(/[&<>"']/g, function (c) {
+                    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+                });
+            }
+
+            function isHidden(catName, link) {
+                if (HIDDEN_CATS.indexOf(catName) !== -1) return true;
+                if (link.url.indexOf('dl666123') !== -1) return true; // 黄油游戏网站汇总
+                return false;
+            }
+
+            function renderBookmarks(data, unlocked) {
+                latestData = data;
+                var total = data.total || 0;
+                var cats = data.categories || [];
+                var visibleLinks = 0;
+                var hiddenCount = 0;
+                cats.forEach(function (cat) {
+                    cat.links.forEach(function (link) {
+                        if (isHidden(cat.name, link)) hiddenCount++;
+                        else visibleLinks++;
+                    });
+                });
+                var lockText = unlocked ? '🔓' : '🔒';
+                var lockCls = unlocked ? 'lock-btn unlocked' : 'lock-btn';
+                var countText = unlocked
+                    ? (total + ' 个链接 · ' + cats.length + ' 个分类')
+                    : (visibleLinks + ' 个链接');
+                var html = '<div class="bm-toolbar">' +
+                    '<input type="text" id="bm-search" placeholder="🔍 搜索收藏夹（标题 / 网址）..." autocomplete="off">' +
+                    '<span class="bm-count">' + countText + '</span>' +
+                    '<button type="button" class="' + lockCls + '" id="lock-btn">' + lockText + '</button></div>';
+                cats.forEach(function (cat) {
+                    var catHidden = cat.links.some(function (l) { return isHidden(cat.name, l); });
+                    var links = cat.links;
+                    if (!unlocked && catHidden) {
+                        // 未解锁时：只显示该分类中可见的链接（整类隐藏则跳过）
+                        links = cat.links.filter(function (l) { return !isHidden(cat.name, l); });
+                        if (links.length === 0) return;
+                    }
+                    html += '<section class="bm-cat" data-cat="' + esc(cat.name) + '">' +
+                        '<h2 class="bm-cat-title">📁 ' + esc(cat.name) +
+                        ' <span class="bm-cat-count">' + links.length + '</span></h2><div class="bm-grid">';
+                    links.forEach(function (link) {
+                        var host = '';
+                        try { host = new URL(link.url).hostname; } catch (e) { host = ''; }
+                        var initial = (link.title || '?').charAt(0);
+                        html += '<a class="bm-card" href="' + esc(link.url) + '" target="_blank" rel="noopener" ' +
+                            'data-search="' + esc(link.title + ' ' + link.url) + '">' +
+                            '<span class="bm-icon"><span class="bm-fallback">' + esc(initial) + '</span>' +
+                            '<img class="bm-img" src="https://www.google.com/s2/favicons?domain=' +
+                            encodeURIComponent(host) + '&sz=64" loading="lazy" alt="" onerror="this.remove()"></span>' +
+                            '<span class="bm-name" title="' + esc(link.title) + '">' + esc(link.title) + '</span></a>';
+                    });
+                    html += '</div></section>';
+                });
+                contentBox.innerHTML = html;
+                var lockBtn = document.getElementById('lock-btn');
+                if (lockBtn) {
+                    lockBtn.addEventListener('click', function () {
+                        if (unlocked) {
+                            localStorage.setItem(STORAGE_KEY, '0');
+                            renderBookmarks(data, false);
+                        } else {
+                            openModal();
+                        }
+                    });
+                }
+                var search = document.getElementById('bm-search');
+                if (search) {
+                    search.addEventListener('input', function () {
+                        var q = this.value.trim().toLowerCase();
+                        document.querySelectorAll('.bm-card').forEach(function (card) {
+                            var hit = !q || (card.dataset.search || '').toLowerCase().indexOf(q) !== -1;
+                            card.style.display = hit ? '' : 'none';
+                        });
+                        document.querySelectorAll('.bm-cat').forEach(function (sec) {
+                            var any = Array.prototype.some.call(sec.querySelectorAll('.bm-card'), function (c) {
+                                return c.style.display !== 'none';
+                            });
+                            sec.style.display = any ? '' : 'none';
+                        });
+                    });
+                }
+            }
+
+            var unlocked = localStorage.getItem(STORAGE_KEY) === '1';
+            fetch('/bookmarks.json', { cache: 'no-store' })
+                .then(function (r) {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.json();
+                })
+                .then(function (data) { renderBookmarks(data, unlocked); })
+                .catch(function () {
+                    contentBox.innerHTML = '<p style="color:#e5484d;text-align:center">书签加载失败，请刷新重试</p>';
+                });
+        })();
+        </script>
+    </div>
+    {{ partial "sidebar-right.html" . }}
+</div>
+{{ end }}

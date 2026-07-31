@@ -1,0 +1,46 @@
+{{- define "main" }}
+{{- if eq .Data.Singular "category" }}
+<style>main.main { max-width: none !important; }</style>
+<div class="three-col">
+    {{ partial "sidebar-left.html" . }}
+    <div class="col-main">
+        {{- if .Title }}
+        <header class="page-header">
+            <h1>{{ .Title }}</h1>
+        </header>
+        {{- end }}
+        <ul class="terms-tags">
+            {{- $type := .Type }}
+            {{- range $key, $value := .Data.Terms.Alphabetical }}
+                {{- $name := .Name }}
+                {{- $count := .Count }}
+                {{- with site.GetPage (printf "/%s/%s" $type $name) }}
+                <li>
+                    <a href="{{ .Permalink }}">{{ .LinkTitle }} <sup><strong><sup>{{ $count }}</sup></strong></sup> </a>
+                </li>
+                {{- end }}
+            {{- end }}
+        </ul>
+    </div>
+    {{ partial "sidebar-right.html" . }}
+</div>
+{{- else }}
+    {{- if .Title }}
+    <header class="page-header">
+        <h1>{{ .Title }}</h1>
+    </header>
+    {{- end }}
+    <ul class="terms-tags">
+        {{- $type := .Type }}
+        {{- range $key, $value := .Data.Terms.Alphabetical }}
+            {{- $name := .Name }}
+            {{- $count := .Count }}
+            {{- with site.GetPage (printf "/%s/%s" $type $name) }}
+            <li>
+                <a href="{{ .Permalink }}">{{ .LinkTitle }} <sup><strong><sup>{{ $count }}</sup></strong></sup> </a>
+            </li>
+            {{- end }}
+        {{- end }}
+    </ul>
+{{- end }}
+{{- end }}

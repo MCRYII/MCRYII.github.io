@@ -1,5 +1,6 @@
 ---
 title: "音乐"
+layout: triple
 draft: false
 comments: false
 ---

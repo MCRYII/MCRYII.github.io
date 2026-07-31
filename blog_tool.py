@@ -1,541 +1,1055 @@
-import tkinter as tk
-from tkinter import scrolledtext, messagebox, ttk, filedialog
-import subprocess
+# -*- coding: utf-8 -*-
+"""MCRYII 博客写作助手（现代化重构版）
+
+功能：文章管理 / 封面编辑 / Markdown 预览 / 图片插入 / 本地预览 / 一键推送
+"""
 import datetime
+import json
 import os
 import re
 import shutil
+import socket
+import subprocess
+import tkinter as tk
 import webbrowser
-import json
-from pathlib import Path
+from tkinter import filedialog, messagebox, scrolledtext, ttk
+
 from PIL import Image, ImageTk
 
-# ================== 配置区域 ==================
-BLOG_ROOT = r"D:\Downloads\Programs\myblog-new"   # 请修改为你的博客根目录
+# ==================== 配置 ====================
+BLOG_ROOT = r"D:\Downloads\Programs\myblog-new"
 POSTS_BASE = os.path.join(BLOG_ROOT, "content", "posts")
 IMAGES_DIR = os.path.join(BLOG_ROOT, "static", "images")
-# =============================================
+DEFAULT_COVER = os.path.join(IMAGES_DIR, "default-cover.png")
+
+# ==================== 配色（深色 + 金色，与博客一致） ====================
+COL_BG = "#16161a"
+COL_PANEL = "#202024"
+COL_PANEL2 = "#26262c"
+COL_BORDER = "#34343c"
+COL_TEXT = "#e8e8e8"
+COL_MUTED = "#8f8f98"
+COL_GOLD = "#d4af37"
+COL_GOLD_DARK = "#a8872a"
+COL_SELECT = "#3a3522"
+COL_GREEN = "#6fbf73"
+COL_RED = "#e5484d"
+COL_INPUT = "#1b1b1f"
+
+FONT = "微软雅黑"
+FONT_MONO = "Consolas"
+
+
+def is_git_repo():
+    return os.path.isdir(os.path.join(BLOG_ROOT, ".git"))
+
 
 class TagInputWidget(tk.Frame):
-    def __init__(self, master, title="", **kwargs):
-        super().__init__(master, **kwargs)
+    """分类 / 标签输入组件"""
+
+    def __init__(self, master, title="", **kw):
+        super().__init__(master, bg=COL_PANEL, **kw)
         self.title = title
         self.tags = []
-        self.init_ui()
+        self._build()
 
-    def init_ui(self):
-        tk.Label(self, text=self.title, anchor="w").pack(fill=tk.X, pady=(0,5))
-        input_frame = tk.Frame(self)
-        input_frame.pack(fill=tk.X, pady=(0,8))
-        self.entry = tk.Entry(input_frame, width=30)
-        self.entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        self.entry.bind("<Return>", self.add_tag_from_entry)
-        self.tags_frame = tk.Frame(self, bg=self.cget("bg"))
+    def _build(self):
+        tk.Label(self, text=self.title, anchor="w", bg=COL_PANEL, fg=COL_MUTED,
+                 font=(FONT, 9)).pack(fill=tk.X, pady=(0, 4))
+        row = tk.Frame(self, bg=COL_PANEL)
+        row.pack(fill=tk.X, pady=(0, 6))
+        self.entry = tk.Entry(row, bg=COL_INPUT, fg=COL_TEXT, insertbackground=COL_GOLD,
+                              relief=tk.FLAT, font=(FONT, 10), highlightthickness=1,
+                              highlightbackground=COL_BORDER, highlightcolor=COL_GOLD)
+        self.entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=4)
+        self.entry.bind("<Return>", self.add_tag)
+        self.entry.bind("<KP_Enter>", self.add_tag)
+        self.tags_frame = tk.Frame(self, bg=COL_PANEL)
         self.tags_frame.pack(fill=tk.X, anchor="w")
-        self.refresh_tags_display()
+        self._refresh()
 
-    def add_tag_from_entry(self, event=None):
+    def add_tag(self, _=None):
         text = self.entry.get().strip()
         if text and text not in self.tags:
             self.tags.append(text)
             self.entry.delete(0, tk.END)
-            self.refresh_tags_display()
+            self._refresh()
         return "break"
 
     def remove_tag(self, tag):
         if tag in self.tags:
             self.tags.remove(tag)
-            self.refresh_tags_display()
+            self._refresh()
 
-    def refresh_tags_display(self):
-        for widget in self.tags_frame.winfo_children():
-            widget.destroy()
-        for tag in self.tags:
-            tag_frame = tk.Frame(self.tags_frame, bg="#e0e0e0", relief=tk.FLAT, bd=1)
-            tag_frame.pack(side=tk.LEFT, padx=2, pady=2, anchor="w")
-            label = tk.Label(tag_frame, text=tag, bg="#e0e0e0", fg="black", padx=5, pady=2)
-            label.pack(side=tk.LEFT)
-            del_btn = tk.Button(tag_frame, text="✕", bg="#e0e0e0", fg="red", bd=0,
-                                cursor="hand2", command=lambda t=tag: self.remove_tag(t))
-            del_btn.pack(side=tk.RIGHT, padx=(0,3))
+    def _refresh(self):
+        for w in self.tags_frame.winfo_children():
+            w.destroy()
         if not self.tags:
-            tip = tk.Label(self.tags_frame, text="（点击输入框，输入后按回车添加）", fg="gray", bg=self.cget("bg"))
-            tip.pack(side=tk.LEFT, padx=5)
+            tk.Label(self.tags_frame, text="输入后回车添加", fg="#5c5c66",
+                     bg=COL_PANEL, font=(FONT, 9)).pack(side=tk.LEFT, padx=4)
+            return
+        for tag in self.tags:
+            chip = tk.Frame(self.tags_frame, bg=COL_SELECT, highlightthickness=1,
+                            highlightbackground=COL_GOLD_DARK)
+            chip.pack(side=tk.LEFT, padx=3, pady=2)
+            tk.Label(chip, text=tag, bg=COL_SELECT, fg=COL_GOLD,
+                     font=(FONT, 9)).pack(side=tk.LEFT, padx=(8, 2), pady=3)
+            tk.Label(chip, text="✕", bg=COL_SELECT, fg=COL_RED, cursor="hand2",
+                     font=(FONT, 9)).pack(side=tk.LEFT, padx=(2, 7))
+            chip.winfo_children()[-1].bind("<Button-1>", lambda e, t=tag: self.remove_tag(t))
 
     def get_tags(self):
         return self.tags
 
     def set_tags(self, tag_list):
-        self.tags = tag_list.copy() if tag_list else []
-        self.refresh_tags_display()
+        self.tags = list(tag_list or [])
+        self._refresh()
 
-class HugoBlogTool:
+
+class CoverCropDialog(tk.Toplevel):
+    """封面裁剪编辑器：锁定 5:3 比例，支持拖动选区、移动选区、缩放选区"""
+
+    RATIO = 5 / 3
+
+    def __init__(self, master, image_path):
+        super().__init__(master)
+        self.title("调整封面裁剪（5:3）")
+        self.configure(bg=COL_PANEL)
+        self.resizable(False, False)
+        self.transient(master)
+        self.result = None
+
+        self.img = Image.open(image_path).convert("RGB")
+        self.iw, self.ih = self.img.size
+
+        cw, ch = 780, 560
+        self.scale = min(cw / self.iw, ch / self.ih)
+        self.dw = max(1, int(self.iw * self.scale))
+        self.dh = max(1, int(self.ih * self.scale))
+        self.ox = (cw - self.dw) // 2
+        self.oy = (ch - self.dh) // 2
+
+        self.canvas = tk.Canvas(self, width=cw, height=ch, bg="#0f0f12",
+                                highlightthickness=0, cursor="crosshair")
+        self.canvas.pack(padx=12, pady=(12, 6))
+        self.photo = ImageTk.PhotoImage(
+            self.img.resize((self.dw, self.dh), Image.LANCZOS))
+
+        self._init_rect()
+        self.mode = None
+        self.drag = None
+        self.canvas.bind("<ButtonPress-1>", self._on_press)
+        self.canvas.bind("<B1-Motion>", self._on_drag)
+        self.canvas.bind("<ButtonRelease-1>", self._on_release)
+
+        bar = tk.Frame(self, bg=COL_PANEL)
+        bar.pack(fill=tk.X, padx=12, pady=(0, 12))
+        tk.Label(bar, text="拖动框可移动 · 右下角金块可缩放 · 空白处拖动新建选区",
+                 bg=COL_PANEL, fg=COL_MUTED, font=(FONT, 9)).pack(side=tk.LEFT)
+        btn_reset = tk.Button(bar, text="↺ 重置", command=self._reset,
+                              bg=COL_PANEL2, fg=COL_TEXT, relief=tk.FLAT,
+                              activebackground=COL_SELECT, activeforeground=COL_GOLD,
+                              font=(FONT, 10), cursor="hand2", padx=12, pady=4)
+        btn_reset.pack(side=tk.RIGHT, padx=4)
+        btn_cancel = tk.Button(bar, text="取消", command=self._cancel,
+                               bg="#3a2023", fg=COL_RED, relief=tk.FLAT,
+                               activebackground="#4a262a", activeforeground="#ff7a80",
+                               font=(FONT, 10), cursor="hand2", padx=12, pady=4)
+        btn_cancel.pack(side=tk.RIGHT, padx=4)
+        btn_ok = tk.Button(bar, text="✓ 确认裁剪", command=self._confirm,
+                           bg=COL_GOLD, fg="#1b1405", relief=tk.FLAT,
+                           activebackground="#e0bc4e", activeforeground="#1b1405",
+                           font=(FONT, 10, "bold"), cursor="hand2", padx=16, pady=4)
+        btn_ok.pack(side=tk.RIGHT, padx=4)
+        self._draw()
+
+    def _init_rect(self):
+        w = min(self.iw, int(self.ih * self.RATIO))
+        h = int(w / self.RATIO)
+        self.rect = [(self.iw - w) // 2, (self.ih - h) // 2, w, h]
+
+    def _reset(self):
+        self._init_rect()
+        self._draw()
+
+    def _cancel(self):
+        self.result = None
+        self.destroy()
+
+    def _confirm(self):
+        x, y, w, h = self.rect
+        if w < 20 or h < 20:
+            return
+        self.result = self.img.crop((x, y, x + w, y + h))
+        self.destroy()
+
+    def _to_canvas(self, x, y):
+        return self.ox + x * self.scale, self.oy + y * self.scale
+
+    def _to_img(self, cx, cy):
+        return (cx - self.ox) / self.scale, (cy - self.oy) / self.scale
+
+    def _draw(self):
+        self.canvas.delete("all")
+        self.canvas.create_image(self.ox, self.oy, image=self.photo, anchor="nw")
+        x, y, w, h = self.rect
+        cx, cy = self._to_canvas(x, y)
+        cw2, ch2 = w * self.scale, h * self.scale
+        self.canvas.create_rectangle(cx, cy, cx + cw2, cy + ch2,
+                                     outline=COL_GOLD, width=2)
+        self.canvas.create_rectangle(cx + cw2 - 10, cy + ch2 - 10,
+                                     cx + cw2 + 2, cy + ch2 + 2,
+                                     fill=COL_GOLD, outline="")
+        self.canvas.create_text(cx + 4, cy - 6, text=f"{w} × {h}",
+                                anchor="sw", fill=COL_GOLD, font=(FONT, 9))
+
+    def _on_press(self, e):
+        x, y = self._to_img(e.x, e.y)
+        x = max(0, min(self.iw, x))
+        y = max(0, min(self.ih, y))
+        rx, ry, rw, rh = self.rect
+        if rx + rw - 14 <= x <= rx + rw + 2 and ry + rh - 14 <= y <= ry + rh + 2:
+            self.mode = "resize"
+            self.drag = (x, y)
+        elif rx <= x <= rx + rw and ry <= y <= ry + rh:
+            self.mode = "move"
+            self.drag = (x - rx, y - ry)
+        else:
+            self.mode = "new"
+            self.drag = (x, y)
+
+    def _on_drag(self, e):
+        x, y = self._to_img(e.x, e.y)
+        x = max(0, min(self.iw, x))
+        y = max(0, min(self.ih, y))
+        if self.mode == "move":
+            dx, dy = self.drag
+            nx = max(0, min(self.iw - self.rect[2], x - dx))
+            ny = max(0, min(self.ih - self.rect[3], y - dy))
+            self.rect[0], self.rect[1] = int(nx), int(ny)
+        elif self.mode == "resize":
+            rx, ry = self.rect[0], self.rect[1]
+            w = max(40, min(self.iw - rx, x - rx))
+            h = w / self.RATIO
+            if ry + h > self.ih:
+                h = self.ih - ry
+                w = h * self.RATIO
+            self.rect[2], self.rect[3] = int(w), int(h)
+        elif self.mode == "new":
+            sx, sy = self.drag
+            w = max(40, min(self.iw - sx, x - sx))
+            h = w / self.RATIO
+            if sy + h > self.ih:
+                h = self.ih - sy
+                w = h * self.RATIO
+            self.rect = [int(sx), int(sy), int(w), int(h)]
+        self._draw()
+
+    def _on_release(self, _=None):
+        self.mode = None
+
+
+class BlogTool:
     def __init__(self, root):
         self.root = root
-        self.root.title("Hugo 博客写作助手 - MCRYII")
-        self.root.geometry("1200x900")
-        self.root.resizable(True, True)
+        self.root.title("MCRYII 博客写作助手")
+        self.root.geometry("1320x880")
+        self.root.minsize(1100, 700)
+        self.root.configure(bg=COL_BG)
 
         self.current_file_path = None
-        self.preview_process = None
-        self.image_preview_cache = {}
-        self.title_to_path = {}   # 新增：存储显示标题到相对路径的映射
+        self.current_title = ""
+        self.cover_path = None
+        self.auto_cover = None
+        self.dirty = False
+        self._img_refs = []
+        self._tree_imgs = {}
+        self._preview_imgs = []
 
-        self.create_widgets()
+        self._setup_style()
+        self._build_ui()
+        self._bind_shortcuts()
         self.refresh_article_list()
-        self.text_area.bind("<<Modified>>", self.on_text_modified)
-        self.after_id = None
+        self._update_server_status()
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
-    def create_widgets(self):
-        # 主布局
-        main_pane = tk.PanedWindow(self.root, orient=tk.HORIZONTAL, sashrelief=tk.RAISED, sashwidth=6)
-        main_pane.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+    # ---------------- 样式 ----------------
+    def _setup_style(self):
+        style = ttk.Style(self.root)
+        try:
+            style.theme_use("clam")
+        except tk.TclError:
+            pass
+        style.configure("TFrame", background=COL_PANEL)
+        style.configure("TLabel", background=COL_PANEL, foreground=COL_TEXT, font=(FONT, 10))
+        style.configure("Treeview",
+                        background=COL_INPUT, fieldbackground=COL_INPUT, foreground=COL_TEXT,
+                        borderwidth=0, rowheight=52, font=(FONT, 10))
+        style.configure("Treeview.Heading",
+                        background=COL_PANEL2, foreground=COL_GOLD, borderwidth=0,
+                        font=(FONT, 9, "bold"), padding=(8, 6))
+        style.map("Treeview",
+                  background=[("selected", COL_SELECT)],
+                  foreground=[("selected", COL_GOLD)])
+        style.map("Treeview.Heading", background=[("active", COL_PANEL2)])
+        style.configure("TNotebook", background=COL_PANEL, borderwidth=0)
+        style.configure("TNotebook.Tab",
+                        background=COL_PANEL2, foreground=COL_MUTED, padding=(18, 8),
+                        font=(FONT, 10))
+        style.map("TNotebook.Tab",
+                  background=[("selected", COL_PANEL)],
+                  foreground=[("selected", COL_GOLD)])
+        style.configure("TScrollbar", background=COL_PANEL2, troughcolor=COL_BG,
+                        arrowcolor=COL_MUTED, bordercolor=COL_PANEL2)
+
+    def _btn(self, parent, text, command, kind="ghost", width=None):
+        cfg = {
+            "ghost": dict(bg=COL_PANEL2, fg=COL_TEXT, activebackground=COL_SELECT,
+                          activeforeground=COL_GOLD, highlightbackground=COL_BORDER),
+            "gold": dict(bg=COL_GOLD, fg="#1b1405", activebackground="#e0bc4e",
+                         activeforeground="#1b1405", highlightbackground=COL_GOLD),
+            "danger": dict(bg="#3a2023", fg=COL_RED, activebackground="#4a262a",
+                           activeforeground="#ff7a80", highlightbackground="#5a2c30"),
+        }[kind]
+        return tk.Button(parent, text=text, command=command, relief=tk.FLAT,
+                         font=(FONT, 10), cursor="hand2", padx=14, pady=6,
+                         highlightthickness=1, width=width, **cfg)
+
+    # ---------------- 界面 ----------------
+    def _build_ui(self):
+        # 顶栏
+        header = tk.Frame(self.root, bg=COL_PANEL, height=58)
+        header.pack(fill=tk.X)
+        header.pack_propagate(False)
+        tk.Label(header, text="✒ MCRYII 博客写作助手", bg=COL_PANEL, fg=COL_GOLD,
+                 font=(FONT, 14, "bold")).pack(side=tk.LEFT, padx=18)
+        self.server_label = tk.Label(header, text="● 服务器检测中", bg=COL_PANEL,
+                                     fg=COL_MUTED, font=(FONT, 9))
+        self.server_label.pack(side=tk.LEFT, padx=10)
+        self.git_label = tk.Label(header, text="Git: -", bg=COL_PANEL, fg=COL_MUTED,
+                                  font=(FONT, 9))
+        self.git_label.pack(side=tk.LEFT, padx=10)
+        for text, cmd, kind in (
+            ("🌐 预览网站", self.preview_site, "gold"),
+            ("🚀 推送到 GitHub", self.push_to_github, "ghost"),
+            ("🔄 Git 状态", self._update_git_status, "ghost"),
+        ):
+            self._btn(header, text, cmd, kind).pack(side=tk.RIGHT, padx=6, pady=10)
+
+        # 主体
+        main = tk.PanedWindow(self.root, orient=tk.HORIZONTAL, bg=COL_BG,
+                              sashwidth=5, sashrelief=tk.FLAT)
+        main.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         # 左侧：文章列表
-        left_frame = tk.Frame(main_pane, width=250)
-        main_pane.add(left_frame, width=250)
-        tk.Label(left_frame, text="已有文章", font=("微软雅黑", 12, "bold")).pack(anchor="w", pady=5)
-        self.article_listbox = tk.Listbox(left_frame, font=("Consolas", 10))
-        self.article_listbox.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
-        scrollbar = tk.Scrollbar(left_frame, orient=tk.VERTICAL, command=self.article_listbox.yview)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.article_listbox.config(yscrollcommand=scrollbar.set)
-        self.article_listbox.bind("<Double-Button-1>", self.load_selected_article)
+        left = tk.Frame(main, bg=COL_PANEL)
+        main.add(left, width=330, minsize=260)
+        bar = tk.Frame(left, bg=COL_PANEL)
+        bar.pack(fill=tk.X, padx=10, pady=(10, 6))
+        tk.Label(bar, text="📚 已有文章", bg=COL_PANEL, fg=COL_TEXT,
+                 font=(FONT, 11, "bold")).pack(side=tk.LEFT)
+        self._btn(bar, "＋ 新建", self.new_article, "gold").pack(side=tk.RIGHT)
+        self.tree = ttk.Treeview(left, columns=("date",), show="tree headings",
+                                 selectmode="browse")
+        self.tree.heading("#0", text="文章", anchor="w")
+        self.tree.heading("date", text="日期", anchor="w")
+        self.tree.column("#0", width=210, anchor="w")
+        self.tree.column("date", width=82, anchor="w")
+        self.tree.pack(fill=tk.BOTH, expand=True, padx=10)
+        self.tree.bind("<Double-Button-1>", self.load_selected)
+        self.tree.bind("<Return>", self.load_selected)
+        bottom = tk.Frame(left, bg=COL_PANEL)
+        bottom.pack(fill=tk.X, padx=10, pady=8)
+        self._btn(bottom, "🗑 删除", self.delete_article, "danger").pack(side=tk.LEFT)
+        self._btn(bottom, "🔄 刷新", self.refresh_article_list).pack(side=tk.RIGHT)
 
-        # 右侧垂直分割
-        right_pane = tk.PanedWindow(main_pane, orient=tk.VERTICAL, sashrelief=tk.RAISED, sashwidth=6)
-        main_pane.add(right_pane, width=800)
+        # 右侧：编辑 / 预览
+        right = tk.Frame(main, bg=COL_PANEL)
+        main.add(right, width=940)
+        self.notebook = ttk.Notebook(right)
+        self.notebook.pack(fill=tk.BOTH, expand=True)
 
-        top_frame = tk.Frame(right_pane)
-        right_pane.add(top_frame, height=500)
+        edit_tab = tk.Frame(self.notebook, bg=COL_PANEL)
+        self.notebook.add(edit_tab, text="✏ 编辑")
+        preview_tab = tk.Frame(self.notebook, bg=COL_PANEL)
+        self.notebook.add(preview_tab, text="👁 预览")
+        self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
 
-        # 文章元数据
-        meta_frame = tk.LabelFrame(top_frame, text="文章元数据", padx=10, pady=10)
-        meta_frame.pack(fill=tk.X, pady=5)
-
-        # 第0行：标题
-        tk.Label(meta_frame, text="标题:").grid(row=0, column=0, sticky="w", pady=2)
-        self.title_entry = tk.Entry(meta_frame, width=60)
-        self.title_entry.grid(row=0, column=1, padx=5, pady=2, sticky="ew", columnspan=3)
-
-        # 第1行：发布日期
-        tk.Label(meta_frame, text="发布日期:", anchor="w").grid(row=1, column=0, sticky="w", pady=2)
-        self.date_entry = tk.Entry(meta_frame, width=30)
-        self.date_entry.grid(row=1, column=1, sticky="w", padx=5, pady=2)
-        tk.Label(meta_frame, text="格式: 2026-06-06T21:24:37+08:00 (留空则自动生成当前时间)", fg="gray", font=("微软雅黑", 8)).grid(row=1, column=2, columnspan=2, sticky="w", padx=5)
-
-        # 第2行：分类组件
-        self.categories_widget = TagInputWidget(meta_frame, title="分类（回车添加）")
-        self.categories_widget.grid(row=2, column=0, columnspan=4, sticky="ew", pady=5)
-
-        # 第3行：标签组件
-        self.tags_widget = TagInputWidget(meta_frame, title="标签（回车添加）")
-        self.tags_widget.grid(row=3, column=0, columnspan=4, sticky="ew", pady=5)
-
-        # 第4行：草稿标记
-        self.draft_var = tk.BooleanVar()
-        tk.Checkbutton(meta_frame, text="草稿（draft: true）", variable=self.draft_var).grid(row=4, column=0, columnspan=4, sticky="w", pady=5)
-
-        meta_frame.columnconfigure(1, weight=1)
-
-        # 工具栏
-        tool_frame = tk.Frame(top_frame)
-        tool_frame.pack(fill=tk.X, pady=5)
-
-        btn_new = tk.Button(tool_frame, text="📄 新建文章", command=self.new_article, bg="#2196F3", fg="white")
-        btn_new.pack(side=tk.LEFT, padx=2)
-        btn_img = tk.Button(tool_frame, text="📂 插入图片", command=self.insert_image, bg="#e0e0e0")
-        btn_img.pack(side=tk.LEFT, padx=2)
-        btn_save = tk.Button(tool_frame, text="💾 保存到本地", command=self.save_article, bg="#4CAF50", fg="white")
-        btn_save.pack(side=tk.LEFT, padx=2)
-        btn_preview = tk.Button(tool_frame, text="🌐 预览网站", command=self.preview_site, bg="#2196F3", fg="white")
-        btn_preview.pack(side=tk.LEFT, padx=2)
-        btn_push = tk.Button(tool_frame, text="🚀 推送到 GitHub", command=self.push_to_github, bg="#FF9800", fg="white")
-        btn_push.pack(side=tk.LEFT, padx=2)
-        btn_del = tk.Button(tool_frame, text="🗑️ 删除当前文章", command=self.delete_article, bg="#f44336", fg="white")
-        btn_del.pack(side=tk.LEFT, padx=2)
-        btn_refresh = tk.Button(tool_frame, text="🔄 刷新列表", command=self.refresh_article_list)
-        btn_refresh.pack(side=tk.LEFT, padx=2)
-
-        # 正文标签
-        tk.Label(top_frame, text="正文（Markdown格式）:", anchor="w").pack(fill=tk.X, pady=(10,0))
-        self.text_area = scrolledtext.ScrolledText(top_frame, wrap=tk.WORD, height=15, font=("Consolas", 11))
-        self.text_area.pack(fill=tk.BOTH, expand=True, pady=5)
-
-        # 图片预览区
-        bottom_frame = tk.LabelFrame(right_pane, text="📷 文章图片预览（点击路径可复制）", padx=5, pady=5)
-        right_pane.add(bottom_frame, height=200)
-
-        self.preview_canvas = tk.Canvas(bottom_frame, bg="#f0f0f0")
-        scrollbar_x = tk.Scrollbar(bottom_frame, orient=tk.HORIZONTAL, command=self.preview_canvas.xview)
-        scrollbar_y = tk.Scrollbar(bottom_frame, orient=tk.VERTICAL, command=self.preview_canvas.yview)
-        self.preview_canvas.configure(xscrollcommand=scrollbar_x.set, yscrollcommand=scrollbar_y.set)
-        self.preview_inner = tk.Frame(self.preview_canvas)
-        self.preview_canvas.create_window((0,0), window=self.preview_inner, anchor="nw")
-
-        self.preview_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar_x.pack(side=tk.BOTTOM, fill=tk.X)
-        scrollbar_y.pack(side=tk.RIGHT, fill=tk.Y)
-
-        self.preview_inner.bind("<Configure>", lambda e: self.preview_canvas.configure(scrollregion=self.preview_canvas.bbox("all")))
+        self._build_edit_tab(edit_tab)
+        self._build_preview_tab(preview_tab)
 
         # 状态栏
-        self.status_var = tk.StringVar()
-        self.status_var.set("就绪")
-        status_bar = tk.Label(self.root, textvariable=self.status_var, bd=1, relief=tk.SUNKEN, anchor=tk.W)
-        status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+        status = tk.Frame(self.root, bg=COL_PANEL2, height=30)
+        status.pack(fill=tk.X)
+        status.pack_propagate(False)
+        self.status_var = tk.StringVar(value="就绪")
+        tk.Label(status, textvariable=self.status_var, bg=COL_PANEL2, fg=COL_MUTED,
+                 font=(FONT, 9)).pack(side=tk.LEFT, padx=14)
+        self.count_var = tk.StringVar(value="字数：0")
+        tk.Label(status, textvariable=self.count_var, bg=COL_PANEL2, fg=COL_GOLD,
+                 font=(FONT, 9)).pack(side=tk.RIGHT, padx=14)
 
-    def on_text_modified(self, event=None):
-        self.text_area.edit_modified(False)
-        if self.after_id:
-            self.root.after_cancel(self.after_id)
-        self.after_id = self.root.after(500, self.update_image_preview)
+    def _build_edit_tab(self, parent):
+        meta = tk.LabelFrame(parent, text=" 文章信息 ", bg=COL_PANEL, fg=COL_GOLD,
+                             font=(FONT, 10, "bold"), bd=0, highlightthickness=1,
+                             highlightbackground=COL_BORDER)
+        meta.pack(fill=tk.X, padx=12, pady=(12, 6))
+        meta.columnconfigure(1, weight=1)
 
-    def update_image_preview(self):
-        for widget in self.preview_inner.winfo_children():
-            widget.destroy()
-        content = self.text_area.get("1.0", tk.END)
-        pattern = r'!\[.*?\]\((.*?)\)'
-        image_urls = re.findall(pattern, content)
-        if not image_urls:
-            tip = tk.Label(self.preview_inner, text="（当前文章中没有图片，使用“插入图片”按钮添加）", fg="gray")
-            tip.pack(padx=10, pady=10)
+        tk.Label(meta, text="标题", bg=COL_PANEL, fg=COL_MUTED,
+                 font=(FONT, 9)).grid(row=0, column=0, sticky="w", padx=(12, 8), pady=6)
+        self.title_entry = self._entry(meta)
+        self.title_entry.grid(row=0, column=1, columnspan=3, sticky="ew", padx=(0, 12), pady=6)
+
+        tk.Label(meta, text="日期", bg=COL_PANEL, fg=COL_MUTED,
+                 font=(FONT, 9)).grid(row=1, column=0, sticky="w", padx=(12, 8), pady=6)
+        self.date_entry = self._entry(meta)
+        self.date_entry.grid(row=1, column=1, sticky="ew", padx=(0, 6), pady=6)
+        self._btn(meta, "📅 现在", lambda: self.date_entry.delete(0, tk.END) or
+                  self.date_entry.insert(0, self._now_str()), "ghost").grid(
+            row=1, column=2, padx=2, pady=6)
+
+        self.cats = TagInputWidget(meta, title="分类")
+        self.cats.grid(row=2, column=0, columnspan=2, sticky="ew", padx=12, pady=4)
+        self.tags = TagInputWidget(meta, title="标签")
+        self.tags.grid(row=2, column=2, columnspan=2, sticky="ew", padx=12, pady=4)
+
+        self.draft_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(meta, text="草稿模式（不发布）", variable=self.draft_var,
+                       bg=COL_PANEL, fg=COL_MUTED, selectcolor=COL_INPUT,
+                       activebackground=COL_PANEL, activeforeground=COL_GOLD,
+                       font=(FONT, 9), highlightthickness=0).grid(
+            row=3, column=0, columnspan=2, sticky="w", padx=12, pady=6)
+
+        # 封面行
+        cover_row = tk.Frame(meta, bg=COL_PANEL)
+        cover_row.grid(row=3, column=2, columnspan=2, sticky="ew", padx=12, pady=6)
+        tk.Label(cover_row, text="封面", bg=COL_PANEL, fg=COL_MUTED,
+                 font=(FONT, 9)).pack(side=tk.LEFT)
+        self.cover_canvas = tk.Label(cover_row, text="无封面", bg=COL_INPUT, fg=COL_MUTED,
+                                     width=16, height=3, relief=tk.FLAT)
+        self.cover_canvas.pack(side=tk.LEFT, padx=8)
+        self._btn(cover_row, "✏ 编辑封面", self.edit_cover, "ghost").pack(side=tk.LEFT, padx=3)
+        self._btn(cover_row, "🖼 选择封面", self.choose_cover, "ghost").pack(side=tk.LEFT, padx=3)
+        self._btn(cover_row, "✕ 清除", self.clear_cover, "danger").pack(side=tk.LEFT, padx=3)
+
+        # 工具栏
+        tools = tk.Frame(parent, bg=COL_PANEL)
+        tools.pack(fill=tk.X, padx=12, pady=6)
+        self._btn(tools, "💾 保存 (Ctrl+S)", self.save_article, "gold").pack(side=tk.LEFT)
+        self._btn(tools, "🖼 插入图片", self.insert_image).pack(side=tk.LEFT, padx=4)
+        self._btn(tools, "📋 清空编辑区", self._clear_editor).pack(side=tk.LEFT, padx=4)
+        tk.Label(tools, text="Ctrl+N 新建 · F5 刷新 · Ctrl+K 预览", bg=COL_PANEL,
+                 fg="#5c5c66", font=(FONT, 9)).pack(side=tk.RIGHT)
+
+        # 正文
+        tk.Label(parent, text="正文（Markdown）", bg=COL_PANEL, fg=COL_MUTED,
+                 font=(FONT, 9)).pack(anchor="w", padx=14)
+        self.text_area = scrolledtext.ScrolledText(
+            parent, wrap=tk.WORD, undo=True, bg=COL_INPUT, fg=COL_TEXT,
+            insertbackground=COL_GOLD, font=(FONT, 11), relief=tk.FLAT,
+            highlightthickness=1, highlightbackground=COL_BORDER, highlightcolor=COL_GOLD,
+            selectbackground=COL_SELECT, selectforeground=COL_GOLD)
+        self.text_area.pack(fill=tk.BOTH, expand=True, padx=12, pady=(4, 12))
+        self.text_area.bind("<<Modified>>", self._on_modified)
+
+    def _build_preview_tab(self, parent):
+        tk.Label(parent, text="Markdown 预览（自动渲染，图片缩略显示）", bg=COL_PANEL,
+                 fg=COL_MUTED, font=(FONT, 9)).pack(anchor="w", padx=14, pady=(12, 4))
+        self.preview_text = tk.Text(
+            parent, wrap=tk.WORD, bg=COL_INPUT, fg=COL_TEXT, relief=tk.FLAT,
+            font=(FONT, 11), padx=16, pady=12, cursor="arrow",
+            highlightthickness=1, highlightbackground=COL_BORDER)
+        self.preview_text.pack(fill=tk.BOTH, expand=True, padx=12, pady=(0, 12))
+        self.preview_text.config(state=tk.DISABLED)
+        self.preview_text.tag_configure("h1", font=(FONT, 20, "bold"), foreground=COL_GOLD,
+                                        spacing3=8)
+        self.preview_text.tag_configure("h2", font=(FONT, 16, "bold"), foreground=COL_GOLD,
+                                        spacing3=6)
+        self.preview_text.tag_configure("h3", font=(FONT, 13, "bold"), foreground="#f0d98c")
+        self.preview_text.tag_configure("bold", font=(FONT, 11, "bold"))
+        self.preview_text.tag_configure("italic", font=(FONT, 11, "italic"))
+        self.preview_text.tag_configure("code", font=(FONT_MONO, 10), background="#2a2a30",
+                                        foreground="#f2b8a0")
+        self.preview_text.tag_configure("quote", foreground=COL_MUTED, font=(FONT, 10, "italic"),
+                                        lmargin1=16, lmargin2=16)
+        self.preview_text.tag_configure("link", foreground="#7fb3ff", underline=1)
+        self.preview_text.tag_configure("list", lmargin1=8, lmargin2=24)
+        self.preview_text.tag_configure("muted", foreground="#6a6a72")
+
+    def _entry(self, parent):
+        return tk.Entry(parent, bg=COL_INPUT, fg=COL_TEXT, insertbackground=COL_GOLD,
+                        relief=tk.FLAT, font=(FONT, 10), highlightthickness=1,
+                        highlightbackground=COL_BORDER, highlightcolor=COL_GOLD)
+
+    # ---------------- 快捷键 / 事件 ----------------
+    def _bind_shortcuts(self):
+        self.root.bind("<Control-s>", lambda e: self.save_article())
+        self.root.bind("<Control-n>", lambda e: self.new_article())
+        self.root.bind("<Control-k>", lambda e: self._show_preview())
+        self.root.bind("<F5>", lambda e: self.refresh_article_list())
+
+    def _on_modified(self, _=None):
+        if self.text_area.edit_modified():
+            self.dirty = True
+            self.text_area.edit_modified(False)
+            self._update_count()
+
+    def _on_tab_changed(self, _=None):
+        if self.notebook.index(self.notebook.select()) == 1:
+            self._show_preview()
+
+    def _on_close(self):
+        if self.dirty and not messagebox.askyesno("未保存", "有未保存的修改，确定退出？"):
             return
+        self.root.destroy()
 
-        for url in image_urls:
-            frame = tk.Frame(self.preview_inner, relief=tk.RAISED, bd=1)
-            frame.pack(side=tk.LEFT, padx=5, pady=5, anchor="n")
-            # 加载缩略图
-            thumb = None
-            if url.startswith('/images/'):
-                local_path = os.path.join(BLOG_ROOT, "static", url[1:])
-                if os.path.exists(local_path):
-                    try:
-                        pil_img = Image.open(local_path)
-                        pil_img.thumbnail((100, 100))
-                        thumb = ImageTk.PhotoImage(pil_img)
-                    except:
-                        pass
-            if thumb:
-                img_label = tk.Label(frame, image=thumb)
-                img_label.image = thumb
-                img_label.pack(padx=2, pady=2)
-            else:
-                tk.Label(frame, text="⚠️ 无法预览", bg="#ddd", width=10, height=4).pack(padx=2, pady=2)
-            # 路径
-            path_short = url if len(url) < 40 else url[:37] + "..."
-            lbl_path = tk.Label(frame, text=path_short, fg="blue", cursor="hand2", font=("Consolas", 8))
-            lbl_path.pack(pady=2)
-            lbl_path.bind("<Button-1>", lambda e, u=url: self.copy_image_path(u))
-            # 删除按钮
-            del_btn = tk.Button(frame, text="删除", fg="red", command=lambda u=url: self.remove_image_from_text(u))
-            del_btn.pack(pady=2)
-
-        self.preview_canvas.configure(scrollregion=self.preview_canvas.bbox("all"))
-
-    def copy_image_path(self, url):
-        self.root.clipboard_clear()
-        self.root.clipboard_append(url)
-        self.status_var.set(f"已复制图片路径: {url}")
-
-    def remove_image_from_text(self, url):
-        content = self.text_area.get("1.0", tk.END)
-        pattern = r'!\[.*?\]\(' + re.escape(url) + r'\)'
-        new_content = re.sub(pattern, '', content, count=1)
-        self.text_area.delete("1.0", tk.END)
-        self.text_area.insert("1.0", new_content)
-        self.status_var.set(f"已删除图片: {url}")
-        self.update_image_preview()
-
-    # ------------------ 日期相关 ------------------
-    def get_current_time_str(self):
+    def _now_str(self):
         return datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S+08:00")
 
-    def validate_date(self, date_str):
-        if not date_str:
-            return self.get_current_time_str()
-        if re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
-            date_str = date_str + "T00:00:00+08:00"
-        pattern = r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+08:00$'
-        if re.match(pattern, date_str):
-            return date_str
-        else:
-            messagebox.showwarning("日期格式错误", f"日期格式不正确，已使用当前时间。\n正确格式: 2026-06-06T21:24:37+08:00 或 2026-06-06")
-            return self.get_current_time_str()
+    # ---------------- 文章列表 ----------------
+    def _scan_posts(self):
+        out = []
+        for root, _, files in os.walk(POSTS_BASE):
+            for f in files:
+                if f.endswith(".md"):
+                    full = os.path.join(root, f)
+                    rel = os.path.relpath(full, POSTS_BASE)
+                    out.append((rel, full))
+        return out
 
-    # ------------------ 新建文章 ------------------
-    def new_article(self):
-        self.title_entry.delete(0, tk.END)
-        self.date_entry.delete(0, tk.END)
-        self.date_entry.insert(0, self.get_current_time_str())
-        self.categories_widget.set_tags([])
-        self.tags_widget.set_tags([])
-        self.draft_var.set(False)
-        self.text_area.delete("1.0", tk.END)
-        self.current_file_path = None
-        self.status_var.set("新建文章，填写内容后保存即可")
-        self.title_entry.focus_set()
-        self.update_image_preview()
+    def _parse_front(self, content):
+        data = {"title": None, "date": None, "categories": [], "tags": [],
+                "draft": False, "cover": None}
+        m = re.match(r"^---\s*\n(.*?)\n---\s*\n", content, re.DOTALL)
+        if not m:
+            return data
+        yaml_text = m.group(1)
+        t = re.search(r"title:\s*[\"']?(.*?)[\"']?\s*$", yaml_text, re.MULTILINE)
+        d = re.search(r"date:\s*(\S+)", yaml_text)
+        dr = re.search(r"draft:\s*(true|false)", yaml_text)
+        c = re.search(r"categories:\s*\[(.*?)\]", yaml_text)
+        g = re.search(r"tags:\s*\[(.*?)\]", yaml_text)
+        cv = re.search(r"cover:\s*\n\s+image:\s*[\"']?(.+?)[\"']?\s*$", yaml_text, re.MULTILINE)
+        if t:
+            data["title"] = t.group(1).strip("\"' ")
+        if d:
+            data["date"] = d.group(1).strip()
+        if dr:
+            data["draft"] = dr.group(1) == "true"
+        if c:
+            data["categories"] = self._parse_list(c.group(1))
+        if g:
+            data["tags"] = self._parse_list(g.group(1))
+        if cv:
+            data["cover"] = cv.group(1).strip()
+        return data
 
-    # ------------------ 获取文章列表（返回(相对路径, 标题)）------------------
-    def get_all_md_files(self):
-        md_files = []
-        if not os.path.isdir(POSTS_BASE):
-            return md_files
-        for root, dirs, files in os.walk(POSTS_BASE):
-            for file in files:
-                if file.endswith(".md"):
-                    full_path = os.path.join(root, file)
-                    rel_path = os.path.relpath(full_path, POSTS_BASE)
-                    title = self.extract_title_from_file(full_path)
-                    md_files.append((rel_path, title))
-        # 按修改时间倒序
-        md_files.sort(key=lambda item: os.path.getmtime(os.path.join(POSTS_BASE, item[0])), reverse=True)
-        return md_files
-
-    def extract_title_from_file(self, filepath):
-        """从 markdown 文件中提取 Front Matter 的 title 字段，失败则返回文件名（不含扩展名）"""
+    @staticmethod
+    def _parse_list(raw):
         try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                content = f.read()
-            match = re.search(r'^---\s*\ntitle:\s*["\']?(.*?)["\']?\s*$', content, re.MULTILINE)
-            if match:
-                return match.group(1).strip()
-        except:
-            pass
-        return os.path.splitext(os.path.basename(filepath))[0]
+            return json.loads(f"[{raw}]")
+        except Exception:
+            return [x.strip().strip("\"'") for x in raw.split(",") if x.strip()]
 
     def refresh_article_list(self):
-        """刷新左侧文章列表，显示标题，并建立标题到路径的映射"""
-        self.article_listbox.delete(0, tk.END)
-        self.title_to_path.clear()
-        for rel_path, title in self.get_all_md_files():
-            # 确保标题唯一（处理重名）
-            display_title = title
-            count = 1
-            while display_title in self.title_to_path:
-                display_title = f"{title} ({count})"
-                count += 1
-            self.title_to_path[display_title] = rel_path
-            self.article_listbox.insert(tk.END, display_title)
+        self.tree.delete(*self.tree.get_children())
+        self._tree_imgs.clear()
+        items = []
+        for rel, full in self._scan_posts():
+            try:
+                with open(full, encoding="utf-8") as f:
+                    content = f.read()
+            except OSError:
+                continue
+            data = self._parse_front(content)
+            title = data["title"] or os.path.splitext(os.path.basename(full))[0]
+            date = (data["date"] or "")[:10]
+            mtime = os.path.getmtime(full)
+            items.append((mtime, rel, full, title, date, data["cover"]))
+        items.sort(key=lambda x: x[0], reverse=True)
+        for _, rel, full, title, date, cover in items:
+            thumb = self._make_thumb(cover, full)
+            opts = {"text": f"  {title}", "values": (date,)}
+            if thumb:
+                opts["image"] = thumb
+            iid = self.tree.insert("", tk.END, **opts)
+            if thumb:
+                self._tree_imgs[iid] = thumb
+            self.tree.item(iid, tags=(rel,))
+        self.status_var.set(f"共 {len(items)} 篇文章")
 
-    # ------------------ 加载选中文章 ------------------
-    def load_selected_article(self, event=None):
-        selection = self.article_listbox.curselection()
-        if not selection:
+    def _make_thumb(self, cover, md_path):
+        """封面缩略图：优先 front matter cover，其次正文第一张图"""
+        path = None
+        if cover:
+            path = os.path.join(BLOG_ROOT, "static", cover.lstrip("/"))
+        if not path or not os.path.exists(path):
+            try:
+                with open(md_path, encoding="utf-8") as f:
+                    body = f.read()
+                m = re.search(r"!\[[^\]]*\]\((/images/[^)]+)\)", body)
+                if m:
+                    path = os.path.join(BLOG_ROOT, "static", m.group(1).lstrip("/"))
+            except OSError:
+                path = None
+        if path and os.path.exists(path):
+            try:
+                img = Image.open(path)
+                img.thumbnail((54, 40))
+                return ImageTk.PhotoImage(img)
+            except Exception:
+                pass
+        return None
+
+    def load_selected(self, _=None):
+        sel = self.tree.selection()
+        if not sel:
             return
-        display_title = self.article_listbox.get(selection[0])
-        rel_path = self.title_to_path.get(display_title)
-        if not rel_path:
-            messagebox.showerror("错误", "无法找到文章路径")
+        rel = self.tree.item(sel[0], "tags")[0]
+        full = os.path.join(POSTS_BASE, rel)
+        if self.dirty and not messagebox.askyesno("未保存", "切换文章会丢失未保存修改，继续？"):
             return
-        full_path = os.path.join(POSTS_BASE, rel_path)
         try:
-            with open(full_path, "r", encoding="utf-8") as f:
+            with open(full, encoding="utf-8") as f:
                 content = f.read()
-        except Exception as e:
-            messagebox.showerror("错误", f"读取文件失败: {e}")
+        except OSError as e:
+            messagebox.showerror("错误", f"读取失败：{e}")
             return
-
-        front_match = re.match(r'^---\s*\n(.*?)\n---\s*\n(.*)$', content, re.DOTALL)
-        if front_match:
-            yaml_text = front_match.group(1)
-            body = front_match.group(2)
-            title_match = re.search(r'title:\s*["\']?(.*?)["\']?\s*$', yaml_text, re.MULTILINE)
-            date_match = re.search(r'date:\s*(.*?)\s*$', yaml_text, re.MULTILINE)
-            categories_match = re.search(r'categories:\s*\[(.*?)\]', yaml_text)
-            tags_match = re.search(r'tags:\s*\[(.*?)\]', yaml_text)
-            draft_match = re.search(r'draft:\s*(true|false)', yaml_text)
-
-            if title_match:
-                self.title_entry.delete(0, tk.END)
-                self.title_entry.insert(0, title_match.group(1).strip('"\' '))
-            if date_match:
-                self.date_entry.delete(0, tk.END)
-                self.date_entry.insert(0, date_match.group(1).strip())
-            else:
-                self.date_entry.delete(0, tk.END)
-                self.date_entry.insert(0, self.get_current_time_str())
-            if categories_match:
-                cats_str = categories_match.group(1)
-                try:
-                    cats = json.loads(f"[{cats_str}]") if cats_str.strip() else []
-                except:
-                    cats = [c.strip().strip('"') for c in cats_str.split(",") if c.strip()]
-                self.categories_widget.set_tags(cats)
-            else:
-                self.categories_widget.set_tags([])
-            if tags_match:
-                tags_str = tags_match.group(1)
-                try:
-                    tags = json.loads(f"[{tags_str}]") if tags_str.strip() else []
-                except:
-                    tags = [t.strip().strip('"') for t in tags_str.split(",") if t.strip()]
-                self.tags_widget.set_tags(tags)
-            else:
-                self.tags_widget.set_tags([])
-            if draft_match:
-                self.draft_var.set(draft_match.group(1).lower() == "true")
-        else:
-            body = content
-            self.categories_widget.set_tags([])
-            self.tags_widget.set_tags([])
-            self.draft_var.set(False)
-            self.date_entry.delete(0, tk.END)
-            self.date_entry.insert(0, self.get_current_time_str())
-
+        data = self._parse_front(content)
+        m = re.match(r"^---\s*\n.*?\n---\s*\n", content, re.DOTALL)
+        body = content[m.end():].strip() if m else content.strip()
+        self.title_entry.delete(0, tk.END)
+        self.title_entry.insert(0, data["title"] or "")
+        self.date_entry.delete(0, tk.END)
+        self.date_entry.insert(0, data["date"] or self._now_str())
+        self.cats.set_tags(data["categories"])
+        self.tags.set_tags(data["tags"])
+        self.draft_var.set(data["draft"])
+        self.cover_path = data["cover"]
+        self.auto_cover = self._find_auto_cover(full)
+        self._update_cover_preview()
         self.text_area.delete("1.0", tk.END)
-        self.text_area.insert("1.0", body.strip())
-        self.current_file_path = full_path
-        self.status_var.set(f"已加载: {rel_path}")
-        self.update_image_preview()
-
-    # ------------------ 生成 Front Matter ------------------
-    def generate_front_matter(self, title, date_str, categories, tags, draft):
-        if not date_str:
-            date_str = self.get_current_time_str()
+        self.text_area.insert("1.0", body)
+        self.current_file_path = full
+        self.current_title = data["title"] or ""
+        self.dirty = False
+        if not self.cover_path and self.auto_cover:
+            self.status_var.set(f"已打开：{rel}（封面来自正文图片，可点\"编辑封面\"裁剪）")
         else:
-            date_str = self.validate_date(date_str)
-        cat_yaml = json.dumps(categories, ensure_ascii=False)
-        tag_yaml = json.dumps(tags, ensure_ascii=False)
-        draft_str = "true" if draft else "false"
-        return f"""---
-title: "{title}"
-date: {date_str}
-categories: {cat_yaml}
-tags: {tag_yaml}
-draft: {draft_str}
----
+            self.status_var.set(f"已打开：{rel}")
+        self._update_count()
 
-"""
+    # ---------------- 新建 / 保存 / 删除 ----------------
+    def new_article(self):
+        if self.dirty and not messagebox.askyesno("未保存", "有未保存的修改，新建会丢失，继续？"):
+            return
+        self.title_entry.delete(0, tk.END)
+        self.date_entry.delete(0, tk.END)
+        self.date_entry.insert(0, self._now_str())
+        self.cats.set_tags([])
+        self.tags.set_tags([])
+        self.draft_var.set(False)
+        self.cover_path = None
+        self.auto_cover = None
+        self._update_cover_preview()
+        self.text_area.delete("1.0", tk.END)
+        self.current_file_path = None
+        self.current_title = ""
+        self.dirty = False
+        self.status_var.set("新建文章，填写后保存")
+        self.title_entry.focus_set()
+        self.notebook.select(0)
+        self._update_count()
 
-    # ------------------ 保存文章 ------------------
     def save_article(self):
         title = self.title_entry.get().strip()
         if not title:
             messagebox.showwarning("提示", "标题不能为空")
             return
-        date_str = self.date_entry.get().strip()
-        categories = self.categories_widget.get_tags()
-        tags = self.tags_widget.get_tags()
-        draft = self.draft_var.get()
+        date = self.date_entry.get().strip() or self._now_str()
+        if not re.match(r"^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}\+08:00)?$", date):
+            messagebox.showwarning("提示", "日期格式应为 2026-06-06 或 2026-06-06T21:24:37+08:00")
+            return
+        if re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+            date += "T00:00:00+08:00"
         body = self.text_area.get("1.0", tk.END).rstrip()
+        cats = json.dumps(self.cats.get_tags(), ensure_ascii=False)
+        tags = json.dumps(self.tags.get_tags(), ensure_ascii=False)
+
+        lines = ["---", f'title: "{title}"', f"date: {date}",
+                 f"categories: {cats}", f"tags: {tags}",
+                 f"draft: {str(self.draft_var.get()).lower()}"]
+        if self.cover_path:
+            lines.append("cover:")
+            lines.append(f'  image: "{self.cover_path}"')
+        lines.append("---")
+        front = "\n".join(lines) + "\n\n"
 
         if self.current_file_path and os.path.exists(self.current_file_path):
             filepath = self.current_file_path
         else:
-            safe_title = re.sub(r'[\\/*?:"<>|]', '', title)
-            filename = safe_title.replace(' ', '-') + ".md"
-            filepath = os.path.join(POSTS_BASE, filename)
-
-        front = self.generate_front_matter(title, date_str, categories, tags, draft)
-        full_content = front + body
-
+            safe = re.sub(r'[\\/:*?"<>|]', "", title).replace(" ", "-")
+            filepath = os.path.join(POSTS_BASE, safe + ".md")
+            if os.path.exists(filepath):
+                filepath = os.path.join(POSTS_BASE, safe + f"-{int(datetime.datetime.now().timestamp())}.md")
         try:
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
             with open(filepath, "w", encoding="utf-8") as f:
-                f.write(full_content)
-            self.current_file_path = filepath
-            rel = os.path.relpath(filepath, POSTS_BASE)
-            self.status_var.set(f"已保存: {rel}")
-            self.refresh_article_list()
-            messagebox.showinfo("成功", f"文章已保存到\n{filepath}")
-        except Exception as e:
-            messagebox.showerror("错误", f"保存失败: {e}")
-
-    # ------------------ 插入图片 ------------------
-    def insert_image(self):
-        if not os.path.isdir(IMAGES_DIR):
-            os.makedirs(IMAGES_DIR, exist_ok=True)
-        img_path = filedialog.askopenfilename(title="选择图片", filetypes=[("图片文件", "*.png *.jpg *.jpeg *.gif *.webp")])
-        if not img_path:
+                f.write(front + body)
+        except OSError as e:
+            messagebox.showerror("错误", f"保存失败：{e}")
             return
-        basename = os.path.basename(img_path)
-        dest_path = os.path.join(IMAGES_DIR, basename)
-        if os.path.exists(dest_path):
-            name, ext = os.path.splitext(basename)
-            counter = 1
-            while os.path.exists(os.path.join(IMAGES_DIR, f"{name}_{counter}{ext}")):
-                counter += 1
-            dest_path = os.path.join(IMAGES_DIR, f"{name}_{counter}{ext}")
-        shutil.copy2(img_path, dest_path)
-        rel_path = f"/images/{os.path.basename(dest_path)}"
-        alt = os.path.splitext(basename)[0]
-        img_md = f"![{alt}]({rel_path})\n\n"
-        self.text_area.insert(tk.INSERT, img_md)
-        self.status_var.set("图片已复制并插入")
-        self.update_image_preview()
+        self.current_file_path = filepath
+        self.current_title = title
+        self.dirty = False
+        rel = os.path.relpath(filepath, POSTS_BASE)
+        self.status_var.set(f"✅ 已保存：{rel}")
+        self.refresh_article_list()
+        messagebox.showinfo("成功", f"文章已保存\n{filepath}")
 
-    # ------------------ 预览网站 ------------------
-    def preview_site(self):
-        import socket
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        result = sock.connect_ex(('127.0.0.1', 1314))
-        if result == 0:
-            answer = messagebox.askyesno("端口占用", "本地 1314 端口已被占用，可能已有 hugo server 在运行。\n是否强制关闭现有进程并重新启动？")
-            if answer:
-                subprocess.run("taskkill /F /IM hugo.exe", shell=True, capture_output=True)
-                self.status_var.set("已终止现有 hugo 进程")
-            else:
-                webbrowser.open("http://localhost:1314")
-                return
-        cmd = f'start cmd /k "cd /d {BLOG_ROOT} && hugo server -D --port 1314"'
-        subprocess.Popen(cmd, shell=True)
-        self.status_var.set("预览服务器已启动，等待几秒后自动打开浏览器...")
-        self.root.after(3000, lambda: webbrowser.open("http://localhost:1314"))
-
-    # ------------------ 推送到 GitHub ------------------
-    def push_to_github(self):
-        if not messagebox.askyesno("确认推送", "确定要将所有本地更改推送到 GitHub 吗？\n请确保预览无误后再操作。"):
-            return
-        try:
-            os.chdir(BLOG_ROOT)
-            if not os.path.isdir(".git"):
-                self.status_var.set("错误：当前目录不是 Git 仓库")
-                return
-            subprocess.run(["git", "add", "."], check=True, capture_output=True, text=True)
-            commit_msg = "更新文章"
-            if self.current_file_path:
-                title = self.title_entry.get().strip()
-                if title:
-                    commit_msg = f"更新文章: {title}"
-            subprocess.run(["git", "commit", "-m", commit_msg], check=True, capture_output=True, text=True)
-            subprocess.run(["git", "push"], check=True, capture_output=True, text=True)
-            self.status_var.set("✅ 推送成功！")
-            messagebox.showinfo("成功", "已推送到 GitHub，稍等片刻在线网站将更新。")
-        except subprocess.CalledProcessError as e:
-            error_msg = e.stderr if e.stderr else str(e)
-            self.status_var.set("推送失败")
-            messagebox.showerror("Git 错误", f"执行 Git 命令失败:\n{error_msg}")
-        except Exception as e:
-            self.status_var.set("未知错误")
-            messagebox.showerror("错误", str(e))
-
-    # ------------------ 删除当前文章 ------------------
     def delete_article(self):
         if not self.current_file_path or not os.path.exists(self.current_file_path):
             messagebox.showwarning("提示", "没有打开的文章可删除")
             return
         rel = os.path.relpath(self.current_file_path, POSTS_BASE)
-        if messagebox.askyesno("确认删除", f"确定要永久删除文章\n{rel} 吗？\n此操作不可恢复！"):
+        if messagebox.askyesno("确认删除", f"永久删除\n{rel}\n？此操作不可恢复！"):
             try:
                 os.remove(self.current_file_path)
-                self.status_var.set(f"已删除: {rel}")
                 self.new_article()
                 self.refresh_article_list()
-                messagebox.showinfo("成功", "文章已删除")
-            except Exception as e:
-                messagebox.showerror("错误", f"删除失败: {e}")
+                self.status_var.set(f"已删除：{rel}")
+            except OSError as e:
+                messagebox.showerror("错误", f"删除失败：{e}")
 
-if __name__ == "__main__":
+    def _clear_editor(self):
+        if messagebox.askyesno("清空", "清空编辑区（不保存）？"):
+            self.text_area.delete("1.0", tk.END)
+            self.dirty = True
+            self._update_count()
+
+    # ---------------- 图片 / 封面 ----------------
+    def insert_image(self):
+        os.makedirs(IMAGES_DIR, exist_ok=True)
+        path = filedialog.askopenfilename(
+            title="选择图片",
+            filetypes=[("图片", "*.png *.jpg *.jpeg *.gif *.webp *.avif")])
+        if not path:
+            return
+        dest = self._copy_to_images(path)
+        if not dest:
+            return
+        alt = os.path.splitext(os.path.basename(dest))[0]
+        self.text_area.insert(tk.INSERT, f"![{alt}]({dest})\n\n")
+        self.text_area.edit_modified(True)
+        self._on_modified()
+        self.status_var.set(f"已插入图片：{dest}")
+
+    def choose_cover(self):
+        os.makedirs(IMAGES_DIR, exist_ok=True)
+        path = filedialog.askopenfilename(
+            title="选择封面图片",
+            filetypes=[("图片", "*.png *.jpg *.jpeg *.webp *.avif")])
+        if not path:
+            return
+        dlg = CoverCropDialog(self.root, path)
+        self.root.wait_window(dlg)
+        cropped = dlg.result
+        if cropped is None:
+            self.status_var.set("已取消选择封面")
+            return
+        saved = self._save_cropped(cropped, path)
+        if not saved:
+            return
+        self.cover_path = saved
+        self._update_cover_preview()
+        self.dirty = True
+        self.status_var.set(f"封面已裁剪并设置：{self.cover_path}")
+
+    def edit_cover(self):
+        """编辑当前封面：优先已保存的 cover，其次正文自动封面"""
+        full = self._current_cover_full()
+        if not full or not os.path.exists(full):
+            messagebox.showinfo("提示", "当前文章没有封面图，请先点\"选择封面\"")
+            return
+        dlg = CoverCropDialog(self.root, full)
+        self.root.wait_window(dlg)
+        cropped = dlg.result
+        if cropped is None:
+            self.status_var.set("已取消编辑封面")
+            return
+        saved = self._save_cropped(cropped, full)
+        if not saved:
+            return
+        self.cover_path = saved
+        self._update_cover_preview()
+        self.dirty = True
+        self.status_var.set(f"封面已裁剪保存：{self.cover_path}")
+
+    def _save_cropped(self, cropped, src_path):
+        base = re.sub(r'[\\/:*?"<>|]', "", os.path.splitext(os.path.basename(src_path))[0])
+        base = base or "cover"
+        ext = os.path.splitext(src_path)[1].lower() or ".jpg"
+        out = os.path.join(IMAGES_DIR, f"{base}-cover{ext}")
+        i = 1
+        while os.path.exists(out):
+            out = os.path.join(IMAGES_DIR, f"{base}-cover-{i}{ext}")
+            i += 1
+        try:
+            if ext in (".jpg", ".jpeg"):
+                cropped.save(out, quality=92)
+            else:
+                cropped.save(out)
+        except OSError as e:
+            messagebox.showerror("错误", f"保存封面失败：{e}")
+            return None
+        return f"/images/{os.path.basename(out)}"
+
+    def _find_auto_cover(self, md_full):
+        """默认封面：正文第一张图片；正文无图则用全局默认封面图"""
+        try:
+            with open(md_full, encoding="utf-8") as f:
+                body = f.read()
+        except OSError:
+            return DEFAULT_COVER if os.path.exists(DEFAULT_COVER) else None
+        m = re.search(r"!\[[^\]]*\]\((/images/[^)]+)\)", body)
+        if m:
+            p = os.path.join(BLOG_ROOT, "static", m.group(1).lstrip("/"))
+            if os.path.exists(p):
+                return p
+        return DEFAULT_COVER if os.path.exists(DEFAULT_COVER) else None
+
+    def _current_cover_full(self):
+        if self.cover_path:
+            p = os.path.join(BLOG_ROOT, "static", self.cover_path.lstrip("/"))
+            if os.path.exists(p):
+                return p
+        if self.auto_cover:
+            return self.auto_cover
+        return None
+
+    def clear_cover(self):
+        self.cover_path = None
+        self._update_cover_preview()
+        self.dirty = True
+        self.status_var.set("封面已清除")
+
+    def _copy_to_images(self, src):
+        name = os.path.basename(src)
+        dest = os.path.join(IMAGES_DIR, name)
+        if os.path.exists(dest):
+            base, ext = os.path.splitext(name)
+            i = 1
+            while os.path.exists(os.path.join(IMAGES_DIR, f"{base}_{i}{ext}")):
+                i += 1
+            dest = os.path.join(IMAGES_DIR, f"{base}_{i}{ext}")
+        try:
+            shutil.copy2(src, dest)
+            return f"/images/{os.path.basename(dest)}"
+        except OSError as e:
+            messagebox.showerror("错误", f"复制图片失败：{e}")
+            return None
+
+    def _update_cover_preview(self):
+        for w in self.cover_canvas.winfo_children():
+            w.destroy()
+        full = self._current_cover_full()
+        if not full:
+            self.cover_canvas.config(text="无封面", image="")
+            return
+        if not os.path.exists(full):
+            self.cover_canvas.config(text="图片丢失", image="")
+            return
+        try:
+            img = Image.open(full)
+            img.thumbnail((110, 66))
+            photo = ImageTk.PhotoImage(img)
+            self._img_refs.append(photo)
+            self.cover_canvas.config(text="", image=photo)
+        except Exception:
+            self.cover_canvas.config(text="无法预览", image="")
+
+    # ---------------- 预览 / 字数 ----------------
+    def _update_count(self):
+        body = self.text_area.get("1.0", tk.END).strip()
+        self.count_var.set(f"字数：{len(body)}")
+
+    def _show_preview(self):
+        body = self.text_area.get("1.0", tk.END).rstrip()
+        self.preview_text.config(state=tk.NORMAL)
+        self.preview_text.delete("1.0", tk.END)
+        self._preview_imgs.clear()
+        self._render_markdown(body)
+        self.preview_text.config(state=tk.DISABLED)
+
+    def _render_markdown(self, md):
+        lines = md.splitlines()
+        code_block = False
+        for line in lines:
+            s = line.strip()
+            if s.startswith("```"):
+                code_block = not code_block
+                self.preview_text.insert(tk.END, "\n")
+                continue
+            if code_block:
+                self.preview_text.insert(tk.END, line + "\n", "code")
+                continue
+            if not s:
+                self.preview_text.insert(tk.END, "\n")
+                continue
+            if s.startswith("### "):
+                self._insert_inline(s[4:], "h3")
+                self.preview_text.insert(tk.END, "\n")
+            elif s.startswith("## "):
+                self._insert_inline(s[3:], "h2")
+                self.preview_text.insert(tk.END, "\n")
+            elif s.startswith("# "):
+                self._insert_inline(s[2:], "h1")
+                self.preview_text.insert(tk.END, "\n")
+            elif s.startswith("> "):
+                self.preview_text.insert(tk.END, s[2:] + "\n", "quote")
+            elif s.startswith(("- ", "* ")):
+                self._insert_inline("• " + s[2:], "list")
+                self.preview_text.insert(tk.END, "\n")
+            elif re.match(r"^\d+\.\s", s):
+                self._insert_inline(s, "list")
+                self.preview_text.insert(tk.END, "\n")
+            elif s.startswith("![") :
+                self._insert_image(s)
+            else:
+                self._insert_inline(s, None)
+                self.preview_text.insert(tk.END, "\n")
+
+    def _insert_image(self, line):
+        m = re.search(r"!\[([^\]]*)\]\(([^)]+)\)", line)
+        if not m:
+            self.preview_text.insert(tk.END, line + "\n", "muted")
+            return
+        alt, url = m.group(1), m.group(2)
+        full = None
+        if url.startswith("/images/"):
+            full = os.path.join(BLOG_ROOT, "static", url.lstrip("/"))
+        elif re.match(r"^[a-zA-Z]:", url):
+            full = url
+        if full and os.path.exists(full):
+            try:
+                img = Image.open(full)
+                img.thumbnail((420, 300))
+                photo = ImageTk.PhotoImage(img)
+                self._preview_imgs.append(photo)
+                self.preview_text.image_create(tk.END, image=photo)
+                self.preview_text.insert(tk.END, "\n")
+                return
+            except Exception:
+                pass
+        self.preview_text.insert(tk.END, f"[图片] {alt or url}\n", "muted")
+
+    def _insert_inline(self, text, tag):
+        # 行内：**粗体** *斜体* `代码` [链接](url)
+        pattern = r"(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\))"
+        pos = 0
+        for m in re.finditer(pattern, text):
+            if m.start() > pos:
+                self.preview_text.insert(tk.END, text[pos:m.start()], tag)
+            seg = m.group(1)
+            if seg.startswith("**"):
+                self.preview_text.insert(tk.END, seg[2:-2], (tag, "bold") if tag else "bold")
+            elif seg.startswith("*"):
+                self.preview_text.insert(tk.END, seg[1:-1], (tag, "italic") if tag else "italic")
+            elif seg.startswith("`"):
+                self.preview_text.insert(tk.END, seg[1:-1], "code")
+            else:
+                lm = re.match(r"\[([^\]]+)\]\(([^)]+)\)", seg)
+                self.preview_text.insert(tk.END, lm.group(1), (tag, "link") if tag else "link")
+            pos = m.end()
+        if pos < len(text):
+            self.preview_text.insert(tk.END, text[pos:], tag)
+
+    # ---------------- 网站 / Git ----------------
+    def _server_running(self):
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            return s.connect_ex(("127.0.0.1", 1314)) == 0
+        finally:
+            s.close()
+
+    def _update_server_status(self):
+        if self._server_running():
+            self.server_label.config(text="● 本地服务器运行中", fg=COL_GREEN)
+        else:
+            self.server_label.config(text="○ 本地服务器未启动", fg=COL_MUTED)
+        self.root.after(5000, self._update_server_status)
+
+    def preview_site(self):
+        if not self._server_running():
+            subprocess.Popen(
+                ["hugo", "server", "-D", "--port", "1314", "--bind", "127.0.0.1"],
+                cwd=BLOG_ROOT, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            self.status_var.set("正在启动本地服务器...")
+            self.root.after(2500, lambda: webbrowser.open("http://localhost:1314"))
+        else:
+            webbrowser.open("http://localhost:1314")
+        self._update_server_status()
+
+    def _update_git_status(self):
+        if not is_git_repo():
+            self.git_label.config(text="Git: 非仓库", fg=COL_RED)
+            return
+        try:
+            r = subprocess.run(["git", "status", "--porcelain"], cwd=BLOG_ROOT,
+                               capture_output=True, text=True, encoding="utf-8")
+            n = len([x for x in r.stdout.splitlines() if x.strip()])
+            self.git_label.config(text=f"Git: {n} 个未提交改动",
+                                  fg=COL_GOLD if n else COL_GREEN)
+        except Exception:
+            self.git_label.config(text="Git: 无法读取", fg=COL_RED)
+
+    def push_to_github(self):
+        if not is_git_repo():
+            messagebox.showerror("错误", "当前目录不是 Git 仓库")
+            return
+        r = subprocess.run(["git", "status", "--porcelain"], cwd=BLOG_ROOT,
+                           capture_output=True, text=True, encoding="utf-8")
+        if not r.stdout.strip():
+            messagebox.showinfo("提示", "没有需要推送的改动")
+            return
+        title = self.title_entry.get().strip()
+        msg = f"更新文章: {title}" if title else "更新文章"
+        if not messagebox.askyesno("确认推送", f"提交信息：\n{msg}\n\n确定提交并推送到 GitHub？"):
+            return
+        steps = [
+            ("git", "add", "-A"),
+            ("git", "commit", "-m", msg),
+            ("git", "push"),
+        ]
+        try:
+            for cmd in steps:
+                p = subprocess.run(cmd, cwd=BLOG_ROOT, capture_output=True,
+                                   text=True, encoding="utf-8")
+                if p.returncode != 0:
+                    err = (p.stderr or p.stdout or "").strip()
+                    if "nothing to commit" in err:
+                        break
+                    messagebox.showerror("推送失败", err[-500:])
+                    return
+            self.status_var.set("✅ 推送成功，等待 GitHub Actions 构建")
+            messagebox.showinfo("成功", "已推送到 GitHub，稍后网站自动更新")
+            self._update_git_status()
+        except Exception as e:
+            messagebox.showerror("错误", str(e))
+
+
+def main():
     if not os.path.isdir(BLOG_ROOT):
         print(f"错误：博客目录不存在 - {BLOG_ROOT}")
-        print("请修改代码中的 BLOG_ROOT 变量")
         input("按 Enter 退出...")
-        exit(1)
+        return
     os.makedirs(POSTS_BASE, exist_ok=True)
     os.makedirs(IMAGES_DIR, exist_ok=True)
-
     root = tk.Tk()
-    app = HugoBlogTool(root)
+    BlogTool(root)
     root.mainloop()
+
+
+if __name__ == "__main__":
+    main()

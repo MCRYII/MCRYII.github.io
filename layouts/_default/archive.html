@@ -1,0 +1,17 @@
+{{ define "main" }}
+<style>main.main { max-width: none !important; }</style>
+<div class="three-col">
+    {{ partial "sidebar-left.html" . }}
+    <div class="col-main">
+        <article class="post-single">
+            <header class="post-header">
+                <h1 class="post-title">{{ .Title }}</h1>
+            </header>
+            <div class="post-content">
+                {{ .Content }}
+            </div>
+        </article>
+    </div>
+    {{ partial "sidebar-right.html" . }}
+</div>
+{{ end }}

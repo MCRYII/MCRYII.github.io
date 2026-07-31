@@ -1,5 +1,6 @@
 ---
 title: "更新日志"
+layout: triple
 draft: false
 comments: false
 ---

@@ -1,5 +1,6 @@
 ---
 title: "赞助"
+layout: triple
 draft: false
 comments: false
 ---

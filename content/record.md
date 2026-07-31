@@ -1,6 +1,6 @@
 ---
-title: "友链"
-layout: triple
+title: "记录"
+layout: record
 draft: false
 comments: false
 ---

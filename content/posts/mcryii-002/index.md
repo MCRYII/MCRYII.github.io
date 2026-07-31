@@ -4,6 +4,8 @@ date: 2026-06-05T22:29:22+08:00
 categories: ["MCRYII"]
 tags: ["分享", "可爱", "ai", "gpt"]
 draft: false
+cover:
+  image: "/images/1000218416_1-cover.png"
 ---
 
 可爱捏（gpt跑出来的）：

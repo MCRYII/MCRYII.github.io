@@ -1,0 +1,335 @@
+{{- define "main" }}
+<style>
+main.main {
+    max-width: 1180px !important;
+}
+.hero-post {
+    border-radius: 22px;
+    background: #ffffff;
+    border: 2px solid rgba(212, 175, 55, 0.55);
+    box-shadow: 0 8px 30px rgba(212, 175, 55, 0.18);
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+html[data-theme="dark"] .hero-post { background: #262216; }
+.hero-post:hover {
+    transform: translateY(-4px);
+    border-color: #d4af37;
+    box-shadow: 0 18px 46px rgba(212, 175, 55, 0.3);
+}
+.hero-post a { display: block; text-decoration: none; color: var(--primary); }
+.hero-cover {
+    position: relative;
+    aspect-ratio: 21 / 9;
+    overflow: hidden;
+    background: linear-gradient(135deg, #2b2415 0%, #4d3d16 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.hero-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.45s ease;
+}
+.hero-badge {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #f4d35e 0%, #d4af37 55%, #b8860b 100%);
+    color: #241a02;
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    box-shadow: 0 0 18px rgba(212, 175, 55, 0.55);
+    animation: badge-pulse 1.8s ease-in-out infinite;
+}
+@keyframes badge-pulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 14px rgba(212, 175, 55, 0.45);
+    }
+    50% {
+        transform: scale(1.06);
+        box-shadow: 0 0 26px rgba(212, 175, 55, 0.85);
+    }
+}
+.hero-post:hover .hero-cover img { transform: scale(1.05); }
+.hero-fallback {
+    font-size: 4rem;
+    color: rgba(212, 175, 55, 0.85);
+    text-shadow: 0 0 30px rgba(212, 175, 55, 0.45);
+}
+.hero-body { padding: 24px 28px 26px; }
+.hero-cat {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #d4af37;
+    background: rgba(212, 175, 55, 0.12);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    border-radius: 999px;
+    padding: 3px 12px;
+    margin-bottom: 10px;
+}
+.hero-title {
+    font-size: 1.7rem;
+    font-weight: 800;
+    line-height: 1.3;
+    margin: 0 0 10px;
+}
+.hero-summary {
+    font-size: 0.95rem;
+    color: var(--secondary);
+    line-height: 1.7;
+    margin: 0 0 14px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.hero-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 0.8rem;
+    color: #999;
+}
+.hero-meta .read-more { margin-left: auto; color: #d4af37; font-weight: 700; }
+.scroll-hint {
+    text-align: center;
+    color: #d4af37;
+    font-size: 0.85rem;
+    padding: 22px 0 8px;
+    cursor: pointer;
+    user-select: none;
+}
+.scroll-hint .arrow {
+    display: inline-block;
+    font-size: 1.2rem;
+    animation: hint-bounce 1.6s ease infinite;
+}
+@keyframes hint-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(6px); }
+}
+.post-list { padding: 12px 0 10px; }
+.post-row {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.65s ease, transform 0.65s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    border-radius: 18px;
+    background: #ffffff;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+html[data-theme="dark"] .post-row { background: #262216; }
+.post-row.in-view {
+    opacity: 1;
+    transform: none;
+}
+.post-row:hover {
+    border-color: rgba(212, 175, 55, 0.75);
+    box-shadow: 0 10px 26px rgba(212, 175, 55, 0.16);
+}
+.post-row a {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    text-decoration: none;
+    color: var(--primary);
+}
+.row-cover {
+    width: 200px;
+    height: 120px;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #2b2415 0%, #4d3d16 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.row-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.35s ease;
+}
+.post-row:hover .row-cover img { transform: scale(1.06); }
+.row-fallback { font-size: 2rem; color: rgba(212, 175, 55, 0.85); }
+.row-body { flex: 1; min-width: 0; padding: 16px 20px; }
+.row-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 0 0 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.row-summary {
+    font-size: 0.84rem;
+    color: var(--secondary);
+    line-height: 1.6;
+    margin: 0 0 10px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.row-meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 0.75rem;
+    color: #999;
+}
+@media (max-width: 720px) {
+    .hero-title { font-size: 1.25rem; }
+    .hero-body { padding: 16px; }
+    .hero-cover { aspect-ratio: 16 / 10; }
+    .row-cover { width: 110px; height: 80px; }
+    .row-body { padding: 12px 14px; }
+}
+</style>
+
+<header class="page-header">
+    <h1>文章列表</h1>
+</header>
+
+{{- $paginator := .Paginate .RegularPages }}
+
+{{- if eq $paginator.PageNumber 1 }}
+{{- range $index, $page := $paginator.Pages }}
+    {{- if eq $index 0 }}
+    <!-- 首屏：最新文章大图 -->
+    <article class="hero-post">
+        <a href="{{ .Permalink }}">
+            <div class="hero-cover">
+                {{- with .Params.cover.image }}
+                <img src="{{ . }}" alt="{{ $page.Title }}" fetchpriority="high">
+                {{- else }}
+                <img src="/images/default-cover.png" alt="{{ $page.Title }}" fetchpriority="high">
+                {{- end }}
+                <span class="hero-badge">🔥 最新发布</span>
+            </div>
+            <div class="hero-body">
+                {{- with .Params.categories }}{{ range first 1 . }}<span class="hero-cat">{{ . }}</span>{{ end }}{{ end }}
+                <h2 class="hero-title">{{ .Title }}</h2>
+                <p class="hero-summary">{{ .Summary | plainify | htmlUnescape }}{{ if .Truncated }}...{{ end }}</p>
+                <div class="hero-meta">
+                    <span>🗓 {{ .Date.Format "2006-01-02" }}</span>
+                    <span>⏱ {{ .ReadingTime }} 分钟</span>
+                    <span class="read-more">阅读全文 →</span>
+                </div>
+            </div>
+        </a>
+    </article>
+    <div class="scroll-hint" id="scroll-hint"><span class="arrow">↓</span> 向下滚动查看更多文章</div>
+    <div class="post-list">
+    {{- else }}
+    <!-- 其余文章：竖排列表 + 滚动动画 -->
+    <article class="post-row">
+        <a href="{{ .Permalink }}">
+            <div class="row-cover">
+                {{- with .Params.cover.image }}
+                <img src="{{ . }}" alt="{{ $page.Title }}" loading="lazy">
+                {{- else }}
+                <img src="/images/default-cover.png" alt="{{ $page.Title }}" loading="lazy">
+                {{- end }}
+            </div>
+            <div class="row-body">
+                {{- with .Params.categories }}{{ range first 1 . }}<span class="hero-cat">{{ . }}</span>{{ end }}{{ end }}
+                <h3 class="row-title">{{ .Title }}</h3>
+                <p class="row-summary">{{ .Summary | plainify | htmlUnescape }}{{ if .Truncated }}...{{ end }}</p>
+                <div class="row-meta">
+                    <span>🗓 {{ .Date.Format "2006-01-02" }}</span>
+                    <span>⏱ {{ .ReadingTime }} 分钟</span>
+                </div>
+            </div>
+        </a>
+    </article>
+    {{- end }}
+{{- end }}
+    </div>
+
+{{- else }}
+    <!-- 分页子页：简单竖排列表 -->
+    <div class="post-list">
+    {{- range $index, $page := $paginator.Pages }}
+    <article class="post-row in-view">
+        <a href="{{ .Permalink }}">
+            <div class="row-cover">
+                {{- with .Params.cover.image }}
+                <img src="{{ . }}" alt="{{ $page.Title }}" loading="lazy">
+                {{- else }}
+                <img src="/images/default-cover.png" alt="{{ $page.Title }}" loading="lazy">
+                {{- end }}
+            </div>
+            <div class="row-body">
+                {{- with .Params.categories }}{{ range first 1 . }}<span class="hero-cat">{{ . }}</span>{{ end }}{{ end }}
+                <h3 class="row-title">{{ .Title }}</h3>
+                <p class="row-summary">{{ .Summary | plainify | htmlUnescape }}{{ if .Truncated }}...{{ end }}</p>
+                <div class="row-meta">
+                    <span>🗓 {{ .Date.Format "2006-01-02" }}</span>
+                    <span>⏱ {{ .ReadingTime }} 分钟</span>
+                </div>
+            </div>
+        </a>
+    </article>
+    {{- end }}
+    </div>
+{{- end }}
+
+{{- if gt $paginator.TotalPages 1 }}
+<footer class="page-footer">
+    <nav class="pagination">
+        {{- if $paginator.HasPrev }}
+        <a class="prev" href="{{ $paginator.Prev.URL | absURL }}">«&nbsp;上一页</a>
+        {{- end }}
+        {{- if $paginator.HasNext }}
+        <a class="next" href="{{ $paginator.Next.URL | absURL }}">下一页&nbsp;»</a>
+        {{- end }}
+    </nav>
+</footer>
+{{- end }}
+
+<script>
+// 滚动切入动画：其他文章进入视口时逐条浮现
+(function () {
+    var hint = document.getElementById('scroll-hint');
+    if (hint) {
+        hint.addEventListener('click', function () {
+            var list = document.querySelector('.post-list');
+            if (list) list.scrollIntoView({ behavior: 'smooth' });
+        });
+    }
+    var rows = document.querySelectorAll('.post-row:not(.in-view)');
+    if (!rows.length) return;
+    if (!('IntersectionObserver' in window)) {
+        rows.forEach(function (r) { r.classList.add('in-view'); });
+        return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+            if (en.isIntersecting) {
+                en.target.classList.add('in-view');
+                io.unobserve(en.target);
+            }
+        });
+    }, { threshold: 0.12 });
+    rows.forEach(function (r, i) {
+        r.style.transitionDelay = Math.min(i * 80, 600) + 'ms';
+        io.observe(r);
+    });
+})();
+</script>
+{{- end }}

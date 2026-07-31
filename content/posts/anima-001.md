@@ -4,6 +4,8 @@ date: 2026-06-07T15:00:34+08:00
 categories: ["AI绘画"]
 tags: ["ai", "anima"]
 draft: false
+cover:
+  image: "/images/1780815586512_1000218886-cover.jpg"
 ---
 
 ![1780815586512_1000218886.jpg](/images/1780815586512_1000218886.jpg)

@@ -1,5 +1,6 @@
 ---
 title: "笔记本"
+layout: triple
 draft: false
 comments: false
 ---

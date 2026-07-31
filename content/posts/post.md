@@ -4,6 +4,8 @@ date: 2026-06-06T22:47:37+08:00
 categories: ["测试"]
 tags: ["测试"]
 draft: false
+cover:
+  image: "/images/1780757243857_1000218685-cover.png"
 ---
 
 ![1780757243857_1000218685.png](/images/1780757243857_1000218685.png)

@@ -1,5 +1,6 @@
 ---
 title: "规划"
+layout: triple
 draft: false
 comments: false
 ---
