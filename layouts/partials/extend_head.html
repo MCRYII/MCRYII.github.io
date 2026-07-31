@@ -42,8 +42,10 @@ body {
     font-family: 'Georgia', 'Times New Roman', '宋体', serif !important;
     text-shadow: 0 0 2px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.7), 2px 2px 10px rgba(0,0,0,0.6), 0 0 15px rgba(212,175,55,0.3) !important;
     margin-bottom: 1.2rem !important;
-    opacity: 0;
-    animation: fadeInSlow 1.2s ease-out 1s forwards !important;
+}
+.home-info h1 .typing-cursor {
+    color: #d4af37 !important;
+    animation: blinkCursor 0.7s step-end infinite;
 }
 .home-info p {
     color: #f8f0e3 !important;
@@ -51,12 +53,14 @@ body {
     font-weight: 500 !important;
     text-shadow: 0 0 2px rgba(0,0,0,0.9), 1px 1px 6px rgba(0,0,0,0.8) !important;
     letter-spacing: 1px !important;
-    opacity: 0;
-    animation: fadeInSlow 1s ease-out 1.5s forwards !important;
 }
-@keyframes fadeInSlow {
-    from { opacity: 0; }
-    to   { opacity: 1; }
+.home-info p .typing-cursor {
+    color: #f8f0e3 !important;
+    animation: blinkCursor 0.7s step-end infinite;
+}
+@keyframes blinkCursor {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
 }
 </style>
 
@@ -162,6 +166,10 @@ body > .header {
     background: transparent !important;
     padding: 12px 20px !important;
     margin: 0 !important;
+}
+body > .header .logo a {
+    font-size: 2rem;
+    margin-left: -12px;
 }
 body > .header a {
     transition: color 0.2s ease !important;
@@ -380,9 +388,8 @@ input[type="range"]::-moz-range-thumb {
 <script>
 // ==================== 播放器脚本（支持页面跳转后继续播放） ====================
 const playlist = [
-    { title: "夜の向日葵", artist: "松本文紀", cover: "https://picsum.photos/id/106/140/140", src: "/music/night-sunflower.mp3" },
-    { title: "夏影", artist: "麻枝准", cover: "https://picsum.photos/id/100/140/140", src: "/music/summer-shadow.mp3" },
-    { title: "空に光る", artist: "折户伸治", cover: "https://picsum.photos/id/101/140/140", src: "/music/shine-in-sky.mp3" }
+    // 注意：列表里的音乐必须真实存在于 static/music/，否则会加载失败
+    { title: "夜の向日葵", artist: "松本文紀", cover: "https://picsum.photos/id/106/140/140", src: "/music/night-sunflower.mp3" }
 ];
 let currentTrackIndex = 0;
 let savedTime = 0;
@@ -449,6 +456,14 @@ function togglePlay() {
     }
 }
 audio.volume = volumeSlider.value;
+let failedTracks = {};
+audio.addEventListener('error', function() {
+    const track = playlist[currentTrackIndex];
+    if (!track || failedTracks[track.src]) return;
+    failedTracks[track.src] = true;
+    console.warn('音频加载失败，自动跳过:', track.src);
+    playNext();
+});
 volumeSlider.addEventListener('input', function() {
     audio.volume = this.value;
     const muteSpan = document.querySelector('.volume-control span');
@@ -785,4 +800,69 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 })();
+</script>
+
+<!-- ==================== 图片点击放大（medium-zoom） ==================== -->
+<style>
+.medium-zoom-overlay {
+    z-index: 10001;
+    background: rgba(0, 0, 0, 0.85) !important;
+}
+.medium-zoom-image--opened {
+    z-index: 10002;
+    border-radius: 8px;
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js">
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const images = document.querySelectorAll('.post-content img, .post-single img, .home-info img');
+    if (typeof mediumZoom !== 'undefined' && images.length > 0) {
+        mediumZoom(images, {
+            margin: 24,
+            background: 'rgba(0, 0, 0, 0.85)',
+            scrollOffset: 0
+        });
+    }
+});
+</script>
+
+<!-- ==================== 首页打字机效果 ==================== -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') return;
+    const homeInfo = document.querySelector('.home-info');
+    if (!homeInfo) return;
+
+    // 只处理纯文本标题，含 HTML 元素时跳过，避免破坏结构
+    function typeText(el, speed, done) {
+        if (!el || el.querySelector('*')) {
+            if (done) done();
+            return;
+        }
+        const fullText = el.textContent;
+        el.textContent = '';
+        const cursor = document.createElement('span');
+        cursor.className = 'typing-cursor';
+        cursor.textContent = '|';
+        el.appendChild(cursor);
+        let i = 0;
+        const timer = setInterval(function() {
+            if (i < fullText.length) {
+                cursor.insertAdjacentText('beforebegin', fullText.charAt(i));
+                i++;
+            } else {
+                clearInterval(timer);
+                if (done) done();
+            }
+        }, speed);
+    }
+
+    const h1 = homeInfo.querySelector('h1');
+    const p = homeInfo.querySelector('p');
+    typeText(h1, 130, function() {
+        typeText(p, 55);
+    });
+});
 </script>

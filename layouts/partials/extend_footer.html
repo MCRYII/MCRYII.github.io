@@ -1,0 +1,92 @@
+<!-- ==================== 一言 API 每日语录 ==================== -->
+<style>
+.hitokoto-bar {
+    text-align: center;
+    padding: 16px 20px 8px;
+    font-size: 0.9rem;
+    color: #aaa;
+    transition: color 0.3s ease;
+    line-height: 1.6;
+}
+.hitokoto-bar:hover {
+    color: #d4af37;
+}
+.hitokoto-from {
+    font-size: 0.75rem;
+    color: #666;
+    margin-left: 12px;
+}
+</style>
+<div class="hitokoto-bar">
+    💬 <span id="hitokoto-text">加载中...</span>
+    <span id="hitokoto-from" class="hitokoto-from"></span>
+</div>
+<script>
+(function() {
+    const textEl = document.getElementById('hitokoto-text');
+    const fromEl = document.getElementById('hitokoto-from');
+    if (!textEl) return;
+    const now = Date.now();
+    const today = new Date().toDateString();
+    const cached = JSON.parse(localStorage.getItem('hitokoto_cache') || 'null');
+    if (cached && cached.date === today) {
+        textEl.textContent = cached.text;
+        if (fromEl) fromEl.textContent = cached.from ? '—— ' + cached.from : '';
+        return;
+    }
+    fetch('https://v1.hitokoto.cn/?c=a&c=b&c=c&c=d&c=h&c=i&c=j&c=k')
+        .then(r => r.json())
+        .then(data => {
+            const text = data.hitokoto;
+            const from = data.from || '';
+            textEl.textContent = text;
+            if (fromEl) fromEl.textContent = from ? '—— ' + from : '';
+            localStorage.setItem('hitokoto_cache', JSON.stringify({
+                text: text,
+                from: from,
+                date: today
+            }));
+        })
+        .catch(() => {
+            textEl.textContent = '世界は一つの心。';
+            if (fromEl) fromEl.textContent = '';
+        });
+})();
+</script>
+
+<!-- ==================== 不蒜子访问统计 ==================== -->
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js">
+</script>
+<style>
+.busuanzi-stats {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    font-size: 0.85rem;
+    color: #999;
+    margin-top: 8px;
+    padding-bottom: 12px;
+}
+.busuanzi-stats span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.busuanzi-stats span + span::before {
+    content: '·';
+    margin-right: 18px;
+    color: #666;
+}
+#busuanzi_value_site_uv,
+#busuanzi_value_site_pv {
+    color: #d4af37;
+}
+</style>
+<div class="busuanzi-stats">
+    <span id="busuanzi_container_site_uv" style="display:none">
+        👤 访客 <span id="busuanzi_value_site_uv"></span> 人
+    </span>
+    <span id="busuanzi_container_site_pv" style="display:none">
+        👁 阅读 <span id="busuanzi_value_site_pv"></span> 次
+    </span>
+</div>

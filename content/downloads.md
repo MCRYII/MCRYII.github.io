@@ -5,10 +5,4 @@ draft: false
 
 这里提供一些有用的文件，按分类浏览。点击链接即可下载。
 
-### 🖼️ 壁纸
-- [MCRYII](https://github.com/MCRYII/MCRYII.github.io/raw/master/static/files/wallpapers/meitu.png)
-
-### 💻 软件
--
-### 📚 电子书
--
+页面下方的文件列表由 `static/files` 目录自动生成，添加新文件后重新构建即可自动更新。

@@ -1,7 +1,7 @@
 ---
 title: "anima随机抽卡-001"
 date: 2026-06-07T15:00:34+08:00
-categories: []
+categories: ["AI绘画"]
 tags: ["ai", "anima"]
 draft: false
 ---
