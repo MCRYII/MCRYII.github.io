@@ -10,4 +10,75 @@
   data-page-title="{{ .Title }}"
 ></div>
 <script async defer src="https://cusdis.com/js/cusdis.es.js"></script>
+
+<!-- Cusdis 高度自适应：iframe 内容同源（srcdoc），直接按内部高度撑开，去掉滚动条 -->
+<script>
+(function() {
+    function fitCusdis(thread) {
+        var iframe = thread.querySelector('iframe');
+        if (!iframe) return;
+        try {
+            var doc = iframe.contentDocument || iframe.contentWindow.document;
+            var h = Math.max(
+                doc.documentElement ? doc.documentElement.scrollHeight : 0,
+                doc.body ? doc.body.scrollHeight : 0
+            );
+            if (h > 60) iframe.style.height = h + 'px';
+        } catch (e) {}
+    }
+
+    function watchThread(thread) {
+        if (thread.dataset.fitWatched) return;
+        thread.dataset.fitWatched = '1';
+
+        var pending = null;
+        function schedule() {
+            if (pending) clearTimeout(pending);
+            pending = setTimeout(function() {
+                fitCusdis(thread);
+                var iframe = thread.querySelector('iframe');
+                if (iframe) {
+                    try {
+                        var doc = iframe.contentDocument;
+                        if (doc && doc.body && !doc.body.dataset.fitObserved) {
+                            doc.body.dataset.fitObserved = '1';
+                            new MutationObserver(schedule).observe(doc.body, {
+                                childList: true,
+                                subtree: true,
+                                attributes: true
+                            });
+                        }
+                    } catch (e) {}
+                }
+            }, 120);
+        }
+
+        // 等待 iframe 出现并绑定 load
+        var check = setInterval(function() {
+            var iframe = thread.querySelector('iframe');
+            if (iframe) {
+                iframe.addEventListener('load', function() { setTimeout(schedule, 400); });
+                schedule();
+                clearInterval(check);
+            }
+        }, 300);
+        setTimeout(function() { clearInterval(check); }, 20000);
+
+        // 兜底：内容变化后周期性校准
+        setInterval(schedule, 3000);
+    }
+
+    function init() {
+        var thread = document.getElementById('cusdis_thread');
+        if (thread) watchThread(thread);
+    }
+
+    // 页面初次加载
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+</script>
 {{- end }}

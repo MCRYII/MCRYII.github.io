@@ -1,0 +1,109 @@
+{{- $posts := where .Site.RegularPages "Section" "posts" -}}
+{{- $postCount := len $posts -}}
+{{- $catCount := len .Site.Taxonomies.categories -}}
+{{- $tagCount := len .Site.Taxonomies.tags -}}
+{{- $words := 0 -}}
+{{- range $posts }}{{ $words = add $words .WordCount }}{{ end -}}
+{{- $sortedPosts := sort $posts "Date" "desc" -}}
+{{- $lastPost := index $sortedPosts 0 -}}
+
+<aside class="side-col side-col-left">
+    <!-- 博主信息卡 -->
+    <div class="side-card profile-card">
+        <img class="profile-avatar" src="https://i.ibb.co/FkD90K5g/1000218129.jpg" alt="头像">
+        <div class="profile-name">MCRYII的博客</div>
+        <div class="profile-sig">这里记录我的学习、思考和见闻。</div>
+        <div class="profile-stats">
+            <div class="profile-stat"><b>{{ $postCount }}</b><span>文章</span></div>
+            <div class="profile-stat"><b>{{ $catCount }}</b><span>分类</span></div>
+            <div class="profile-stat"><b>{{ $tagCount }}</b><span>标签</span></div>
+        </div>
+        <a class="profile-btn" href="/">跳转主页</a>
+        <div class="profile-socials">
+            <a href="https://m.bilibili.com/space/678345234" target="_blank" rel="noopener" title="B站">B站</a>
+            <a href="https://github.com/MCRYII" target="_blank" rel="noopener" title="GitHub">GitHub</a>
+            <a href="https://steamcommunity.com/id/mcryii" target="_blank" rel="noopener" title="Steam">Steam</a>
+        </div>
+    </div>
+
+    <!-- 音乐卡片 -->
+    <div class="side-card">
+        <div class="side-card-title">音乐</div>
+        <div class="side-music">
+            <img class="side-music-cover" id="side-cover" src="/images/player-cover.jpg" alt="封面">
+            <div class="side-music-info">
+                <div class="side-song-title" id="side-title">加载中...</div>
+                <div class="side-song-artist" id="side-artist"></div>
+            </div>
+        </div>
+        <div class="side-music-controls">
+            <button type="button" class="side-mctl" id="side-prev" title="上一曲">⏮</button>
+            <button type="button" class="side-mctl side-mplay" id="side-play" title="播放/暂停">▶</button>
+            <button type="button" class="side-mctl" id="side-next" title="下一曲">⏭</button>
+        </div>
+    </div>
+
+    <!-- 站点统计卡 -->
+    <div class="side-card">
+        <div class="side-card-title">站点统计</div>
+        <ul class="side-stat-list">
+            <li><span>文章</span><b>{{ $postCount }}</b></li>
+            <li><span>分类</span><b>{{ $catCount }}</b></li>
+            <li><span>标签</span><b>{{ $tagCount }}</b></li>
+            <li><span>总字数</span><b>{{ $words }}</b></li>
+            <li><span>运行天数</span><b class="run-days" data-start="2026-06-01">-</b></li>
+            <li><span>最后更新</span><b>{{ with $lastPost }}{{ .Date.Format "2006-01-02" }}{{ end }}</b></li>
+        </ul>
+    </div>
+</aside>
+
+<script>
+// 侧边音乐卡：与右下角播放器共用状态
+(function () {
+    if (window.__sideMusicTimer) clearInterval(window.__sideMusicTimer);
+    var cover = document.getElementById('side-cover');
+    var title = document.getElementById('side-title');
+    var artist = document.getElementById('side-artist');
+    var playBtn = document.getElementById('side-play');
+    if (!cover || !title || !playBtn) return;
+
+    function sync() {
+        var p = window.__mcryiiPlayer;
+        if (!p) return;
+        var s = p.getState();
+        if (s.track) {
+            title.textContent = s.track.title;
+            artist.textContent = s.track.artist;
+            if (s.track.cover) cover.src = s.track.cover;
+        }
+        playBtn.textContent = s.playing ? '⏸' : '▶';
+    }
+
+    playBtn.addEventListener('click', function () {
+        if (window.__mcryiiPlayer) window.__mcryiiPlayer.togglePlay();
+        setTimeout(sync, 150);
+    });
+    var prevBtn = document.getElementById('side-prev');
+    var nextBtn = document.getElementById('side-next');
+    if (prevBtn) prevBtn.addEventListener('click', function () {
+        if (window.__mcryiiPlayer) window.__mcryiiPlayer.playPrev();
+        setTimeout(sync, 300);
+    });
+    if (nextBtn) nextBtn.addEventListener('click', function () {
+        if (window.__mcryiiPlayer) window.__mcryiiPlayer.playNext();
+        setTimeout(sync, 300);
+    });
+
+    sync();
+    window.__sideMusicTimer = setInterval(sync, 600);
+})();
+
+// 运行天数
+(function () {
+    var el = document.querySelector('.run-days');
+    if (!el) return;
+    var start = new Date(el.dataset.start);
+    var days = Math.floor((Date.now() - start.getTime()) / 86400000);
+    el.textContent = days + ' 天';
+})();
+</script>

@@ -1,8 +1,6 @@
 ---
 title: "文件下载"
+layout: downloads
 draft: false
+comments: false
 ---
-
-这里提供一些有用的文件，按分类浏览。点击链接即可下载。
-
-页面下方的文件列表由 `static/files` 目录自动生成，添加新文件后重新构建即可自动更新。

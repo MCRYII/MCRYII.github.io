@@ -5,21 +5,67 @@
   </header>
   <div class="post-content">
     {{ .Content }}
-    
-    <h3>📂 可用文件列表</h3>
+
+    <style>
+    .download-category {
+        margin-bottom: 14px;
+    }
+    .download-cat-title {
+        cursor: pointer;
+        user-select: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 10px 0 6px;
+        padding: 6px 12px;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.05);
+        transition: background 0.2s;
+    }
+    .download-cat-title:hover {
+        background: rgba(0, 0, 0, 0.1);
+    }
+    .download-cat-title .cat-toggle {
+        margin-left: auto;
+        font-size: 0.8em;
+    }
+    .download-cat-list {
+        padding-left: 24px;
+        margin: 0 0 8px;
+    }
+    </style>
+
     {{ range (readDir "static/files") }}
       {{ if .IsDir }}
-        <h4>📁 {{ .Name }}</h4>
-        <ul>
-          {{ $dir := .Name }}
-          {{ range (readDir (printf "static/files/%s" $dir)) }}
-            <li>
-              📄 <a href="{{ $.Site.BaseURL }}files/{{ $dir }}/{{ .Name }}" target="_blank">{{ .Name }}</a> ({{ div .Size 1024 }} KB)
-            </li>
-          {{ end }}
-        </ul>
+        <div class="download-category">
+          <h4 class="download-cat-title" title="点击收起/展开">
+            📁 {{ .Name }}
+            <span class="cat-toggle">▼</span>
+          </h4>
+          <ul class="download-cat-list" style="display:none">
+            {{ $dir := .Name }}
+            {{ range (readDir (printf "static/files/%s" $dir)) }}
+              <li>
+                📄 <a href="{{ $.Site.BaseURL }}files/{{ $dir }}/{{ .Name }}" target="_blank">{{ .Name }}</a> ({{ div .Size 1024 }} KB)
+              </li>
+            {{ end }}
+          </ul>
+        </div>
       {{ end }}
     {{ end }}
+
+    <script>
+    document.querySelectorAll('.download-cat-title').forEach(function(title) {
+        title.addEventListener('click', function() {
+            var list = this.nextElementSibling;
+            var icon = this.querySelector('.cat-toggle');
+            if (!list || !icon) return;
+            var collapsed = list.style.display === 'none';
+            list.style.display = collapsed ? '' : 'none';
+            icon.textContent = collapsed ? '▲' : '▼';
+        });
+    });
+    </script>
   </div>
 </article>
 {{ end }}

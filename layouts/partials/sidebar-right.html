@@ -1,0 +1,155 @@
+{{- $posts := where .Site.RegularPages "Section" "posts" -}}
+{{- $calData := dict -}}
+{{- range $posts -}}
+    {{- $d := .Date.Format "2006-01-02" -}}
+    {{- $item := dict "title" .Title "url" .RelPermalink -}}
+    {{- if index $calData $d -}}
+        {{- $list := index $calData $d | append $item -}}
+        {{- $calData = merge $calData (dict $d $list) -}}
+    {{- else -}}
+        {{- $calData = merge $calData (dict $d (slice $item)) -}}
+    {{- end -}}
+{{- end -}}
+
+<aside class="side-col side-col-right">
+    <!-- 日历卡 -->
+    <div class="side-card">
+        <div class="side-card-title">日历</div>
+        <div class="cal-wrap" id="cal-wrap">
+            <div class="cal-head">
+                <button type="button" class="cal-nav" id="cal-prev" title="上个月">‹</button>
+                <span class="cal-title" id="cal-title"></span>
+                <button type="button" class="cal-nav" id="cal-next" title="下个月">›</button>
+            </div>
+            <div class="cal-week">
+                <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+            </div>
+            <div class="cal-grid" id="cal-grid"></div>
+            <div class="cal-day-list" id="cal-day-list"></div>
+        </div>
+    </div>
+
+    <!-- 浏览量卡 -->
+    <div class="side-card">
+        <div class="side-card-title">浏览量</div>
+        <div class="pv-row"><span>访客</span><b id="busuanzi_value_site_uv">-</b></div>
+        <div class="pv-row"><span>阅读</span><b id="busuanzi_value_site_pv">-</b></div>
+    </div>
+
+    <!-- 今日一言卡 -->
+    <div class="side-card">
+        <div class="side-card-title">今日一言</div>
+        <p class="hitokoto-side" id="hitokoto-side">加载中...</p>
+    </div>
+
+    <!-- 最近更新卡 -->
+    <div class="side-card">
+        <div class="side-card-title">最近更新</div>
+        <ul class="recent-list">
+            {{- range first 5 (sort $posts "Date" "desc") }}
+            <li>
+                <a href="{{ .RelPermalink }}">
+                    <div class="recent-info">
+                        <span class="recent-title">{{ .Title }}</span>
+                        <span class="recent-date">{{ .Date.Format "2006-01-02" }}</span>
+                    </div>
+                    <span class="recent-tag">最新文章</span>
+                </a>
+            </li>
+            {{- end }}
+        </ul>
+    </div>
+</aside>
+
+<script>
+// 日历数据（Hugo 构建时生成）
+window.__calData = {{ $calData | jsonify | safeJS }};
+
+// 日历组件
+(function () {
+    var wrap = document.getElementById('cal-wrap');
+    if (!wrap) return;
+    var data = window.__calData || {};
+    var grid = document.getElementById('cal-grid');
+    var titleEl = document.getElementById('cal-title');
+    var listEl = document.getElementById('cal-day-list');
+    var prevBtn = document.getElementById('cal-prev');
+    var nextBtn = document.getElementById('cal-next');
+    var now = new Date();
+    var year = now.getFullYear();
+    var month = now.getMonth();
+
+    function pad(n) { return n < 10 ? '0' + n : '' + n; }
+    function keyOf(y, m, d) { return y + '-' + pad(m + 1) + '-' + pad(d); }
+
+    function showDay(key) {
+        listEl.innerHTML = '';
+        var items = data[key] || [];
+        if (items.length === 0) {
+            listEl.innerHTML = '<div class="cal-empty">当天没有内容</div>';
+            return;
+        }
+        items.forEach(function (it) {
+            var a = document.createElement('a');
+            a.href = it.url;
+            a.textContent = it.title;
+            a.className = 'cal-link';
+            listEl.appendChild(a);
+        });
+    }
+
+    function render() {
+        titleEl.textContent = year + '年' + (month + 1) + '月';
+        grid.innerHTML = '';
+        var first = new Date(year, month, 1);
+        var startDay = first.getDay();
+        var days = new Date(year, month + 1, 0).getDate();
+        for (var i = 0; i < startDay; i++) {
+            var blank = document.createElement('span');
+            blank.className = 'cal-cell cal-blank';
+            grid.appendChild(blank);
+        }
+        for (var d = 1; d <= days; d++) {
+            var key = keyOf(year, month, d);
+            var cell = document.createElement('span');
+            cell.className = 'cal-cell' + (data[key] ? ' cal-has-post' : '');
+            cell.textContent = d;
+            cell.dataset.date = key;
+            cell.addEventListener('click', function () { showDay(this.dataset.date); });
+            grid.appendChild(cell);
+        }
+        showDay(keyOf(year, month, now.getDate()));
+    }
+
+    prevBtn.addEventListener('click', function () { month--; if (month < 0) { month = 11; year--; } render(); });
+    nextBtn.addEventListener('click', function () { month++; if (month > 11) { month = 0; year++; } render(); });
+    render();
+})();
+
+// 今日一言（与页脚共用缓存）
+(function () {
+    var el = document.getElementById('hitokoto-side');
+    if (!el) return;
+    function show(text, from) {
+        el.textContent = text + (from ? ' —— ' + from : '');
+    }
+    try {
+        var cached = JSON.parse(localStorage.getItem('hitokoto_cache') || 'null');
+        if (cached && cached.date === new Date().toDateString()) {
+            show(cached.text, cached.from);
+            return;
+        }
+    } catch (e) {}
+    fetch('https://v1.hitokoto.cn/')
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            show(d.hitokoto, d.from);
+            localStorage.setItem('hitokoto_cache', JSON.stringify({
+                text: d.hitokoto,
+                from: d.from,
+                date: new Date().toDateString()
+            }));
+        })
+        .catch(function () { show('世界は一つの心。', ''); });
+})();
+</script>
