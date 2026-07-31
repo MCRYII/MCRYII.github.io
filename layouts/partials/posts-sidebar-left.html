@@ -1,0 +1,182 @@
+<style>
+.ps-cat { margin-bottom: 4px; }
+.ps-cat-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s;
+}
+.ps-cat-toggle:hover { background: rgba(212, 175, 55, 0.1); }
+.ps-cat-caret {
+    color: #d4af37;
+    font-size: 0.7rem;
+    transition: transform 0.2s;
+}
+.ps-cat.open .ps-cat-caret { transform: rotate(90deg); }
+.ps-cat-count {
+    margin-left: auto;
+    font-size: 0.7rem;
+    background: rgba(212, 175, 55, 0.14);
+    color: #d4af37;
+    border-radius: 999px;
+    padding: 1px 9px;
+    font-weight: 700;
+}
+.ps-cat-list {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0 24px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.25s ease;
+}
+.ps-cat.open .ps-cat-list { max-height: 300px; }
+.ps-cat-list li a {
+    display: block;
+    padding: 6px 10px;
+    border-radius: 8px;
+    color: var(--secondary);
+    text-decoration: none;
+    font-size: 0.78rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ps-cat-list li a:hover { background: rgba(212, 175, 55, 0.1); color: #d4af37; }
+.ps-write-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(111, 191, 115, 0.12);
+    border: 1px solid rgba(111, 191, 115, 0.45);
+    color: #4caf50;
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 700;
+    transition: all 0.2s;
+}
+.ps-write-btn:hover {
+    background: rgba(111, 191, 115, 0.22);
+    box-shadow: 0 4px 14px rgba(76, 175, 80, 0.2);
+}
+.ps-write-btn .ps-plus {
+    font-size: 1.1rem;
+    font-weight: 800;
+}
+.ps-write-btn .ps-new {
+    margin-left: auto;
+    font-size: 0.62rem;
+    background: #4caf50;
+    color: #fff;
+    border-radius: 999px;
+    padding: 2px 8px;
+    letter-spacing: 0.05em;
+}
+</style>
+
+<aside class="side-col side-col-left">
+    <!-- 全部文章：分类折叠列表 -->
+    <div class="side-card">
+        <div class="side-card-title">全部文章</div>
+        {{- range .Site.Taxonomies.categories.Alphabetical }}
+        <div class="ps-cat">
+            <button type="button" class="ps-cat-toggle" title="点击展开/收起">
+                <span class="ps-cat-caret">▸</span>
+                <span>📁 {{ .Page.Title }}</span>
+                <span class="ps-cat-count">{{ .Count }}</span>
+            </button>
+            <ul class="ps-cat-list">
+                {{- range .Pages }}
+                <li><a href="{{ .RelPermalink }}">{{ .Title }}</a></li>
+                {{- end }}
+            </ul>
+        </div>
+        {{- end }}
+    </div>
+
+    <!-- 编辑快捷栏 -->
+    <div class="side-card">
+        <div class="side-card-title">编辑</div>
+        <a class="ps-write-btn" href="/write/">
+            <span class="ps-plus">＋</span> 写新文章 <span class="ps-new">New</span>
+        </a>
+    </div>
+
+    <!-- 音乐卡（与右下角播放器同步） -->
+    <div class="side-card">
+        <div class="side-card-title">音乐</div>
+        <div class="side-music">
+            <img class="side-music-cover" id="side-cover" src="/images/player-cover.jpg" alt="封面">
+            <div class="side-music-info">
+                <div class="side-song-title" id="side-title">加载中...</div>
+                <div class="side-song-artist" id="side-artist"></div>
+            </div>
+        </div>
+        <div class="side-music-controls">
+            <button type="button" class="side-mctl" id="side-prev" title="上一曲">⏮</button>
+            <button type="button" class="side-mctl side-mplay" id="side-play" title="播放/暂停">▶</button>
+            <button type="button" class="side-mctl" id="side-next" title="下一曲">⏭</button>
+        </div>
+    </div>
+</aside>
+
+<script>
+// 分类折叠
+(function () {
+    document.querySelectorAll('.ps-cat-toggle').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            this.parentElement.classList.toggle('open');
+        });
+    });
+})();
+
+// 音乐卡同步（与右下角播放器共用状态）
+(function () {
+    if (window.__sideMusicTimer) clearInterval(window.__sideMusicTimer);
+    var cover = document.getElementById('side-cover');
+    var title = document.getElementById('side-title');
+    var artist = document.getElementById('side-artist');
+    var playBtn = document.getElementById('side-play');
+    if (!cover || !title || !playBtn) return;
+    function sync() {
+        var p = window.__mcryiiPlayer;
+        if (!p) return;
+        var s = p.getState();
+        if (s.track) {
+            title.textContent = s.track.title;
+            artist.textContent = s.track.artist;
+            if (s.track.cover) cover.src = s.track.cover;
+        }
+        playBtn.textContent = s.playing ? '⏸' : '▶';
+    }
+    playBtn.addEventListener('click', function () {
+        if (window.__mcryiiPlayer) window.__mcryiiPlayer.togglePlay();
+        setTimeout(sync, 150);
+    });
+    var prevBtn = document.getElementById('side-prev');
+    var nextBtn = document.getElementById('side-next');
+    if (prevBtn) prevBtn.addEventListener('click', function () {
+        if (window.__mcryiiPlayer) window.__mcryiiPlayer.playPrev();
+        setTimeout(sync, 300);
+    });
+    if (nextBtn) nextBtn.addEventListener('click', function () {
+        if (window.__mcryiiPlayer) window.__mcryiiPlayer.playNext();
+        setTimeout(sync, 300);
+    });
+    sync();
+    window.addEventListener('mcryii:player', sync);
+    window.__sideMusicTimer = setInterval(sync, 3000);
+})();
+</script>

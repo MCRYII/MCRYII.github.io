@@ -1,0 +1,71 @@
+{{- $posts := where .Site.RegularPages "Section" "posts" }}
+<style>
+.ps-toc { font-size: 0.82rem; }
+.ps-toc-empty {
+    text-align: center;
+    color: #999;
+    font-size: 0.82rem;
+    padding: 14px 0;
+}
+.ps-toc #TableOfContents ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.ps-toc #TableOfContents ul ul {
+    padding-left: 14px;
+    margin-top: 2px;
+}
+.ps-toc #TableOfContents li {
+    margin: 2px 0;
+}
+.ps-toc #TableOfContents a {
+    display: block;
+    padding: 5px 9px;
+    border-radius: 8px;
+    color: var(--secondary);
+    text-decoration: none;
+    transition: all 0.15s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ps-toc #TableOfContents a:hover,
+.ps-toc #TableOfContents a.active {
+    background: rgba(212, 175, 55, 0.12);
+    color: #d4af37;
+}
+</style>
+
+<aside class="side-col side-col-right">
+    <!-- 目录 -->
+    <div class="side-card">
+        <div class="side-card-title">目录</div>
+        <div class="ps-toc">
+            {{- $toc := .TableOfContents }}
+            {{- if and $toc (findRE "<ul" $toc) }}
+            {{ $toc | safeHTML }}
+            {{- else }}
+            <p class="ps-toc-empty">当前页面没有目录</p>
+            {{- end }}
+        </div>
+    </div>
+
+    <!-- 最近更新 -->
+    <div class="side-card">
+        <div class="side-card-title">最近更新</div>
+        <ul class="recent-list">
+            {{- range first 5 (sort $posts "Date" "desc") }}
+            <li>
+                <a href="{{ .RelPermalink }}">
+                    <div class="recent-info">
+                        <span class="recent-title">{{ .Title }}</span>
+                        <span class="recent-date">{{ .Date.Format "2006-01-02" }}</span>
+                    </div>
+                    <span class="recent-tag">最新文章</span>
+                </a>
+            </li>
+            {{- end }}
+        </ul>
+    </div>
+</aside>

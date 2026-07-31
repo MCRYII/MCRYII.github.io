@@ -1,0 +1,111 @@
+{{ define "main" }}
+<style>main.main { max-width: none !important; }</style>
+<style>
+.music-list { margin-top: 16px; }
+.music-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    border-radius: var(--radius-md);
+    background: #ffffff;
+    border: 1px solid rgba(212, 175, 55, 0.18);
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.18s;
+}
+html[data-theme="dark"] .music-item { background: #262216; }
+.music-item:hover {
+    border-color: rgba(212, 175, 55, 0.6);
+    background: rgba(212, 175, 55, 0.07);
+}
+.music-item.active {
+    border-color: #d4af37;
+    background: rgba(212, 175, 55, 0.12);
+}
+.mi-index {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    background: rgba(212, 175, 55, 0.14);
+    color: #d4af37;
+    font-size: 0.72rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.music-item.active .mi-index { background: #d4af37; color: #1b1405; }
+.mi-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.mi-artist {
+    font-size: 0.76rem;
+    color: #999;
+    flex-shrink: 0;
+}
+.mi-play {
+    color: #d4af37;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+</style>
+<div class="three-col">
+    {{ partial "sidebar-left.html" . }}
+    <div class="col-main">
+        <article class="post-single">
+            <header class="post-header">
+                <h1 class="post-title">{{ .Title }}</h1>
+            </header>
+            <div class="post-content">
+                <p>点击任意歌曲即可播放，与右下角播放器实时联动。</p>
+                <div id="music-list" class="music-list">加载中...</div>
+            </div>
+        </article>
+        <script>
+        (function () {
+            var box = document.getElementById('music-list');
+            var timer = null;
+            function render() {
+                var p = window.__mcryiiPlayer;
+                if (!p || !p.getPlaylist || !p.getPlaylist().length) {
+                    box.textContent = '播放列表为空';
+                    return;
+                }
+                var list = p.getPlaylist();
+                var state = p.getState();
+                box.innerHTML = '';
+                list.forEach(function (t, i) {
+                    var row = document.createElement('div');
+                    row.className = 'music-item' + (i === state.index ? ' active' : '');
+                    row.innerHTML = '<span class="mi-index"></span><span class="mi-title"></span>' +
+                        '<span class="mi-artist"></span><span class="mi-play"></span>';
+                    row.querySelector('.mi-index').textContent = i + 1;
+                    row.querySelector('.mi-title').textContent = t.title;
+                    row.querySelector('.mi-artist').textContent = t.artist;
+                    row.querySelector('.mi-play').textContent = i === state.index && state.playing ? '⏸' : '▶';
+                    row.addEventListener('click', function () {
+                        if (window.__mcryiiPlayer) window.__mcryiiPlayer.selectTrack(i);
+                    });
+                    box.appendChild(row);
+                });
+            }
+            render();
+            window.addEventListener('mcryii:player', function () {
+                if (timer) clearTimeout(timer);
+                timer = setTimeout(render, 120);
+            });
+            setInterval(render, 4000); // 兜底
+        })();
+        </script>
+    </div>
+    {{ partial "sidebar-right.html" . }}
+</div>
+{{ end }}

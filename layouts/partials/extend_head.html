@@ -5,14 +5,20 @@ body {
     background-color: #111;
 }
 .post-entry {
-    background-color: rgba(255, 255, 255, 0.75) !important;
-    backdrop-filter: blur(8px);
-    border-radius: 12px;
-    transition: all 0.3s ease !important;
+    background-color: var(--card-bg) !important;
+    border: 1px solid rgba(212, 175, 55, 0.25);
+    border-radius: var(--radius-lg) !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease !important;
+}
+html[data-theme="dark"] .post-entry {
+    background-color: var(--card-bg-dark) !important;
 }
 .post-entry:hover {
-    transform: translateY(-4px) !important;
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15) !important;
+    transform: translateY(-5px) !important;
+    border-color: rgba(212, 175, 55, 0.75) !important;
+    box-shadow: 0 14px 32px rgba(212, 175, 55, 0.18) !important;
 }
 .post-entry .post-title a:hover {
     color: #d4af37 !important;
@@ -190,6 +196,14 @@ body > .header .avatar:hover {
 <!-- ==================== 顶栏（三段式导航） ==================== -->
 <style>
 :root {
+    --gold: #d4af37;
+    --gold-soft: rgba(212, 175, 55, 0.12);
+    --gold-border: rgba(212, 175, 55, 0.35);
+    --card-bg: #ffffff;
+    --card-bg-dark: #262216;
+    --radius-lg: 20px;
+    --radius-md: 16px;
+    --radius-sm: 12px;
     --nav-pill-bg: rgba(255, 248, 228, 0.94);
     --nav-pill-border: rgba(212, 175, 55, 0.35);
     --nav-text: #5a4a1a;
@@ -216,6 +230,22 @@ html[data-theme="dark"] {
     --icon-btn-hover: rgba(212, 175, 55, 0.22);
     --drawer-bg: #221e12;
     --drawer-text: #e6d9ae;
+}
+/* 统一光标：UI 上不出现多余的文本光标 */
+body {
+    cursor: default;
+}
+input,
+textarea,
+select {
+    cursor: text;
+}
+input[type="range"] {
+    cursor: pointer;
+}
+a,
+button {
+    cursor: pointer;
 }
 .site-header {
     position: sticky;
@@ -475,6 +505,21 @@ html[data-theme="dark"] {
 }
 </style>
 
+<!-- ==================== 文章详情页卡片化统一 ==================== -->
+<style>
+.post-single {
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+    background: var(--card-bg);
+}
+html[data-theme="dark"] .post-single { background: var(--card-bg-dark); }
+.post-single .post-title {
+    border-bottom: 2px solid rgba(212, 175, 55, 0.25);
+    padding-bottom: 10px;
+}
+</style>
+
 <!-- ==================== 三栏布局 + 侧边栏卡片 ==================== -->
 <style>
 .three-col {
@@ -491,7 +536,7 @@ html[data-theme="dark"] {
 .side-card {
     background: #ffffff;
     border: 1px solid rgba(212, 175, 55, 0.35);
-    border-radius: 18px;
+    border-radius: var(--radius-lg);
     padding: 16px;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
     color: var(--primary);
@@ -725,7 +770,7 @@ html[data-theme="dark"] .side-card { background: #211d12; }
     right: 20px;
     bottom: 20px;
     z-index: 9999;
-    width: 360px;
+    width: min(360px, calc(100vw - 40px));
     box-sizing: border-box;
     background: rgba(22, 19, 13, 0.94);
     backdrop-filter: blur(16px);
@@ -1087,6 +1132,14 @@ function loadTrack(index, restoreTime = 0) {
         });
     }
     renderPlaylist();
+    emitPlayerState();
+}
+function emitPlayerState() {
+    if (window.__mcryiiPlayer) {
+        window.dispatchEvent(new CustomEvent('mcryii:player', {
+            detail: window.__mcryiiPlayer.getState()
+        }));
+    }
 }
 function playPrev() {
     currentTrackIndex = (currentTrackIndex - 1 + playlist.length) % playlist.length;
@@ -1131,6 +1184,7 @@ function togglePlay() {
         audio.pause();
         playPauseBtn.textContent = '▶';
     }
+    emitPlayerState();
 }
 audio.volume = volumeSlider.value;
 let failedTracks = {};
@@ -1258,11 +1312,15 @@ document.addEventListener('DOMContentLoaded', function() {
 window.__mcryiiPlayer = {
     getState: function () {
         return {
+            index: currentTrackIndex,
             track: playlist[currentTrackIndex] || null,
             playing: !audio.paused,
             currentTime: audio.currentTime,
             duration: audio.duration || 0
         };
+    },
+    getPlaylist: function () {
+        return playlist;
     },
     togglePlay: togglePlay,
     playNext: playNext,
@@ -1560,6 +1618,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             lastScrollY = window.scrollY;
         });
+        // 鼠标移到视口顶部时唤出顶栏
+        document.addEventListener('mouseover', function (e) {
+            if (e.clientY < 80) header.classList.remove('hidden-nav');
+        });
     }
     window.MCRYII_InitHomeScroll();
     window.MCRYII_InitProgress();
@@ -1613,6 +1675,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
 window.MCRYII_TypeHome = function() {
     if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') return;
+    if (sessionStorage.getItem('mcryii-typed') === '1') return;
     const homeInfo = document.querySelector('.home-info');
     if (!homeInfo) return;
 
@@ -1645,7 +1708,9 @@ window.MCRYII_TypeHome = function() {
     const h1 = homeInfo.querySelector('h1');
     const p = homeInfo.querySelector('p');
     typeText(h1, 130, function() {
-        typeText(p, 55);
+        typeText(p, 55, function() {
+            sessionStorage.setItem('mcryii-typed', '1');
+        });
     });
 };
 document.addEventListener('DOMContentLoaded', window.MCRYII_TypeHome);

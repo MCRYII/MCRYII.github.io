@@ -1,0 +1,48 @@
+{{ define "main" }}
+<style>main.main { max-width: none !important; }</style>
+<style>
+.sponsor-box {
+    text-align: center;
+    padding: 46px 24px;
+    border-radius: 20px;
+    background: rgba(212, 175, 55, 0.06);
+    border: 2px dashed rgba(212, 175, 55, 0.4);
+    margin-top: 14px;
+}
+.sponsor-box .heart { font-size: 2.6rem; }
+.sponsor-box p { color: #999; font-size: 0.9rem; margin: 12px 0 0; }
+.qr-placeholder {
+    width: 160px;
+    height: 160px;
+    margin: 20px auto 0;
+    border-radius: 16px;
+    background: #ffffff;
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #bbb;
+    font-size: 0.8rem;
+}
+html[data-theme="dark"] .qr-placeholder { background: #262216; }
+</style>
+<div class="three-col">
+    {{ partial "sidebar-left.html" . }}
+    <div class="col-main">
+        <article class="post-single">
+            <header class="post-header">
+                <h1 class="post-title">{{ .Title }}</h1>
+            </header>
+            <div class="post-content">
+                {{ .Content }}
+                <div class="sponsor-box">
+                    <div class="heart">💛</div>
+                    <p>如果本站内容对你有帮助，欢迎请博主喝杯奶茶～</p>
+                    <div class="qr-placeholder">收款码占位<br>（替换图片即可）</div>
+                </div>
+            </div>
+        </article>
+    </div>
+    {{ partial "sidebar-right.html" . }}
+</div>
+{{ end }}

@@ -10,7 +10,7 @@
 <aside class="side-col side-col-left">
     <!-- 博主信息卡 -->
     <div class="side-card profile-card">
-        <img class="profile-avatar" src="https://i.ibb.co/FkD90K5g/1000218129.jpg" alt="头像">
+        <img class="profile-avatar" src="/images/mcryii-avatar.jpg" alt="头像">
         <div class="profile-name">MCRYII的博客</div>
         <div class="profile-sig">这里记录我的学习、思考和见闻。</div>
         <div class="profile-stats">
@@ -95,7 +95,8 @@
     });
 
     sync();
-    window.__sideMusicTimer = setInterval(sync, 600);
+    window.addEventListener('mcryii:player', sync);
+    window.__sideMusicTimer = setInterval(sync, 3000);
 })();
 
 // 运行天数

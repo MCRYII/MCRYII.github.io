@@ -1,0 +1,66 @@
+{{ define "main" }}
+<style>
+main.main { max-width: 920px !important; }
+.note-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #d4af37;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 14px;
+    transition: gap 0.2s;
+}
+.note-back:hover { gap: 10px; }
+.note-meta-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+    font-size: 0.78rem;
+    color: #999;
+    font-family: Consolas, monospace;
+}
+.note-meta-bar .note-tag {
+    background: rgba(212, 175, 55, 0.12);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    color: #d4af37;
+    border-radius: 999px;
+    padding: 1px 10px;
+}
+/* 代码块增强：编辑器风格 */
+.post-content pre {
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    position: relative;
+    padding-top: 34px;
+}
+.post-content pre::before {
+    content: '● ● ●';
+    position: absolute;
+    top: 10px;
+    left: 14px;
+    letter-spacing: 6px;
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.25);
+}
+</style>
+
+<a class="note-back" href="/notes/">← 返回笔记本</a>
+<article class="post-single">
+    <header class="post-header">
+        <h1 class="post-title">{{ .Title }}</h1>
+        <div class="note-meta-bar">
+            <span>№ {{ .Params.num }}</span>
+            <span>{{ .Date.Format "2006-01-02" }}</span>
+            <span>{{ .ReadingTime }} min read</span>
+            <span class="note-tag">ESP32</span>
+        </div>
+    </header>
+    <div class="post-content">
+        {{ .Content }}
+    </div>
+</article>
+{{ end }}

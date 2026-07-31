@@ -1,5 +1,28 @@
 {{ define "main" }}
 <style>main.main { max-width: none !important; }</style>
+<style>
+.guide-block {
+    margin-top: 14px;
+    padding: 18px 20px;
+    border-radius: 16px;
+    background: #ffffff;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+}
+html[data-theme="dark"] .guide-block { background: #262216; }
+.guide-block h3 {
+    margin: 0 0 10px;
+    font-size: 1rem;
+    color: #d4af37;
+}
+.guide-block p, .guide-block li { font-size: 0.88rem; line-height: 1.7; color: var(--secondary); }
+.guide-block code {
+    background: rgba(212, 175, 55, 0.12);
+    color: #d4af37;
+    border-radius: 6px;
+    padding: 1px 7px;
+    font-size: 0.82rem;
+}
+</style>
 <div class="three-col">
     {{ partial "sidebar-left.html" . }}
     <div class="col-main">
@@ -9,6 +32,29 @@
             </header>
             <div class="post-content">
                 {{ .Content }}
+                <div class="guide-block">
+                    <h3>📝 推荐流程</h3>
+                    <ol>
+                        <li>运行本地写作助手：<code>python blog_tool.py</code></li>
+                        <li>新建文章 → 填写标题/分类/标签 → 选择并裁剪封面</li>
+                        <li>用 Markdown 写正文，插入图片，预览确认</li>
+                        <li>保存 → 本地预览 → 一键推送到 GitHub</li>
+                    </ol>
+                </div>
+                <div class="guide-block">
+                    <h3>📄 Front Matter 说明</h3>
+                    <ul>
+                        <li><code>title</code> 文章标题（必填）</li>
+                        <li><code>date</code> 发布时间，格式 <code>2026-06-06T21:24:37+08:00</code></li>
+                        <li><code>categories / tags</code> 分类与标签数组</li>
+                        <li><code>draft</code> 草稿标记，true 时本地可见、线上不发布</li>
+                        <li><code>cover.image</code> 封面图路径（推荐 5:3）</li>
+                    </ul>
+                </div>
+                <div class="guide-block">
+                    <h3>🖼 图片与封面</h3>
+                    <p>图片放在 <code>static/images/</code>，正文用 <code>![](/images/文件名)</code> 引用；封面可在写作工具里裁剪成 5:3。</p>
+                </div>
             </div>
         </article>
     </div>

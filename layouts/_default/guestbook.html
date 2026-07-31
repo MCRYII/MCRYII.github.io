@@ -10,6 +10,7 @@
             <div class="post-content">
                 {{ .Content }}
             </div>
+            {{ partial "comments.html" . }}
         </article>
     </div>
     {{ partial "sidebar-right.html" . }}

@@ -3,6 +3,5 @@ title: "相册"
 layout: triple
 draft: false
 comments: false
+searchHidden: true
 ---
-
-**页面建设中，敬请期待。**

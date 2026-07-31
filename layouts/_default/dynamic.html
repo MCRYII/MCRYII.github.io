@@ -1,5 +1,52 @@
 {{ define "main" }}
 <style>main.main { max-width: none !important; }</style>
+<style>
+.dyn-list { list-style: none; margin: 14px 0 0; padding: 0; }
+.dyn-item {
+    display: flex;
+    gap: 14px;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    background: #ffffff;
+    border: 1px solid rgba(212, 175, 55, 0.18);
+    margin-bottom: 10px;
+    transition: all 0.18s;
+}
+html[data-theme="dark"] .dyn-item { background: #262216; }
+.dyn-item:hover {
+    border-color: rgba(212, 175, 55, 0.6);
+    transform: translateX(4px);
+}
+.dyn-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #d4af37;
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.7);
+    flex-shrink: 0;
+    margin-top: 6px;
+}
+.dyn-body { min-width: 0; }
+.dyn-date { font-size: 0.74rem; color: #999; }
+.dyn-item a {
+    display: block;
+    color: var(--primary);
+    text-decoration: none;
+    font-size: 0.94rem;
+    font-weight: 600;
+    margin: 3px 0;
+}
+.dyn-item a:hover { color: #d4af37; }
+.dyn-summary {
+    font-size: 0.8rem;
+    color: #999;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+</style>
 <div class="three-col">
     {{ partial "sidebar-left.html" . }}
     <div class="col-main">
@@ -9,6 +56,20 @@
             </header>
             <div class="post-content">
                 {{ .Content }}
+                <p>这里是最近发布的动态：</p>
+                <ul class="dyn-list">
+                    {{- $posts := where .Site.RegularPages "Section" "posts" }}
+                    {{- range first 10 (sort $posts "Date" "desc") }}
+                    <li class="dyn-item">
+                        <span class="dyn-dot"></span>
+                        <div class="dyn-body">
+                            <div class="dyn-date">{{ .Date.Format "2006-01-02 15:04" }}</div>
+                            <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+                            <div class="dyn-summary">{{ .Summary | plainify | htmlUnescape }}</div>
+                        </div>
+                    </li>
+                    {{- end }}
+                </ul>
             </div>
         </article>
     </div>

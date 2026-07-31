@@ -1,6 +1,105 @@
 {{- define "main" }}
 {{- if eq .Data.Singular "category" }}
 <style>main.main { max-width: none !important; }</style>
+<style>
+.cat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 18px;
+    padding: 8px 0 12px;
+}
+.cat-card {
+    display: block;
+    background: var(--card-bg);
+    border: 1px solid rgba(212, 175, 55, 0.25);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    text-decoration: none;
+    color: var(--primary);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+html[data-theme="dark"] .cat-card { background: var(--card-bg-dark); }
+.cat-card:hover {
+    transform: translateY(-5px);
+    border-color: #d4af37;
+    box-shadow: 0 14px 32px rgba(212, 175, 55, 0.18);
+}
+.cat-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 18px;
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.04));
+    border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+}
+.cat-icon { font-size: 1.4rem; }
+.cat-name { font-size: 1.15rem; font-weight: 800; }
+.cat-count {
+    margin-left: auto;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #d4af37;
+    background: rgba(212, 175, 55, 0.14);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    border-radius: 999px;
+    padding: 2px 11px;
+}
+.cat-thumbs {
+    display: flex;
+    gap: 8px;
+    padding: 14px 18px 0;
+}
+.cat-thumb {
+    width: 78px;
+    height: 52px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #2b2415 0%, #4d3d16 100%);
+}
+.cat-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+.cat-card:hover .cat-thumb img { transform: scale(1.08); }
+.cat-posts {
+    list-style: none;
+    margin: 12px 18px 0;
+    padding: 0;
+}
+.cat-posts li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    font-size: 0.82rem;
+    color: var(--secondary);
+    border-bottom: 1px dashed rgba(212, 175, 55, 0.15);
+}
+.cat-posts li:last-child { border-bottom: none; }
+.cat-posts time {
+    color: #999;
+    font-size: 0.72rem;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+.cat-posts li span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cat-more {
+    padding: 13px 18px 16px;
+    color: #d4af37;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+.cat-card:hover .cat-more { text-decoration: underline; }
+</style>
 <div class="three-col">
     {{ partial "sidebar-left.html" . }}
     <div class="col-main">
@@ -9,18 +108,42 @@
             <h1>{{ .Title }}</h1>
         </header>
         {{- end }}
-        <ul class="terms-tags">
+        <div class="cat-grid">
             {{- $type := .Type }}
             {{- range $key, $value := .Data.Terms.Alphabetical }}
                 {{- $name := .Name }}
                 {{- $count := .Count }}
                 {{- with site.GetPage (printf "/%s/%s" $type $name) }}
-                <li>
-                    <a href="{{ .Permalink }}">{{ .LinkTitle }} <sup><strong><sup>{{ $count }}</sup></strong></sup> </a>
-                </li>
+                <a class="cat-card" href="{{ .RelPermalink }}">
+                    <div class="cat-head">
+                        <span class="cat-icon">📁</span>
+                        <span class="cat-name">{{ .LinkTitle }}</span>
+                        <span class="cat-count">{{ $count }} 篇</span>
+                    </div>
+                    <div class="cat-thumbs">
+                        {{- range first 4 .Pages }}
+                        <span class="cat-thumb">
+                            {{- with .Params.cover.image }}
+                            <img src="{{ . }}" alt="" loading="lazy">
+                            {{- else }}
+                            <img src="/images/default-cover.png" alt="" loading="lazy">
+                            {{- end }}
+                        </span>
+                        {{- end }}
+                    </div>
+                    <ul class="cat-posts">
+                        {{- range first 4 .Pages }}
+                        <li>
+                            <time>{{ .Date.Format "01-02" }}</time>
+                            <span>{{ .Title }}</span>
+                        </li>
+                        {{- end }}
+                    </ul>
+                    <div class="cat-more">查看全部 {{ $count }} 篇 →</div>
+                </a>
                 {{- end }}
             {{- end }}
-        </ul>
+        </div>
     </div>
     {{ partial "sidebar-right.html" . }}
 </div>
@@ -37,7 +160,7 @@
             {{- $count := .Count }}
             {{- with site.GetPage (printf "/%s/%s" $type $name) }}
             <li>
-                <a href="{{ .Permalink }}">{{ .LinkTitle }} <sup><strong><sup>{{ $count }}</sup></strong></sup> </a>
+                <a href="{{ .RelPermalink }}">{{ .LinkTitle }} <sup><strong><sup>{{ $count }}</sup></strong></sup> </a>
             </li>
             {{- end }}
         {{- end }}

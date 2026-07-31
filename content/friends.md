@@ -1,8 +1,6 @@
 ---
 title: "友链"
-layout: triple
+layout: friends
 draft: false
 comments: false
 ---
-
-**页面建设中，敬请期待。**

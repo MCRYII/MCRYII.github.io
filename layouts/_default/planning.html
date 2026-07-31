@@ -1,0 +1,325 @@
+{{ define "main" }}
+{{- $goals := site.Data.planning.goals -}}
+{{- $doing := where $goals "status" "进行中" -}}
+{{- $todo := where $goals "status" "待开始" -}}
+{{- $done := where $goals "status" "已完成" -}}
+<style>main.main { max-width: none !important; }</style>
+<style>
+.plan-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.plan-head h1 { margin: 0; }
+.plan-head .sub { color: #999; font-size: 0.85rem; }
+.plan-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 18px;
+}
+.plan-stat {
+    padding: 16px 14px;
+    border-radius: var(--radius-md);
+    background: var(--card-bg);
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    text-align: center;
+    transition: transform 0.2s;
+}
+html[data-theme="dark"] .plan-stat { background: var(--card-bg-dark); }
+.plan-stat:hover { transform: translateY(-3px); }
+.plan-stat b {
+    display: block;
+    font-size: 1.6rem;
+    color: #d4af37;
+}
+.plan-stat span { font-size: 0.76rem; color: #999; }
+.plan-stat.done b { color: #4caf50; }
+.plan-stat.todo b { color: #9e9ea8; }
+.plan-total-bar {
+    height: 10px;
+    border-radius: 99px;
+    background: rgba(212, 175, 55, 0.12);
+    overflow: hidden;
+    margin-bottom: 22px;
+}
+.plan-total-bar .fill {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #b8860b, #f4d35e);
+    box-shadow: 0 0 12px rgba(212, 175, 55, 0.5);
+    width: {{ div (mul (len $done) 100) (len $goals) }}%;
+}
+.plan-group { margin-bottom: 24px; }
+.plan-group-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.02rem;
+    font-weight: 800;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid rgba(212, 175, 55, 0.2);
+}
+.plan-group-title .g-count {
+    font-size: 0.7rem;
+    background: rgba(212, 175, 55, 0.14);
+    border-radius: 999px;
+    padding: 1px 9px;
+    color: #d4af37;
+}
+.plan-group-title.done .g-count { background: rgba(76, 175, 80, 0.14); color: #4caf50; }
+.plan-group-title.todo .g-count { background: rgba(158, 158, 168, 0.14); color: #9e9ea8; }
+.plan-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.plan-card {
+    position: relative;
+    padding: 16px 18px;
+    border-radius: var(--radius-md);
+    background: var(--card-bg);
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    overflow: hidden;
+    transition: transform 0.22s, box-shadow 0.22s, border-color 0.22s;
+}
+html[data-theme="dark"] .plan-card { background: var(--card-bg-dark); }
+.plan-card:hover {
+    transform: translateY(-4px);
+    border-color: #d4af37;
+    box-shadow: 0 10px 26px rgba(212, 175, 55, 0.16);
+}
+.plan-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+}
+.plan-card.doing::before { background: #d4af37; }
+.plan-card.todo::before { background: #9e9ea8; }
+.plan-card.done::before { background: #4caf50; }
+.plan-card-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.plan-status {
+    font-size: 0.66rem;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 2px 9px;
+}
+.plan-status.doing { background: rgba(212, 175, 55, 0.14); color: #d4af37; }
+.plan-status.todo { background: rgba(158, 158, 168, 0.14); color: #9e9ea8; }
+.plan-status.done { background: rgba(76, 175, 80, 0.14); color: #4caf50; }
+.plan-priority {
+    margin-left: auto;
+    font-size: 0.64rem;
+    color: #999;
+    border: 1px solid rgba(158, 158, 168, 0.35);
+    border-radius: 999px;
+    padding: 1px 8px;
+}
+.plan-card-title {
+    font-size: 0.98rem;
+    font-weight: 800;
+    margin-bottom: 6px;
+}
+.plan-card-note {
+    font-size: 0.78rem;
+    color: var(--secondary);
+    line-height: 1.55;
+    min-height: 20px;
+}
+.plan-progress { margin-top: 12px; }
+.plan-progress .bar {
+    height: 7px;
+    border-radius: 99px;
+    background: rgba(212, 175, 55, 0.12);
+    overflow: hidden;
+}
+.plan-progress .fill {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #b8860b, #f4d35e);
+    transition: width 0.6s ease;
+}
+.plan-card.done .plan-progress .fill { background: linear-gradient(90deg, #2e7d32, #66bb6a); }
+.plan-card-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 0.72rem;
+    color: #999;
+    font-family: Consolas, monospace;
+}
+.plan-card-foot .pct { color: #d4af37; font-weight: 700; }
+.plan-card.done .plan-card-foot .pct { color: #4caf50; }
+.start-btn {
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #f4d35e 0%, #d4af37 60%, #b8860b 100%);
+    color: #241a02;
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 5px 14px;
+    cursor: pointer;
+    transition: filter 0.2s;
+}
+.start-btn:hover { filter: brightness(1.1); }
+@media (max-width: 720px) {
+    .plan-stats { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+<div class="three-col">
+    {{ partial "sidebar-left.html" . }}
+    <div class="col-main">
+        <div class="plan-head">
+            <h1>🎯 规划</h1>
+            <span class="sub">{{ site.Data.planning.title }} · 共 {{ len $goals }} 个目标</span>
+        </div>
+
+        <div class="plan-stats">
+            <div class="plan-stat"><b>{{ len $goals }}</b><span>全部目标</span></div>
+            <div class="plan-stat" data-stat="doing"><b>{{ len $doing }}</b><span>进行中</span></div>
+            <div class="plan-stat todo" data-stat="todo"><b>{{ len $todo }}</b><span>待开始</span></div>
+            <div class="plan-stat done" data-stat="done"><b>{{ len $done }}</b><span>已完成</span></div>
+        </div>
+        <div class="plan-total-bar"><div class="fill" style="width:{{ div (mul (len $done) 100) (len $goals) }}%"></div></div>
+
+        {{- if $doing }}
+        <div class="plan-group" data-group="doing">
+            <h2 class="plan-group-title">⏳ 进行中<span class="g-count">{{ len $doing }}</span></h2>
+            <div class="plan-cards">
+                {{- range $doing }}
+                <div class="plan-card doing">
+                    <div class="plan-card-top">
+                        <span class="plan-status doing">进行中</span>
+                        <span class="plan-priority">{{ .priority }} 优先级</span>
+                    </div>
+                    <div class="plan-card-title">{{ .title }}</div>
+                    {{- with .note }}<div class="plan-card-note">{{ . }}</div>{{ end }}
+                    <div class="plan-progress"><div class="bar"><div class="fill" style="width:{{ .progress }}%"></div></div></div>
+                    <div class="plan-card-foot">
+                        <span>📅 {{ .deadline }}</span>
+                        <span class="pct">{{ .progress }}%</span>
+                    </div>
+                </div>
+                {{- end }}
+            </div>
+        </div>
+        {{- end }}
+
+        {{- if $todo }}
+        <div class="plan-group" data-group="todo">
+            <h2 class="plan-group-title todo">🗓 待开始<span class="g-count">{{ len $todo }}</span></h2>
+            <div class="plan-cards">
+                {{- range $todo }}
+                <div class="plan-card todo" data-title="{{ .title }}">
+                    <div class="plan-card-top">
+                        <span class="plan-status todo">待开始</span>
+                        <span class="plan-priority">{{ .priority }} 优先级</span>
+                    </div>
+                    <div class="plan-card-title">{{ .title }}</div>
+                    {{- with .note }}<div class="plan-card-note">{{ . }}</div>{{ end }}
+                    <div class="plan-progress"><div class="bar"><div class="fill" style="width:{{ .progress }}%"></div></div></div>
+                    <div class="plan-card-foot">
+                        <span>📅 {{ .deadline }}</span>
+                        <span style="display:flex;align-items:center;gap:8px;">
+                            <span class="pct">{{ .progress }}%</span>
+                            <button type="button" class="start-btn">▶ 开始</button>
+                        </span>
+                    </div>
+                </div>
+                {{- end }}
+            </div>
+        </div>
+        {{- end }}
+
+        {{- if $done }}
+        <div class="plan-group" data-group="done">
+            <h2 class="plan-group-title done">✅ 已完成<span class="g-count">{{ len $done }}</span></h2>
+            <div class="plan-cards">
+                {{- range $done }}
+                <div class="plan-card done">
+                    <div class="plan-card-top">
+                        <span class="plan-status done">已完成</span>
+                        <span class="plan-priority">{{ .priority }} 优先级</span>
+                    </div>
+                    <div class="plan-card-title">{{ .title }}</div>
+                    {{- with .note }}<div class="plan-card-note">{{ . }}</div>{{ end }}
+                    <div class="plan-progress"><div class="bar"><div class="fill" style="width:{{ .progress }}%"></div></div></div>
+                    <div class="plan-card-foot">
+                        <span>📅 {{ .deadline }}</span>
+                        <span class="pct">{{ .progress }}%</span>
+                    </div>
+                </div>
+                {{- end }}
+            </div>
+        </div>
+        {{- end }}
+    </div>
+    {{ partial "sidebar-right.html" . }}
+</div>
+
+<script>
+// 本地版"开始"：点一下把待开始事项切到进行中（localStorage 记忆）
+(function () {
+    var KEY = 'plan-started-v1';
+    function getStarted() {
+        try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; }
+    }
+    function moveCard(card, status, label) {
+        card.classList.remove('todo', 'doing', 'done');
+        card.classList.add(status);
+        var s = card.querySelector('.plan-status');
+        if (s) { s.className = 'plan-status ' + status; s.textContent = label; }
+        var btn = card.querySelector('.start-btn');
+        if (btn) btn.remove();
+        var target = document.querySelector('.plan-group[data-group="' + status + '"] .plan-cards');
+        if (target && target !== card.parentNode) target.appendChild(card);
+        refresh();
+    }
+    function refresh() {
+        document.querySelectorAll('.plan-group').forEach(function (g) {
+            var el = g.querySelector('.g-count');
+            if (el) el.textContent = g.querySelectorAll('.plan-card').length;
+        });
+        var doing = document.querySelectorAll('.plan-card.doing').length;
+        var todo = document.querySelectorAll('.plan-card.todo').length;
+        var done = document.querySelectorAll('.plan-card.done').length;
+        [
+            ['doing', doing],
+            ['todo', todo],
+            ['done', done]
+        ].forEach(function (pair) {
+            var el = document.querySelector('.plan-stat[data-stat="' + pair[0] + '"] b');
+            if (el) el.textContent = pair[1];
+        });
+        var fill = document.querySelector('.plan-total-bar .fill');
+        var total = doing + todo + done;
+        if (fill && total) fill.style.width = Math.round(done / total * 100) + '%';
+    }
+    document.querySelectorAll('.plan-card .start-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var card = btn.closest('.plan-card');
+            var title = card.dataset.title;
+            if (!title) return;
+            var started = getStarted();
+            if (started.indexOf(title) === -1) started.push(title);
+            localStorage.setItem(KEY, JSON.stringify(started));
+            moveCard(card, 'doing', '进行中');
+        });
+    });
+    // 刷新后恢复已开始的状态
+    var started = getStarted();
+    document.querySelectorAll('.plan-card.todo').forEach(function (card) {
+        if (started.indexOf(card.dataset.title) !== -1) {
+            moveCard(card, 'doing', '进行中');
+        }
+    });
+})();
+</script>
+{{ end }}

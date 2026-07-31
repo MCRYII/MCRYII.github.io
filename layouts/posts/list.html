@@ -1,7 +1,7 @@
 {{- define "main" }}
 <style>
 main.main {
-    max-width: 1180px !important;
+    max-width: 1480px !important;
 }
 .hero-post {
     border-radius: 22px;
@@ -208,11 +208,10 @@ html[data-theme="dark"] .post-row { background: #262216; }
 {{- $paginator := .Paginate .RegularPages }}
 
 {{- if eq $paginator.PageNumber 1 }}
-{{- range $index, $page := $paginator.Pages }}
-    {{- if eq $index 0 }}
-    <!-- 首屏：最新文章大图 -->
+{{- range $page := first 1 $paginator.Pages }}
+    <!-- 首屏：最新文章大图（全宽） -->
     <article class="hero-post">
-        <a href="{{ .Permalink }}">
+        <a href="{{ .RelPermalink }}">
             <div class="hero-cover">
                 {{- with .Params.cover.image }}
                 <img src="{{ . }}" alt="{{ $page.Title }}" fetchpriority="high">
@@ -233,40 +232,17 @@ html[data-theme="dark"] .post-row { background: #262216; }
             </div>
         </a>
     </article>
-    <div class="scroll-hint" id="scroll-hint"><span class="arrow">↓</span> 向下滚动查看更多文章</div>
-    <div class="post-list">
-    {{- else }}
-    <!-- 其余文章：竖排列表 + 滚动动画 -->
-    <article class="post-row">
-        <a href="{{ .Permalink }}">
-            <div class="row-cover">
-                {{- with .Params.cover.image }}
-                <img src="{{ . }}" alt="{{ $page.Title }}" loading="lazy">
-                {{- else }}
-                <img src="/images/default-cover.png" alt="{{ $page.Title }}" loading="lazy">
-                {{- end }}
-            </div>
-            <div class="row-body">
-                {{- with .Params.categories }}{{ range first 1 . }}<span class="hero-cat">{{ . }}</span>{{ end }}{{ end }}
-                <h3 class="row-title">{{ .Title }}</h3>
-                <p class="row-summary">{{ .Summary | plainify | htmlUnescape }}{{ if .Truncated }}...{{ end }}</p>
-                <div class="row-meta">
-                    <span>🗓 {{ .Date.Format "2006-01-02" }}</span>
-                    <span>⏱ {{ .ReadingTime }} 分钟</span>
-                </div>
-            </div>
-        </a>
-    </article>
-    {{- end }}
 {{- end }}
-    </div>
-
-{{- else }}
-    <!-- 分页子页：简单竖排列表 -->
+<div class="scroll-hint" id="scroll-hint"><span class="arrow">↓</span> 向下滚动查看更多文章</div>
+<div class="three-col">
+    {{ partial "posts-sidebar-left.html" . }}
+    <div class="col-main">
     <div class="post-list">
     {{- range $index, $page := $paginator.Pages }}
-    <article class="post-row in-view">
-        <a href="{{ .Permalink }}">
+    {{- if ne $index 0 }}
+    <!-- 其余文章：竖排列表 + 滚动动画 -->
+    <article class="post-row">
+        <a href="{{ .RelPermalink }}">
             <div class="row-cover">
                 {{- with .Params.cover.image }}
                 <img src="{{ . }}" alt="{{ $page.Title }}" loading="lazy">
@@ -286,8 +262,8 @@ html[data-theme="dark"] .post-row { background: #262216; }
         </a>
     </article>
     {{- end }}
-    </div>
 {{- end }}
+    </div>
 
 {{- if gt $paginator.TotalPages 1 }}
 <footer class="page-footer">
@@ -300,6 +276,55 @@ html[data-theme="dark"] .post-row { background: #262216; }
         {{- end }}
     </nav>
 </footer>
+{{- end }}
+    </div>
+    {{ partial "posts-sidebar-right.html" . }}
+</div>
+
+{{- else }}
+    <!-- 分页子页：三栏 + 竖排列表 -->
+    <div class="three-col">
+    {{ partial "posts-sidebar-left.html" . }}
+    <div class="col-main">
+    <div class="post-list">
+    {{- range $index, $page := $paginator.Pages }}
+    <article class="post-row in-view">
+        <a href="{{ .RelPermalink }}">
+            <div class="row-cover">
+                {{- with .Params.cover.image }}
+                <img src="{{ . }}" alt="{{ $page.Title }}" loading="lazy">
+                {{- else }}
+                <img src="/images/default-cover.png" alt="{{ $page.Title }}" loading="lazy">
+                {{- end }}
+            </div>
+            <div class="row-body">
+                {{- with .Params.categories }}{{ range first 1 . }}<span class="hero-cat">{{ . }}</span>{{ end }}{{ end }}
+                <h3 class="row-title">{{ .Title }}</h3>
+                <p class="row-summary">{{ .Summary | plainify | htmlUnescape }}{{ if .Truncated }}...{{ end }}</p>
+                <div class="row-meta">
+                    <span>🗓 {{ .Date.Format "2006-01-02" }}</span>
+                    <span>⏱ {{ .ReadingTime }} 分钟</span>
+                </div>
+            </div>
+        </a>
+    </article>
+    {{- end }}
+    </div>
+    {{- if gt $paginator.TotalPages 1 }}
+    <footer class="page-footer">
+        <nav class="pagination">
+            {{- if $paginator.HasPrev }}
+            <a class="prev" href="{{ $paginator.Prev.URL | absURL }}">«&nbsp;上一页</a>
+            {{- end }}
+            {{- if $paginator.HasNext }}
+            <a class="next" href="{{ $paginator.Next.URL | absURL }}">下一页&nbsp;»</a>
+            {{- end }}
+        </nav>
+    </footer>
+    {{- end }}
+    </div>
+    {{ partial "posts-sidebar-right.html" . }}
+    </div>
 {{- end }}
 
 <script>

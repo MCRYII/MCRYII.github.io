@@ -1,0 +1,251 @@
+{{ define "main" }}
+<style>main.main { max-width: none !important; }</style>
+<style>
+.notes-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+.notes-header h1 { margin: 0; }
+.notes-header .sub { color: #999; font-size: 0.85rem; }
+.note-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0 18px;
+}
+.note-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 15px;
+    border-radius: 999px;
+    background: rgba(212, 175, 55, 0.08);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    color: var(--primary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s;
+    user-select: none;
+}
+.note-chip:hover { background: rgba(212, 175, 55, 0.16); }
+.note-chip.active {
+    background: #d4af37;
+    color: #1b1405;
+    border-color: #d4af37;
+}
+.note-chip .chip-count {
+    font-size: 0.68rem;
+    background: rgba(0, 0, 0, 0.12);
+    border-radius: 999px;
+    padding: 0 7px;
+}
+.note-chip.active .chip-count { background: rgba(255, 255, 255, 0.35); }
+.note-section { margin-bottom: 24px; }
+.note-section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #d4af37;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid rgba(212, 175, 55, 0.22);
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.18s;
+}
+.note-section-title:hover { color: #f0d98c; }
+.note-section-title .sec-caret {
+    margin-left: auto;
+    font-size: 0.8rem;
+    transition: transform 0.22s;
+}
+.note-section.collapsed .sec-caret { transform: rotate(-90deg); }
+.note-section.collapsed .note-cards { display: none; }
+}
+.note-section-title .sec-count {
+    font-size: 0.7rem;
+    background: rgba(212, 175, 55, 0.14);
+    border-radius: 999px;
+    padding: 1px 9px;
+}
+.note-cards { display: flex; flex-direction: column; gap: 12px; }
+.note-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 15px 18px;
+    border-radius: var(--radius-md);
+    background: var(--card-bg);
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    text-decoration: none;
+    color: var(--primary);
+    overflow: hidden;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+html[data-theme="dark"] .note-card { background: var(--card-bg-dark); }
+.note-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg, #e5484d, #f4d35e, #4caf50, #7fb3ff);
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+.note-card:hover {
+    transform: translateX(5px);
+    border-color: #d4af37;
+    box-shadow: 0 10px 26px rgba(212, 175, 55, 0.16);
+}
+.note-card:hover::before { opacity: 1; }
+.note-num {
+    font-family: Consolas, monospace;
+    font-size: 1.7rem;
+    font-weight: 800;
+    color: rgba(212, 175, 55, 0.28);
+    min-width: 48px;
+    text-align: center;
+    flex-shrink: 0;
+    transition: color 0.22s;
+}
+.note-card:hover .note-num { color: #d4af37; }
+.note-body { flex: 1; min-width: 0; }
+.note-title {
+    font-size: 1.02rem;
+    font-weight: 800;
+    margin-bottom: 4px;
+}
+.note-desc {
+    font-size: 0.8rem;
+    color: var(--secondary);
+    line-height: 1.55;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.note-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 7px;
+    font-size: 0.72rem;
+    color: #999;
+    font-family: Consolas, monospace;
+}
+.note-arrow {
+    font-size: 1.15rem;
+    color: rgba(212, 175, 55, 0.35);
+    flex-shrink: 0;
+    transition: transform 0.22s, color 0.22s;
+}
+.note-card:hover .note-arrow {
+    transform: translateX(4px);
+    color: #d4af37;
+}
+.note-empty {
+    text-align: center;
+    color: #999;
+    padding: 40px 0;
+    font-size: 0.9rem;
+}
+@media (max-width: 720px) {
+    .note-card { gap: 10px; padding: 13px 14px; }
+    .note-num { font-size: 1.35rem; min-width: 38px; }
+    .note-desc { white-space: normal; }
+}
+</style>
+<div class="three-col">
+    {{ partial "sidebar-left.html" . }}
+    <div class="col-main">
+        <div class="notes-header">
+            <h1>📓 笔记本</h1>
+            <span class="sub">ESP32 学习笔记 · 共 {{ len .Pages }} 篇</span>
+        </div>
+
+        {{- $allNotes := sort .Pages "Params.num" }}
+        {{- $catOrder := slice }}
+        {{- $catGroups := dict }}
+        {{- range $allNotes }}
+            {{- $key := .Params.group | default "未分类" }}
+            {{- if not (index $catGroups $key) }}
+                {{- $catOrder = $catOrder | append $key }}
+            {{- end }}
+            {{- $list := index $catGroups $key | default slice }}
+            {{- $catGroups = merge $catGroups (dict $key ($list | append .)) }}
+        {{- end }}
+
+        <!-- 分类筛选 -->
+        <div class="note-chips" id="note-chips">
+            <span class="note-chip active" data-cat="all">全部 <span class="chip-count">{{ len .Pages }}</span></span>
+            {{- range $catOrder }}
+            <span class="note-chip" data-cat="{{ . }}">{{ . }} <span class="chip-count">{{ len (index $catGroups .) }}</span></span>
+            {{- end }}
+        </div>
+
+        <!-- 分类分组 -->
+        {{- range $catOrder }}
+        <div class="note-section" data-section="{{ . }}">
+            <h2 class="note-section-title">
+                📁 {{ . }}<span class="sec-count">{{ len (index $catGroups .) }} 篇</span>
+                <span class="sec-caret">▾</span>
+            </h2>
+            <div class="note-cards">
+                {{- range index $catGroups . }}
+                <a class="note-card" href="{{ .RelPermalink }}">
+                    <div class="note-num">{{ .Params.num }}</div>
+                    <div class="note-body">
+                        <div class="note-title">{{ .Title }}</div>
+                        {{- with .Description }}
+                        <div class="note-desc">{{ . }}</div>
+                        {{- end }}
+                        <div class="note-meta">
+                            <span>{{ .Date.Format "2006-01-02" }}</span>
+                            <span>{{ .ReadingTime }} min</span>
+                            <span>{{ .Params.group }}</span>
+                        </div>
+                    </div>
+                    <div class="note-arrow">→</div>
+                </a>
+                {{- end }}
+            </div>
+        </div>
+        {{- end }}
+    </div>
+    {{ partial "sidebar-right.html" . }}
+</div>
+
+<script>
+// 分类筛选
+(function () {
+    var chips = document.querySelectorAll('.note-chip');
+    var sections = document.querySelectorAll('.note-section');
+    chips.forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            chips.forEach(function (c) { c.classList.remove('active'); });
+            this.classList.add('active');
+            var cat = this.dataset.cat;
+            sections.forEach(function (sec) {
+                sec.style.display = (cat === 'all' || sec.dataset.section === cat) ? '' : 'none';
+            });
+        });
+    });
+    // 分类折叠
+    sections.forEach(function (sec) {
+        var title = sec.querySelector('.note-section-title');
+        if (title) {
+            title.addEventListener('click', function () {
+                sec.classList.toggle('collapsed');
+            });
+        }
+    });
+})();
+</script>
+{{ end }}

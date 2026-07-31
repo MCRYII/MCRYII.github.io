@@ -1,0 +1,105 @@
+{{- define "main" }}
+<style>main.main { max-width: none !important; }</style>
+<style>
+/* 文章页头部：标题 + 日期居中 */
+.post-single .post-header {
+    text-align: center;
+}
+.post-single .post-title {
+    display: block !important;
+    text-align: center !important;
+    font-size: 1.9rem;
+    font-weight: 800;
+    line-height: 1.35;
+    border-bottom: none !important;
+    position: relative;
+    padding-bottom: 14px;
+}
+.post-single .post-title::after {
+    content: '';
+    display: block;
+    width: 72px;
+    height: 3px;
+    margin: 14px auto 0;
+    border-radius: 3px;
+    background: linear-gradient(90deg, transparent, #d4af37, transparent);
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.45);
+}
+.post-single .post-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px 12px;
+    color: #999;
+    font-size: 0.85rem;
+}
+.post-single .post-meta span {
+    color: #999;
+}
+.post-single .post-header .post-description {
+    text-align: center;
+    color: #999;
+    font-size: 0.95rem;
+}
+</style>
+<div class="three-col">
+    {{ partial "posts-sidebar-left.html" . }}
+    <div class="col-main">
+        <article class="post-single">
+            <header class="post-header">
+                <h1 class="post-title entry-hint-parent">
+                    {{ .Title }}
+                    {{- if .Draft }}
+                    <span class="entry-hint" title="Draft">📝</span>
+                    {{- end }}
+                </h1>
+                {{- if .Description }}
+                <div class="post-description">
+                    {{ .Description }}
+                </div>
+                {{- end }}
+                {{- if not (.Param "hideMeta") }}
+                <div class="post-meta">
+                    {{- partial "post_meta.html" . -}}
+                    {{- partial "translation_list.html" . -}}
+                    {{- partial "edit_post.html" . -}}
+                    {{- partial "post_canonical.html" . -}}
+                </div>
+                {{- end }}
+            </header>
+            {{- if (.Param "ShowToc") }}
+            {{- partial "toc.html" . }}
+            {{- end }}
+
+            {{- if .Content }}
+            <div class="post-content md-content">
+                {{- if not (.Param "disableAnchoredHeadings") }}
+                {{- partial "anchored_headings.html" .Content -}}
+                {{- else }}{{ .Content }}{{ end }}
+            </div>
+            {{- end }}
+
+            {{- partial "extend_post_content.html" . }}
+
+            <footer class="post-footer">
+                {{- $tags := .Language.Params.Taxonomies.tag | default "tags" }}
+                <ul class="post-tags">
+                    {{- range ($.GetTerms $tags) }}
+                    <li><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></li>
+                    {{- end }}
+                </ul>
+                {{- if (.Param "ShowPostNavLinks") }}
+                {{- partial "post_nav_links.html" . }}
+                {{- end }}
+                {{- if (and site.Params.ShowShareButtons (ne .Params.disableShare true)) }}
+                {{- partial "share_icons.html" . -}}
+                {{- end }}
+            </footer>
+
+            {{- partial "comments.html" . }}
+        </article>
+    </div>
+    {{ partial "posts-sidebar-right.html" . }}
+</div>
+{{- end }}

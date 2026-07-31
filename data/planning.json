@@ -1,0 +1,53 @@
+{
+  "title": "2026 年度规划",
+  "goals": [
+    {
+      "title": "完成博客全面改造",
+      "status": "进行中",
+      "progress": 75,
+      "deadline": "2026-08-31",
+      "priority": "高",
+      "note": "顶栏、侧栏、播放器、笔记系统、网站导航均已上线"
+    },
+    {
+      "title": "学完 51 单片机基础",
+      "status": "进行中",
+      "progress": 80,
+      "deadline": "2026-08-15",
+      "priority": "中",
+      "note": "笔记本已更新 8 篇笔记"
+    },
+    {
+      "title": "学习 ESP32 嵌入式开发",
+      "status": "进行中",
+      "progress": 60,
+      "deadline": "2026-09-30",
+      "priority": "高",
+      "note": "笔记本已更新 5 篇笔记"
+    },
+    {
+      "title": "博客文章突破 50 篇",
+      "status": "待开始",
+      "progress": 0,
+      "deadline": "2026-12-31",
+      "priority": "中",
+      "note": ""
+    },
+    {
+      "title": "搭建自己的 AI 工作流",
+      "status": "待开始",
+      "progress": 0,
+      "deadline": "2026-10-31",
+      "priority": "低",
+      "note": ""
+    },
+    {
+      "title": "博客系统全面上线",
+      "status": "已完成",
+      "progress": 100,
+      "deadline": "2026-07-31",
+      "priority": "高",
+      "note": "新顶栏、播放器、侧栏、导航全部完成"
+    }
+  ]
+}

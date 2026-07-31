@@ -1,8 +1,6 @@
 ---
 title: "赞助"
-layout: triple
+layout: sponsor
 draft: false
 comments: false
 ---
-
-**页面建设中，敬请期待。**

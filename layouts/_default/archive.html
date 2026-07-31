@@ -1,5 +1,46 @@
 {{ define "main" }}
 <style>main.main { max-width: none !important; }</style>
+<style>
+.arch-year { margin-bottom: 26px; }
+.arch-year-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #d4af37;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid rgba(212, 175, 55, 0.3);
+}
+.arch-year-title .arch-count {
+    font-size: 0.72rem;
+    background: rgba(212, 175, 55, 0.14);
+    border-radius: 999px;
+    padding: 2px 10px;
+    margin-left: 8px;
+}
+.arch-month { margin: 12px 0 6px; font-size: 0.85rem; color: #999; font-weight: 700; }
+.arch-list { list-style: none; margin: 0 0 6px 12px; padding: 0; }
+.arch-list li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 7px 10px;
+    border-radius: 10px;
+    transition: background 0.15s;
+}
+.arch-list li:hover { background: rgba(212, 175, 55, 0.08); }
+.arch-list time {
+    font-size: 0.76rem;
+    color: #999;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+.arch-list a {
+    color: var(--primary);
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+.arch-list a:hover { color: #d4af37; }
+</style>
 <div class="three-col">
     {{ partial "sidebar-left.html" . }}
     <div class="col-main">
@@ -9,6 +50,23 @@
             </header>
             <div class="post-content">
                 {{ .Content }}
+                {{- $posts := where .Site.RegularPages "Section" "posts" }}
+                {{- range $posts.GroupByDate "2006" "desc" }}
+                <div class="arch-year">
+                    <h2 class="arch-year-title">{{ .Key }} 年<span class="arch-count">{{ len .Pages }} 篇</span></h2>
+                    {{- range .Pages.GroupByDate "January" "desc" }}
+                    <div class="arch-month">{{ .Key }}</div>
+                    <ul class="arch-list">
+                        {{- range .Pages }}
+                        <li>
+                            <time>{{ .Date.Format "01-02" }}</time>
+                            <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+                        </li>
+                        {{- end }}
+                    </ul>
+                    {{- end }}
+                </div>
+                {{- end }}
             </div>
         </article>
     </div>
