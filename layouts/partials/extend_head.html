@@ -1,4 +1,4 @@
-<!-- Cloudflare Web Analytics -->
+﻿<!-- Cloudflare Web Analytics -->
 <script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "29b5e50b045a46f296e800624cc201d3"}'></script>
 <!-- End Cloudflare Web Analytics -->
 
@@ -386,6 +386,8 @@ button {
     color: var(--nav-hover-text);
 }
 .nav-dropdown-icon { font-size: 1rem; line-height: 1; }
+.nav-dropdown-icon svg,
+.drawer-subicon svg { width: 16px; height: 16px; display: block; }
 .site-actions {
     display: flex;
     align-items: center;
@@ -1018,11 +1020,16 @@ input[type="range"]::-moz-range-thumb {
 }
 #playlist-panel::-webkit-scrollbar { width: 6px; }
 #playlist-panel::-webkit-scrollbar-thumb { background: rgba(212, 175, 55, 0.35); border-radius: 3px; }
+.ctl-btn svg { width: 17px; height: 17px; }
+.ctl-btn.play-btn svg { width: 19px; height: 19px; }
+.vol-icon svg { width: 15px; height: 15px; }
+.fold-toggle-btn svg { width: 11px; height: 11px; }
+.player-fold-icon svg { width: 24px; height: 24px; }
 </style>
 
 <div id="global-music-player" class="fold-status">
-    <button class="fold-toggle-btn">—</button>
-    <div class="player-fold-icon" title="展开播放器">🎵</div>
+    <button class="fold-toggle-btn" title="折叠播放器"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+    <div class="player-fold-icon" title="展开播放器"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
 
     <div class="player-head">
         <span class="player-head-title">[ 音乐 ]</span>
@@ -1036,7 +1043,7 @@ input[type="range"]::-moz-range-thumb {
             <div class="song-title" id="song-title">加载中...</div>
             <div class="song-artist" id="song-artist"></div>
             <div class="volume-control">
-                <button id="mute-btn" class="vol-icon" title="静音">🔊</button>
+                <button id="mute-btn" class="vol-icon" title="静音"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
                 <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.7">
             </div>
         </div>
@@ -1049,11 +1056,11 @@ input[type="range"]::-moz-range-thumb {
     </div>
 
     <div class="controls-row">
-        <button id="loop-btn" class="ctl-btn" title="顺序播放">🔁</button>
-        <button id="prev-btn" class="ctl-btn" title="上一曲">⏮</button>
-        <button id="play-pause-btn" class="ctl-btn play-btn" title="播放/暂停">▶</button>
-        <button id="next-btn" class="ctl-btn" title="下一曲">⏭</button>
-        <button id="playlist-toggle" class="ctl-btn" title="歌单">🎵</button>
+        <button id="loop-btn" class="ctl-btn" title="顺序播放"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></button>
+        <button id="prev-btn" class="ctl-btn" title="上一曲"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 20 9 12l10-8z"/><line x1="5" y1="19" x2="5" y2="5"/></svg></button>
+        <button id="play-pause-btn" class="ctl-btn play-btn" title="播放/暂停"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
+        <button id="next-btn" class="ctl-btn" title="下一曲"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 4 10 8-10 8z"/><line x1="19" y1="5" x2="19" y2="19"/></svg></button>
+        <button id="playlist-toggle" class="ctl-btn" title="歌单"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></button>
     </div>
 
     <div id="playlist-panel">
@@ -1099,6 +1106,27 @@ const playlistPanel = document.getElementById('playlist-panel');
 const playlistList = document.getElementById('playlist-list');
 const loopBtn = document.getElementById('loop-btn');
 let playMode = 0; // 0=顺序播放 1=单曲循环 2=随机播放
+// 按钮图标统一用内联 SVG（currentColor，随 hover 变色）
+const ICONS = {
+    play: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>',
+    pause: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>',
+    speakerOn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>',
+    speakerOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>',
+    mode: [
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>',
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/><path d="M11 10h1v4"/></svg>',
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.8-1.1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"/><path d="m18 14 4 4-4 4"/></svg>'
+    ],
+    fold: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+    unfold: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>'
+};
+function setPlayIcon(playing) {
+    playPauseBtn.innerHTML = playing ? ICONS.pause : ICONS.play;
+}
+function setVolIcon(volume) {
+    const icon = document.querySelector('.vol-icon');
+    if (icon) icon.innerHTML = volume > 0 ? ICONS.speakerOn : ICONS.speakerOff;
+}
 
 const playerWrap = document.getElementById('global-music-player');
 const foldBtn = document.querySelector('.fold-toggle-btn');
@@ -1106,14 +1134,14 @@ if (foldBtn) {
     foldBtn.addEventListener('click', function (e) {
         e.stopPropagation();
         playerWrap.classList.toggle('fold-status');
-        foldBtn.textContent = playerWrap.classList.contains('fold-status') ? '▶' : '—';
+        foldBtn.innerHTML = playerWrap.classList.contains('fold-status') ? ICONS.unfold : ICONS.fold;
     });
 }
 // 折叠成小方框时，点击方框任意位置展开
 playerWrap.addEventListener('click', function (e) {
     if (playerWrap.classList.contains('fold-status')) {
         playerWrap.classList.remove('fold-status');
-        if (foldBtn) foldBtn.textContent = '—';
+        if (foldBtn) foldBtn.innerHTML = ICONS.fold;
     }
 });
 
@@ -1121,11 +1149,12 @@ function loadTrack(index, restoreTime = 0) {
     const track = playlist[index];
     if (!track) return;
     albumCover.src = track.cover;
+    extractCover(track); // 尝试读取 mp3 内嵌封面，读到后自动替换并广播
     songTitleSpan.textContent = track.title;
     songArtistSpan.textContent = track.artist;
     audio.src = track.src;
     audio.load();
-    playPauseBtn.textContent = '▶';
+    setPlayIcon(false);
     seekBar.value = 0;
     currentTimeSpan.textContent = '00:00';
     durationTimeSpan.textContent = '00:00';
@@ -1145,16 +1174,129 @@ function emitPlayerState() {
         }));
     }
 }
+// ==================== 从 mp3 提取内嵌封面（ID3v2 APIC/PIC） ====================
+// 歌单里的 cover 默认是占位图；这里按需 fetch 歌曲文件开头，解析出内嵌专辑封面
+// 生成 blob URL 写回 track.cover，然后广播事件，让悬浮播放器/侧边栏/音乐页同步换图。
+const coverCache = {}; // src -> Promise<objectURL|null>
+function isId3Tag(buf) {
+    return buf.length >= 10 && buf[0] === 0x49 && buf[1] === 0x44 && buf[2] === 0x33;
+}
+function id3TagSize(buf) {
+    const size = ((buf[6] & 0x7f) << 21) | ((buf[7] & 0x7f) << 14) | ((buf[8] & 0x7f) << 7) | (buf[9] & 0x7f);
+    let total = 10 + size;
+    if (buf[3] === 4 && (buf[5] & 0x10)) total += 10; // v2.4 footer
+    return total;
+}
+function parsePicFrame(tag, s) { // ID3v2.2 PIC
+    if (s + 5 > tag.length) return null;
+    const enc = tag[s];
+    const fmt = String.fromCharCode(tag[s + 1], tag[s + 2], tag[s + 3]);
+    let i = s + 5;
+    if (enc === 1 || enc === 2) {
+        while (i + 1 < tag.length && !(tag[i] === 0 && tag[i + 1] === 0)) i += 2;
+        i += 2;
+    } else {
+        while (i < tag.length && tag[i] !== 0) i++;
+        i++;
+    }
+    if (i >= tag.length) return null;
+    const mime = fmt === 'PNG' ? 'image/png' : (fmt === 'JPG' || fmt === 'JPEG') ? 'image/jpeg' : 'image/' + fmt.toLowerCase();
+    return { data: tag.subarray(i), mime: mime };
+}
+function parseApicFrame(tag, s) { // ID3v2.3/2.4 APIC
+    if (s >= tag.length) return null;
+    const enc = tag[s];
+    let i = s + 1;
+    let mime = '';
+    while (i < tag.length && tag[i] !== 0) { mime += String.fromCharCode(tag[i]); i++; }
+    i += (enc === 1 || enc === 2) ? 2 : 1; // MIME 终止符
+    i += 1; // 图片类型
+    if (enc === 1 || enc === 2) {
+        while (i + 1 < tag.length && !(tag[i] === 0 && tag[i + 1] === 0)) i += 2;
+        i += 2;
+    } else {
+        while (i < tag.length && tag[i] !== 0) i++;
+        i++;
+    }
+    if (i >= tag.length) return null;
+    return { data: tag.subarray(i), mime: mime || 'image/jpeg' };
+}
+function parseEmbeddedCover(tag) {
+    if (!isId3Tag(tag)) return null;
+    const ver = tag[3], flags = tag[5];
+    const tagEnd = Math.min(tag.length, id3TagSize(tag));
+    let i = 10;
+    if (ver === 2) {
+        if (flags & 0x40) i += 6;
+        while (i + 6 <= tagEnd) {
+            const fid = String.fromCharCode(tag[i], tag[i + 1], tag[i + 2]);
+            const fsz = (tag[i + 3] << 16) | (tag[i + 4] << 8) | tag[i + 5];
+            if (fid === 'PIC') return parsePicFrame(tag, i + 6);
+            i += 6 + fsz;
+        }
+        return null;
+    }
+    if (flags & 0x40) { // 扩展头
+        i += ver === 3
+            ? 4 + ((tag[10] << 24) | (tag[11] << 16) | (tag[12] << 8) | tag[13])
+            : 4 + (((tag[10] & 0x7f) << 21) | ((tag[11] & 0x7f) << 14) | ((tag[12] & 0x7f) << 7) | (tag[13] & 0x7f));
+    }
+    while (i + 10 <= tagEnd) {
+        const id = String.fromCharCode(tag[i], tag[i + 1], tag[i + 2], tag[i + 3]);
+        if (id === '\x00\x00\x00\x00') return null;
+        const fsz = ver === 4
+            ? ((tag[i + 4] & 0x7f) << 21) | ((tag[i + 5] & 0x7f) << 14) | ((tag[i + 6] & 0x7f) << 7) | (tag[i + 7] & 0x7f)
+            : (tag[i + 4] << 24) | (tag[i + 5] << 16) | (tag[i + 6] << 8) | tag[i + 7];
+        if (id === 'APIC') return parseApicFrame(tag, i + 10);
+        i += 10 + fsz;
+    }
+    return null;
+}
+function readEmbeddedCover(src) {
+    function fetchRange(to) {
+        return fetch(src, { headers: { Range: 'bytes=0-' + to } })
+            .then(r => {
+                if (!r.ok && r.status !== 206) throw new Error('fetch failed');
+                return r.arrayBuffer();
+            })
+            .then(ab => new Uint8Array(ab));
+    }
+    return fetchRange(1048575) // 先取前 1MB，覆盖绝大多数标签
+        .then(buf => {
+            if (!isId3Tag(buf)) throw new Error('no id3 tag');
+            const size = id3TagSize(buf);
+            return size <= buf.length ? buf.subarray(0, size) : fetchRange(size - 1);
+        })
+        .then(tag => {
+            const pic = parseEmbeddedCover(tag);
+            if (!pic) throw new Error('no cover');
+            return URL.createObjectURL(new Blob([pic.data], { type: pic.mime }));
+        });
+}
+function extractCover(track) {
+    if (!track || track.coverResolved) return;
+    track.coverResolved = true;
+    if (!coverCache[track.src]) {
+        coverCache[track.src] = readEmbeddedCover(track.src).catch(() => null);
+    }
+    coverCache[track.src].then(url => {
+        if (url) track.cover = url;
+        if (playlist[currentTrackIndex] === track && albumCover) {
+            albumCover.src = url || track.cover;
+        }
+        emitPlayerState(); // 让侧边栏音乐卡 / 音乐页大唱片同步换封面
+    });
+}
 function playPrev() {
     currentTrackIndex = (currentTrackIndex - 1 + playlist.length) % playlist.length;
     loadTrack(currentTrackIndex);
     audio.play().catch(e => console.log("自动播放被阻止"));
-    playPauseBtn.textContent = '⏸';
+    setPlayIcon(true);
 }
 function applyPlayMode() {
     audio.loop = playMode === 1;
     if (loopBtn) {
-        loopBtn.textContent = playMode === 1 ? '🔂' : playMode === 2 ? '🔀' : '🔁';
+        loopBtn.innerHTML = ICONS.mode[playMode];
         loopBtn.classList.toggle('active', playMode !== 0);
         loopBtn.title = playMode === 1 ? '单曲循环' : playMode === 2 ? '随机播放' : '顺序播放';
     }
@@ -1178,15 +1320,15 @@ function playNext() {
     }
     loadTrack(currentTrackIndex);
     audio.play().catch(e => console.log("自动播放被阻止"));
-    playPauseBtn.textContent = '⏸';
+    setPlayIcon(true);
 }
 function togglePlay() {
     if (audio.paused) {
         audio.play().catch(e => console.error("播放失败:", e));
-        playPauseBtn.textContent = '⏸';
+        setPlayIcon(true);
     } else {
         audio.pause();
-        playPauseBtn.textContent = '▶';
+        setPlayIcon(false);
     }
     emitPlayerState();
 }
@@ -1201,8 +1343,7 @@ audio.addEventListener('error', function() {
 });
 volumeSlider.addEventListener('input', function() {
     audio.volume = this.value;
-    const muteIcon = document.querySelector('.vol-icon');
-    if (muteIcon) muteIcon.textContent = audio.volume === 0 ? '🔇' : '🔊';
+    setVolIcon(audio.volume);
 });
 const muteBtn = document.getElementById('mute-btn');
 let lastVolume = 0.7;
@@ -1212,11 +1353,11 @@ if (muteBtn) {
             lastVolume = audio.volume;
             audio.volume = 0;
             volumeSlider.value = 0;
-            muteBtn.textContent = '🔇';
+            setVolIcon(0);
         } else {
             audio.volume = lastVolume > 0 ? lastVolume : 0.7;
             volumeSlider.value = audio.volume;
-            muteBtn.textContent = '🔊';
+            setVolIcon(audio.volume);
         }
     });
 }
@@ -1265,7 +1406,7 @@ function selectTrack(index) {
     currentTrackIndex = index;
     loadTrack(index);
     audio.play().catch(function(e) { console.log('自动播放被阻止'); });
-    playPauseBtn.textContent = '⏸';
+    setPlayIcon(true);
     renderPlaylist();
 }
 
@@ -1299,7 +1440,7 @@ function restorePlaybackState() {
                     audio.play().catch(e => console.log("自动播放被阻止"));
                     audio.removeEventListener('canplay', onCanPlay);
                 });
-                playPauseBtn.textContent = '⏸';
+                setPlayIcon(true);
             }
         } catch(e) { console.warn("恢复状态失败", e); }
     } else {

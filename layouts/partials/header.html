@@ -1,24 +1,24 @@
 ﻿{{- $navItems := slice
     (dict "name" "主页" "url" "/")
     (dict "name" "文章" "children" (slice
-        (dict "name" "文章列表" "url" "/posts/" "icon" "📄")
-        (dict "name" "分类" "url" "/categories/" "icon" "🗂️")
-        (dict "name" "归档" "url" "/archive/" "icon" "📚")))
+        (dict "name" "文章列表" "url" "/posts/" "icon" `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`)
+        (dict "name" "分类" "url" "/categories/" "icon" `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`)
+        (dict "name" "归档" "url" "/archive/" "icon" `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`)))
     (dict "name" "网站导航" "url" "/site-nav/")
     (dict "name" "动态" "children" (slice
-        (dict "name" "动态" "url" "/dynamic/" "icon" "💬")
-        (dict "name" "相册" "url" "/gallery/" "icon" "🖼️")
-        (dict "name" "笔记本" "url" "/notes/" "icon" "📓")))
+        (dict "name" "动态" "url" "/dynamic/" "icon" `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`)
+        (dict "name" "相册" "url" "/gallery/" "icon" `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`)
+        (dict "name" "笔记本" "url" "/notes/" "icon" `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`)))
     (dict "name" "记录" "children" (slice
-        (dict "name" "音乐" "url" "/music/" "icon" "🎵")
-        (dict "name" "更新日志" "url" "/changelog/" "icon" "📝")
-        (dict "name" "日历" "url" "/calendar/" "icon" "📅")
-        (dict "name" "规划" "url" "/planning/" "icon" "🎯")))
+        (dict "name" "音乐" "url" "/music/" "icon" `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`)
+        (dict "name" "更新日志" "url" "/changelog/" "icon" `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`)
+        (dict "name" "日历" "url" "/calendar/" "icon" `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`)
+        (dict "name" "规划" "url" "/planning/" "icon" `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`)))
     (dict "name" "关于" "children" (slice
-        (dict "name" "关于我" "url" "/about/" "icon" "👤")
-        (dict "name" "友链" "url" "/friends/" "icon" "🔗")
-        (dict "name" "赞助" "url" "/sponsor/" "icon" "💝")
-        (dict "name" "下载" "url" "/downloads/" "icon" "📦")))
+        (dict "name" "关于我" "url" "/about/" "icon" `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`)
+        (dict "name" "友链" "url" "/friends/" "icon" `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`)
+        (dict "name" "赞助" "url" "/sponsor/" "icon" `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`)
+        (dict "name" "下载" "url" "/downloads/" "icon" `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`)))
 -}}
 
 <header class="site-header">
@@ -39,7 +39,7 @@
             <div class="nav-dropdown" data-dropdown-menu>
                 {{- range .children }}
                 <a class="nav-dropdown-item" href="{{ .url }}" data-nav-link>
-                    {{- with .icon }}<span class="nav-dropdown-icon">{{ . }}</span>{{ end }}
+                    {{- with .icon }}<span class="nav-dropdown-icon">{{ . | safeHTML }}</span>{{ end }}
                     <span>{{ .name }}</span>
                 </a>
                 {{- end }}
@@ -108,7 +108,7 @@
             <ul class="drawer-submenu">
                 {{- range .children }}
                 <li><a class="drawer-sublink" href="{{ .url }}" data-nav-link>
-                    {{- with .icon }}<span class="drawer-subicon">{{ . }}</span>{{ end }}<span>{{ .name }}</span>
+                    {{- with .icon }}<span class="drawer-subicon">{{ . | safeHTML }}</span>{{ end }}<span>{{ .name }}</span>
                 </a></li>
                 {{- end }}
             </ul>
