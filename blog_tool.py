@@ -18,7 +18,7 @@ import tkinter as tk
 import urllib.parse
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from tkinter import filedialog, messagebox, scrolledtext, ttk
+from tkinter import filedialog, messagebox, scrolledtext, simpledialog, ttk
 
 from PIL import Image, ImageTk
 
@@ -29,6 +29,7 @@ IMAGES_DIR = os.path.join(BLOG_ROOT, "static", "images")
 DEFAULT_COVER = os.path.join(IMAGES_DIR, "default-cover.png")
 MOMENTS_FILE = os.path.join(BLOG_ROOT, "data", "moments.json")
 MOMENTS_IMAGES_DIR = os.path.join(IMAGES_DIR, "moments")
+FILES_DIR = os.path.join(BLOG_ROOT, "static", "files")
 
 # ==================== 配色（深色 + 金色，与博客一致） ====================
 COL_BG = "#16161a"
@@ -147,6 +148,17 @@ def save_article_file(filepath, title, date, cats, tags, draft, cover, body):
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(build_article_front(title, date, cats, tags, draft, cover) + body)
     return filepath
+
+
+def fmt_size(n):
+    """文件大小转可读文本（B / KB / MB / GB）"""
+    if n >= 1073741824:
+        return f"{n / 1073741824:.2f} GB"
+    if n >= 1048576:
+        return f"{n / 1048576:.1f} MB"
+    if n >= 1024:
+        return f"{n / 1024:.0f} KB"
+    return f"{n} B"
 
 
 class TagInputWidget(tk.Frame):
@@ -378,6 +390,7 @@ class BlogTool:
         self._bind_shortcuts()
         self.refresh_article_list()
         self.refresh_moment_list()
+        self.refresh_download_list()
         self._update_server_status()
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
@@ -483,11 +496,14 @@ class BlogTool:
         self.notebook.add(preview_tab, text="👁 预览")
         moments_tab = tk.Frame(self.notebook, bg=COL_PANEL)
         self.notebook.add(moments_tab, text="💬 动态")
+        downloads_tab = tk.Frame(self.notebook, bg=COL_PANEL)
+        self.notebook.add(downloads_tab, text="📦 下载")
         self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
 
         self._build_edit_tab(edit_tab)
         self._build_preview_tab(preview_tab)
         self._build_moments_tab(moments_tab)
+        self._build_downloads_tab(downloads_tab)
 
         # 状态栏
         status = tk.Frame(self.root, bg=COL_PANEL2, height=30)
@@ -920,6 +936,109 @@ class BlogTool:
         self.refresh_moment_list()
         self.status_var.set("已删除动态")
 
+    # ---------------- 下载文件管理 ----------------
+    def _build_downloads_tab(self, parent):
+        bar = tk.Frame(parent, bg=COL_PANEL)
+        bar.pack(fill=tk.X, padx=12, pady=(12, 6))
+        self._btn(bar, "➕ 添加文件", self._add_download_files, "gold").pack(side=tk.LEFT)
+        self._btn(bar, "➕ 新建分类", self._new_download_category).pack(side=tk.LEFT, padx=8)
+        self._btn(bar, "🗑 删除选中", self._delete_download_file, "danger").pack(side=tk.LEFT)
+        self._btn(bar, "🔄 刷新", self.refresh_download_list).pack(side=tk.RIGHT)
+        tk.Label(parent, text="选择分类后点「添加文件」，文件会复制到 static/files/<分类>/，重新构建后出现在 /downloads/",
+                 anchor="w", bg=COL_PANEL, fg=COL_MUTED, font=(FONT, 9)).pack(fill=tk.X, padx=12)
+        self.download_tree = ttk.Treeview(parent, columns=("size",), show="tree headings",
+                                          selectmode="browse")
+        self.download_tree.heading("#0", text="分类 / 文件", anchor="w")
+        self.download_tree.heading("size", text="大小", anchor="w")
+        self.download_tree.column("#0", width=430, anchor="w")
+        self.download_tree.column("size", width=120, anchor="w")
+        self.download_tree.pack(fill=tk.BOTH, expand=True, padx=12, pady=8)
+
+    def refresh_download_list(self):
+        self.download_tree.delete(*self.download_tree.get_children())
+        if not os.path.isdir(FILES_DIR):
+            self.status_var.set("static/files/ 目录不存在")
+            return
+        total = 0
+        for name in sorted(os.listdir(FILES_DIR)):
+            cat_dir = os.path.join(FILES_DIR, name)
+            if not os.path.isdir(cat_dir):
+                continue
+            cat_iid = f"cat:{name}"
+            self.download_tree.insert("", tk.END, iid=cat_iid, text=f"  📁 {name}", open=True)
+            for fname in sorted(os.listdir(cat_dir)):
+                full = os.path.join(cat_dir, fname)
+                if os.path.isfile(full):
+                    self.download_tree.insert(cat_iid, tk.END, iid=f"file:{name}:{fname}",
+                                              text=f"  📄 {fname}",
+                                              values=(fmt_size(os.path.getsize(full)),))
+                    total += 1
+        self.status_var.set(f"共 {len(self.download_tree.get_children())} 个分类、{total} 个文件")
+
+    def _selected_download_cat(self):
+        sel = self.download_tree.selection()
+        if not sel:
+            return None
+        iid = sel[0]
+        if iid.startswith("cat:"):
+            return iid[4:]
+        if iid.startswith("file:"):
+            return iid.split(":", 2)[1]
+        return None
+
+    def _add_download_files(self):
+        cat = self._selected_download_cat()
+        if not cat:
+            messagebox.showwarning("提示", "请先在列表中选择一个分类（或先点「新建分类」）")
+            return
+        paths = filedialog.askopenfilenames(title="选择要添加的文件（可多选）")
+        if not paths:
+            return
+        os.makedirs(os.path.join(FILES_DIR, cat), exist_ok=True)
+        ok = 0
+        for p in paths:
+            try:
+                shutil.copy(p, os.path.join(FILES_DIR, cat, os.path.basename(p)))
+                ok += 1
+            except OSError as e:
+                messagebox.showerror("错误", f"复制失败：{os.path.basename(p)}\n{e}")
+        self.refresh_download_list()
+        if ok:
+            self.status_var.set(f"已添加 {ok} 个文件，重新构建后可在 /downloads/ 看到")
+            messagebox.showinfo("成功", f"已添加 {ok} 个文件\n重新构建网站后即可在 /downloads/ 看到")
+
+    def _new_download_category(self):
+        name = simpledialog.askstring("新建分类", "输入分类名（字母/数字/-/_，将作为文件夹名）：",
+                                      parent=self.root)
+        if not name:
+            return
+        name = name.strip()
+        if not re.match(r"^[A-Za-z0-9_-]+$", name):
+            messagebox.showwarning("提示", "分类名只能包含字母、数字、- 和 _")
+            return
+        os.makedirs(os.path.join(FILES_DIR, name), exist_ok=True)
+        self.refresh_download_list()
+        self.status_var.set(f"已创建分类 {name}")
+
+    def _delete_download_file(self):
+        sel = self.download_tree.selection()
+        if not sel:
+            return
+        iid = sel[0]
+        if not iid.startswith("file:"):
+            messagebox.showwarning("提示", "请选择要删除的【文件】（空分类文件夹可手动清理）")
+            return
+        _, cat, fname = iid.split(":", 2)
+        if not messagebox.askyesno("确认删除", f"删除文件？\n{cat}/{fname}\n（删除后不可恢复）"):
+            return
+        try:
+            os.remove(os.path.join(FILES_DIR, cat, fname))
+        except OSError as e:
+            messagebox.showerror("错误", str(e))
+            return
+        self.refresh_download_list()
+        self.status_var.set(f"已删除 {cat}/{fname}")
+
     # ---------------- 图片 / 封面 ----------------
     def insert_image(self):
         os.makedirs(IMAGES_DIR, exist_ok=True)
@@ -1288,6 +1407,15 @@ textarea#f-body { width:100%; height:44vh; font-family:Consolas,monospace; font-
 #mom-items { list-style:none; margin:0; padding:0; }
 #mom-items li { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:.85rem; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
 #mom-items li.hl { border-color:var(--gold); background:#2c2618; }
+#dl-pane { flex:1; padding:16px 20px; overflow-y:auto; height:calc(100vh - 58px); display:flex; gap:20px; }
+#dl-form { width:420px; flex-shrink:0; }
+select { background:var(--input); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:.9rem; font-family:inherit; }
+select:focus { outline:none; border-color:var(--gold); }
+#dl-list { flex:1; min-width:0; }
+#dl-items { list-style:none; margin:0; padding:0; }
+#dl-items li { display:flex; align-items:center; gap:10px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:8px 12px; margin-bottom:6px; font-size:.85rem; }
+#dl-items .dl-name { flex:1; min-width:0; word-break:break-all; }
+#dl-items .dl-size { color:var(--muted); font-size:.75rem; white-space:nowrap; }
 .mom-meta { font-size:.72rem; color:var(--muted); margin-bottom:4px; display:flex; gap:10px; align-items:center; }
 .mom-del { margin-left:auto; }
 .small { font-size:.75rem; color:var(--muted); }
@@ -1301,6 +1429,7 @@ textarea#f-body { width:100%; height:44vh; font-family:Consolas,monospace; font-
   <div class="tabs">
     <button class="tab-btn active" id="tab-articles">📝 文章</button>
     <button class="tab-btn" id="tab-moments">💬 动态</button>
+    <button class="tab-btn" id="tab-downloads">📦 下载</button>
   </div>
 </header>
 <main>
@@ -1357,6 +1486,26 @@ textarea#f-body { width:100%; height:44vh; font-family:Consolas,monospace; font-
       </div>
     </div>
   </section>
+  <section class="view" id="view-downloads">
+    <div id="dl-pane">
+      <div id="dl-form">
+        <div class="row">
+          <label>分类</label>
+          <select id="dl-cat" style="flex:1"></select>
+          <button class="btn sm" id="btn-dl-newcat">➕ 新建</button>
+        </div>
+        <div class="row">
+          <input type="file" id="dl-file" class="hidden-file" multiple>
+          <button class="btn gold" id="btn-dl-upload">➕ 添加文件</button>
+        </div>
+        <div class="small">文件复制到 static/files/&lt;分类&gt;/，重新构建后出现在 /downloads/。大文件建议用桌面版。</div>
+      </div>
+      <div id="dl-list">
+        <div class="small" style="margin-bottom:8px">已有文件（可删除）</div>
+        <ul id="dl-items"></ul>
+      </div>
+    </div>
+  </section>
 </main>
 <script>
 (function () {
@@ -1377,11 +1526,14 @@ textarea#f-body { width:100%; height:44vh; font-family:Consolas,monospace; font-
     function showTab(name) {
         $('view-articles').classList.toggle('active', name === 'articles');
         $('view-moments').classList.toggle('active', name === 'moments');
+        $('view-downloads').classList.toggle('active', name === 'downloads');
         $('tab-articles').classList.toggle('active', name === 'articles');
         $('tab-moments').classList.toggle('active', name === 'moments');
+        $('tab-downloads').classList.toggle('active', name === 'downloads');
     }
     $('tab-articles').addEventListener('click', function () { showTab('articles'); });
     $('tab-moments').addEventListener('click', function () { showTab('moments'); });
+    $('tab-downloads').addEventListener('click', function () { showTab('downloads'); });
 
     // ---- 文章 ----
     function renderArtList() {
@@ -1591,6 +1743,91 @@ textarea#f-body { width:100%; height:44vh; font-family:Consolas,monospace; font-
         setStatus('已取消编辑');
     });
 
+    // ---- 下载文件 ----
+    function loadDownloads() {
+        api('/api/files').then(function (data) {
+            state.cats = data.categories || [];
+            var sel = $('dl-cat');
+            var cur = sel.value;
+            sel.innerHTML = '';
+            if (!state.cats.length) {
+                var o = document.createElement('option');
+                o.value = '';
+                o.textContent = '（暂无分类，请先新建）';
+                sel.appendChild(o);
+            }
+            state.cats.forEach(function (c) {
+                var o = document.createElement('option');
+                o.value = c.name;
+                o.textContent = c.name + '（' + c.files.length + ' 个文件）';
+                sel.appendChild(o);
+            });
+            if (cur && state.cats.some(function (c) { return c.name === cur; })) sel.value = cur;
+            renderDlItems();
+        });
+    }
+    function renderDlItems() {
+        var ul = $('dl-items');
+        ul.innerHTML = '';
+        var cat = $('dl-cat').value;
+        var c = state.cats.filter(function (x) { return x.name === cat; })[0];
+        if (!c) return;
+        c.files.forEach(function (f) {
+            var li = document.createElement('li');
+            li.innerHTML = '<span class="dl-name">📄 ' + esc(f.name) + '</span>' +
+                '<span class="dl-size">' + esc(f.sizeText) + '</span>' +
+                '<button class="btn sm danger">删除</button>';
+            li.querySelector('button').addEventListener('click', function () { delDlFile(cat, f.name); });
+            ul.appendChild(li);
+        });
+    }
+    function delDlFile(cat, name) {
+        if (!confirm('删除文件？\\n' + cat + '/' + name + '\\n（删除后不可恢复）')) return;
+        api('/api/files?cat=' + encodeURIComponent(cat) + '&name=' + encodeURIComponent(name),
+            { method: 'DELETE' })
+            .then(function (r) {
+                if (r.error) { alert(r.error); return; }
+                loadDownloads();
+                setStatus('已删除 ' + cat + '/' + name);
+            });
+    }
+    $('dl-cat').addEventListener('change', renderDlItems);
+    $('btn-dl-upload').addEventListener('click', function () { $('dl-file').click(); });
+    $('dl-file').addEventListener('change', function () {
+        var cat = $('dl-cat').value;
+        if (!cat) { alert('请先新建/选择分类'); this.value = ''; return; }
+        var files = Array.prototype.slice.call(this.files);
+        var done = 0;
+        files.forEach(function (f) {
+            var reader = new FileReader();
+            reader.onload = function () {
+                api('/api/files', { method: 'POST', body: JSON.stringify({
+                    action: 'upload', cat: cat, name: f.name, data: reader.result
+                }) })
+                      .then(function (r) {
+                          if (r.error) { alert(r.error); }
+                          done++;
+                          if (done === files.length) {
+                              loadDownloads();
+                              setStatus('已上传 ' + done + '/' + files.length + ' 个文件，重新构建后生效');
+                          }
+                      });
+            };
+            reader.readAsDataURL(f);
+        });
+        this.value = '';
+    });
+    $('btn-dl-newcat').addEventListener('click', function () {
+        var name = prompt('输入分类名（字母/数字/-/_，将作为文件夹名）：');
+        if (!name) return;
+        api('/api/files', { method: 'POST', body: JSON.stringify({ action: 'mkdir', name: name.trim() }) })
+            .then(function (r) {
+                if (r.error) { alert(r.error); return; }
+                loadDownloads();
+                setStatus('已创建分类 ' + name.trim());
+            });
+    });
+
     // ---- 迷你 Markdown 渲染（仅预览用） ----
     function mdEscape(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
     function mdInline(s) {
@@ -1632,10 +1869,13 @@ textarea#f-body { width:100%; height:44vh; font-family:Consolas,monospace; font-
     // ---- 初始化 ----
     loadArticles();
     loadMoments();
+    loadDownloads();
     var q = new URLSearchParams(location.search);
     if (q.get('new') === '1') { newArticle(); showTab('articles'); }
     else if (q.get('file')) { loadArticle(q.get('file')); showTab('articles'); }
+    else if (q.get('tab') === 'downloads') { showTab('downloads'); }
     else if (q.get('tab') === 'moments' || q.get('id')) { showTab('moments'); }
+    else if (q.get('tab') === 'downloads') { showTab('downloads'); }
     if (q.get('id')) pendingMomentId = q.get('id');
 })();
 </script>
@@ -1722,6 +1962,8 @@ class BlogWebHandler(BaseHTTPRequestHandler):
                 self._json(data)
             elif parsed.path == "/api/moments":
                 self._json(sorted(load_moments(), key=lambda e: e.get("date", ""), reverse=True))
+            elif parsed.path == "/api/files":
+                self._json(self._list_files())
             else:
                 self._json({"error": "not found"}, 404)
         except Exception as e:
@@ -1741,6 +1983,8 @@ class BlogWebHandler(BaseHTTPRequestHandler):
                 self._post_moment(payload)
             elif parsed.path == "/api/upload":
                 self._post_upload(payload)
+            elif parsed.path == "/api/files":
+                self._post_files(payload)
             else:
                 self._json({"error": "not found"}, 404)
         except Exception as e:
@@ -1847,6 +2091,62 @@ class BlogWebHandler(BaseHTTPRequestHandler):
         url = "/images/" + (sub + "/" if sub else "") + os.path.basename(dest)
         self._json({"ok": True, "url": url})
 
+    def _files_dir(self, cat):
+        """校验分类名并返回 static/files 下的目录，非法返回 None"""
+        cat = (cat or "").strip()
+        if not cat or "/" in cat or "\\" in cat or ".." in cat or cat in (".", ".."):
+            return None
+        return os.path.join(FILES_DIR, cat)
+
+    def _list_files(self):
+        """扫描 static/files，返回分类及文件列表"""
+        cats = []
+        if os.path.isdir(FILES_DIR):
+            for name in sorted(os.listdir(FILES_DIR)):
+                cat_dir = os.path.join(FILES_DIR, name)
+                if not os.path.isdir(cat_dir):
+                    continue
+                files = []
+                for fname in sorted(os.listdir(cat_dir)):
+                    full = os.path.join(cat_dir, fname)
+                    if os.path.isfile(full):
+                        files.append({"name": fname, "size": os.path.getsize(full),
+                                      "sizeText": fmt_size(os.path.getsize(full))})
+                cats.append({"name": name, "files": files})
+        return {"categories": cats}
+
+    def _post_files(self, p):
+        action = p.get("action")
+        if action == "mkdir":
+            name = (p.get("name") or "").strip()
+            if not re.match(r"^[A-Za-z0-9_-]+$", name):
+                self._json({"error": "分类名只能包含字母、数字、- 和 _"}, 400)
+                return
+            os.makedirs(os.path.join(FILES_DIR, name), exist_ok=True)
+            self._json({"ok": True, "name": name})
+        elif action == "upload":
+            cat_dir = self._files_dir(p.get("cat"))
+            if not cat_dir:
+                self._json({"error": "非法分类名"}, 400)
+                return
+            raw = p.get("data") or ""
+            try:
+                blob = base64.b64decode(raw.split(",", 1)[-1])
+            except Exception:
+                self._json({"error": "文件数据无效"}, 400)
+                return
+            if not blob:
+                self._json({"error": "文件数据为空"}, 400)
+                return
+            name = os.path.basename(p.get("name") or "file.bin")
+            safe = re.sub(r"[^A-Za-z0-9._-]", "_", name)
+            os.makedirs(cat_dir, exist_ok=True)
+            with open(os.path.join(cat_dir, safe), "wb") as f:
+                f.write(blob)
+            self._json({"ok": True, "name": safe})
+        else:
+            self._json({"error": "未知操作"}, 400)
+
     def do_DELETE(self):
         parsed = urllib.parse.urlparse(self.path)
         qs = urllib.parse.parse_qs(parsed.query)
@@ -1871,6 +2171,16 @@ class BlogWebHandler(BaseHTTPRequestHandler):
                 for url in target.get("images", []):
                     self._remove_moment_image(url)
                 save_moments(entries)
+                self._json({"ok": True})
+            elif parsed.path == "/api/files":
+                cat_dir = self._files_dir(qs.get("cat", [""])[0])
+                name = os.path.basename(qs.get("name", [""])[0])
+                full = os.path.join(cat_dir, name) if cat_dir else None
+                if not full or not os.path.isfile(full) or \
+                        os.path.dirname(full) != os.path.normpath(cat_dir):
+                    self._json({"error": "非法文件路径"}, 400)
+                    return
+                os.remove(full)
                 self._json({"ok": True})
             else:
                 self._json({"error": "not found"}, 404)

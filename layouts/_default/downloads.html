@@ -1,70 +1,202 @@
 {{ define "main" }}
+<style>
+.dl-tool-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    padding: 6px 16px;
+    border-radius: 999px;
+    background: rgba(212, 175, 55, 0.12);
+    border: 1px solid rgba(212, 175, 55, 0.5);
+    color: #d4af37;
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-weight: 700;
+    transition: all 0.2s;
+}
+.dl-tool-btn:hover { background: rgba(212, 175, 55, 0.25); }
+</style>
 <article class="post-single">
   <header class="post-header">
     <h1 class="post-title">{{ .Title }}</h1>
+    <a class="dl-tool-btn" id="dl-tool-btn" href="blogtool://edit?tab=downloads" style="display:none">📦 管理下载文件</a>
   </header>
   <div class="post-content">
     {{ .Content }}
 
     <style>
-    .download-category {
-        margin-bottom: 14px;
+    .download-cat {
+        margin-bottom: 22px;
+        padding: 18px;
+        border-radius: 18px;
+        background: rgba(212, 175, 55, 0.05);
+        border: 1px solid rgba(212, 175, 55, 0.22);
     }
     .download-cat-title {
-        cursor: pointer;
-        user-select: none;
         display: flex;
         align-items: center;
-        gap: 6px;
-        margin: 10px 0 6px;
-        padding: 6px 12px;
-        border-radius: 10px;
-        background: rgba(0, 0, 0, 0.05);
-        transition: background 0.2s;
+        gap: 10px;
+        cursor: pointer;
+        user-select: none;
+        font-size: 1.05rem;
+        margin: 0 0 14px;
+        padding-bottom: 10px;
+        border-bottom: 1px dashed rgba(212, 175, 55, 0.3);
     }
-    .download-cat-title:hover {
-        background: rgba(0, 0, 0, 0.1);
+    .dl-folder-icon { font-size: 1.15rem; }
+    .dl-cat-count {
+        font-size: 0.7rem;
+        background: rgba(212, 175, 55, 0.16);
+        color: #d4af37;
+        border-radius: 999px;
+        padding: 2px 10px;
+        font-weight: 700;
     }
-    .download-cat-title .cat-toggle {
+    .dl-toggle {
         margin-left: auto;
-        font-size: 0.8em;
+        font-size: 0.9rem;
+        color: #d4af37;
     }
-    .download-cat-list {
-        padding-left: 24px;
-        margin: 0 0 8px;
+    .dl-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+        gap: 12px;
+    }
+    .dl-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 18px 14px;
+        border-radius: 14px;
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+        text-decoration: none;
+        color: var(--primary);
+        text-align: center;
+        min-width: 0;
+        transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+    }
+    html[data-theme="dark"] .dl-card {
+        background: #262216;
+        border-color: rgba(212, 175, 55, 0.15);
+    }
+    .dl-card:hover {
+        transform: translateY(-3px);
+        border-color: rgba(212, 175, 55, 0.7);
+        box-shadow: 0 8px 20px rgba(212, 175, 55, 0.16);
+    }
+    .dl-file-icon { font-size: 1.8rem; }
+    .dl-name {
+        font-size: 0.85rem;
+        font-weight: 600;
+        word-break: break-all;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .dl-size { font-size: 0.72rem; color: var(--secondary); }
+    .dl-btn {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #d4af37;
+        border: 1px solid rgba(212, 175, 55, 0.45);
+        border-radius: 999px;
+        padding: 3px 14px;
+        transition: all 0.2s;
+    }
+    .dl-card:hover .dl-btn {
+        background: linear-gradient(135deg, #f4d35e 0%, #d4af37 60%, #b8860b 100%);
+        color: #241a02;
+    }
+    @media (max-width: 720px) {
+        .dl-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+        .download-cat { padding: 14px; }
     }
     </style>
 
     {{ range (readDir "static/files") }}
       {{ if .IsDir }}
-        <div class="download-category">
-          <h4 class="download-cat-title" title="点击收起/展开">
-            📁 {{ .Name }}
-            <span class="cat-toggle">▼</span>
-          </h4>
-          <ul class="download-cat-list" style="display:none">
-            {{ $dir := .Name }}
-            {{ range (readDir (printf "static/files/%s" $dir)) }}
-              <li>
-                📄 <a href="{{ $.Site.BaseURL }}files/{{ $dir }}/{{ .Name }}" target="_blank">{{ .Name }}</a> ({{ div .Size 1024 }} KB)
-              </li>
+        {{ $dir := .Name }}
+        {{ $files := (readDir (printf "static/files/%s" $dir)) }}
+        {{ $count := 0 }}
+        {{ range $files }}{{ if not .IsDir }}{{ $count = add $count 1 }}{{ end }}{{ end }}
+        <section class="download-cat" data-cat="{{ $dir }}">
+          <h2 class="download-cat-title" title="点击收起/展开">
+            <span class="dl-folder-icon">📁</span>
+            <span>{{ $dir }}</span>
+            <span class="dl-cat-count">{{ $count }} 个文件</span>
+            <span class="dl-toggle">▾</span>
+          </h2>
+          <div class="dl-grid">
+            {{ range $files }}
+              {{ if not .IsDir }}
+                {{ $ext := (path.Ext .Name | lower) }}
+                {{ $icon := "📄" }}
+                {{ if in (slice ".zip" ".rar" ".7z" ".tar" ".gz" ".bz2") $ext }}{{ $icon = "📦" }}
+                {{ else if in (slice ".png" ".jpg" ".jpeg" ".gif" ".webp" ".bmp" ".svg" ".ico") $ext }}{{ $icon = "🖼️" }}
+                {{ else if in (slice ".exe" ".msi" ".bat" ".cmd" ".apk") $ext }}{{ $icon = "🚀" }}
+                {{ else if in (slice ".pdf") $ext }}{{ $icon = "📕" }}
+                {{ else if in (slice ".mp3" ".wav" ".flac" ".ogg" ".aac") $ext }}{{ $icon = "🎵" }}
+                {{ else if in (slice ".mp4" ".mkv" ".avi" ".mov" ".webm") $ext }}{{ $icon = "🎬" }}
+                {{ else if in (slice ".doc" ".docx" ".txt" ".md" ".odt") $ext }}{{ $icon = "📝" }}
+                {{ else if in (slice ".xls" ".xlsx" ".csv") $ext }}{{ $icon = "📊" }}
+                {{ else if in (slice ".ppt" ".pptx") $ext }}{{ $icon = "📽️" }}
+                {{ else if in (slice ".py" ".js" ".html" ".css" ".go" ".c" ".cpp" ".java" ".sh") $ext }}{{ $icon = "💻" }}
+                {{ end }}
+                {{ $size := .Size }}
+                {{ $sizeText := printf "%d B" $size }}
+                {{ if ge $size 1073741824 }}{{ $sizeText = printf "%.2f GB" (div $size 1073741824.0) }}
+                {{ else if ge $size 1048576 }}{{ $sizeText = printf "%.1f MB" (div $size 1048576.0) }}
+                {{ else if ge $size 1024 }}{{ $sizeText = printf "%.0f KB" (div $size 1024.0) }}
+                {{ end }}
+                <a class="dl-card" href="{{ $.Site.BaseURL }}files/{{ $dir }}/{{ .Name }}" target="_blank" title="点击下载 {{ .Name }}">
+                  <span class="dl-file-icon">{{ $icon }}</span>
+                  <span class="dl-name">{{ .Name }}</span>
+                  <span class="dl-size">{{ $sizeText }}</span>
+                  <span class="dl-btn">下载 ↓</span>
+                </a>
+              {{ end }}
             {{ end }}
-          </ul>
-        </div>
+          </div>
+        </section>
       {{ end }}
     {{ end }}
 
     <script>
-    document.querySelectorAll('.download-cat-title').forEach(function(title) {
-        title.addEventListener('click', function() {
-            var list = this.nextElementSibling;
-            var icon = this.querySelector('.cat-toggle');
-            if (!list || !icon) return;
-            var collapsed = list.style.display === 'none';
-            list.style.display = collapsed ? '' : 'none';
-            icon.textContent = collapsed ? '▲' : '▼';
+    (function () {
+        var KEY = 'download-collapse-v1';
+        var state = {};
+        try { state = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) {}
+        document.querySelectorAll('.download-cat').forEach(function (sec) {
+            var title = sec.querySelector('.download-cat-title');
+            var grid = sec.querySelector('.dl-grid');
+            var toggle = sec.querySelector('.dl-toggle');
+            if (!title || !grid || !toggle) return;
+            if (state[sec.dataset.cat]) {
+                grid.style.display = 'none';
+                toggle.textContent = '▸';
+            }
+            title.addEventListener('click', function () {
+                var collapsed = grid.style.display === 'none';
+                grid.style.display = collapsed ? '' : 'none';
+                toggle.textContent = collapsed ? '▾' : '▸';
+                state[sec.dataset.cat] = !collapsed;
+                try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+            });
         });
-    });
+    })();
+    </script>
+    <script>
+    (function () {
+        var btn = document.getElementById('dl-tool-btn');
+        if (btn && ['localhost', '127.0.0.1'].includes(location.hostname)) {
+            btn.style.display = 'inline-flex';
+        }
+    })();
     </script>
   </div>
 </article>
