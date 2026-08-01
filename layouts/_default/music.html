@@ -103,7 +103,7 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
 
 /* ---- 主内容 ---- */
 .ms-inner { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 760px; }
-.ms-inner > * { animation: msFadeUp 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+.ms-inner > * { animation: msFadeUp 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) backwards; }
 .ms-inner > *:nth-child(2) { animation-delay: 0.08s; }
 .ms-inner > *:nth-child(3) { animation-delay: 0.16s; }
 .ms-inner > *:nth-child(4) { animation-delay: 0.24s; }
@@ -114,7 +114,18 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
 }
 
 /* ---- 唱片 + 频谱 ---- */
-.ms-hero { position: relative; width: min(330px, 74vw); aspect-ratio: 1; }
+.ms-hero {
+    position: relative;
+    width: min(360px, 74vw);
+    aspect-ratio: 1;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.music-stage.lyrics-mode .ms-hero {
+    position: absolute;
+    opacity: 0;
+    transform: scale(0.85);
+    pointer-events: none;
+}
 #ms-viz { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
 .ms-halo {
     position: absolute; inset: 3%; border-radius: 50%; z-index: 1;
@@ -130,9 +141,12 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
     box-shadow: 0 0 64px rgba(212, 175, 55, 0.28), 0 20px 55px rgba(0, 0, 0, 0.65), inset 0 0 34px rgba(0, 0, 0, 0.85);
     animation: msSpin 16s linear infinite, msVinylIn 0.65s cubic-bezier(0.2, 0.8, 0.3, 1.15) both;
     animation-play-state: paused, running;
+    cursor: pointer;
+    transition: box-shadow 0.3s;
     will-change: transform;
 }
 .ms-vinyl.playing { animation-play-state: running, running; }
+.ms-vinyl:hover { box-shadow: 0 0 88px rgba(212, 175, 55, 0.5), 0 20px 55px rgba(0, 0, 0, 0.65), inset 0 0 34px rgba(0, 0, 0, 0.85); }
 @keyframes msSpin { to { transform: rotate(360deg); } }
 @keyframes msVinylIn {
     from { opacity: 0; transform: scale(0.72); }
@@ -155,7 +169,7 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
 }
 
 /* ---- 歌名区 ---- */
-.ms-track { margin-top: 22px; text-align: center; min-width: 0; }
+.ms-track { margin-top: 20px; text-align: center; min-width: 0; }
 .ms-title {
     font-size: clamp(1.3rem, 3.6vw, 1.95rem);
     font-weight: 800;
@@ -192,11 +206,13 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
 /* ---- 歌词 ---- */
 .ms-lyrics {
     position: relative; width: 100%; max-width: 640px;
-    height: clamp(120px, 16vh, 180px);
-    margin-top: 16px; overflow: hidden;
+    height: 0; margin-top: 0; overflow: hidden; opacity: 0;
+    transition: height 0.35s ease, margin-top 0.35s ease, opacity 0.3s ease;
     -webkit-mask-image: linear-gradient(180deg, transparent, #000 16% 84%, transparent);
     mask-image: linear-gradient(180deg, transparent, #000 16% 84%, transparent);
 }
+.ms-lyrics.open { height: clamp(220px, 40vh, 420px); margin-top: 14px; opacity: 1; }
+.ms-lyrics.open .ms-lyric-line { font-size: clamp(1rem, 2.6vw, 1.3rem); padding: 9px 16px; }
 .ms-lyrics-inner { position: absolute; left: 0; right: 0; top: 0; transition: transform 0.4s ease; will-change: transform; }
 .ms-lyric-line {
     padding: 7px 14px; text-align: center;
@@ -216,7 +232,7 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
 }
 
 /* ---- 进度条 ---- */
-.ms-progress { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 560px; margin-top: 16px; }
+.ms-progress { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 560px; margin-top: 14px; }
 .ms-time { font-size: 0.72rem; color: #9b96a8; font-variant-numeric: tabular-nums; min-width: 38px; text-align: center; }
 .ms-progress input[type="range"] {
     flex: 1; -webkit-appearance: none; appearance: none; height: 6px; border-radius: 99px; outline: none; cursor: pointer;
@@ -232,7 +248,7 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
 }
 
 /* ---- 控制区 ---- */
-.ms-controls { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+.ms-controls { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
 .ms-ctl {
     width: 46px; height: 46px; border-radius: 50%;
     border: 1px solid rgba(212, 175, 55, 0.25);
@@ -358,7 +374,7 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
         <div class="ms-hero">
             <canvas id="ms-viz" aria-hidden="true"></canvas>
             <div class="ms-halo" aria-hidden="true"></div>
-            <div class="ms-vinyl" id="ms-vinyl">
+            <div class="ms-vinyl" id="ms-vinyl" title="点击查看歌词">
                 <div class="ms-grooves" aria-hidden="true"></div>
                 <div class="ms-cover"><img id="ms-cover" src="/images/player-cover.jpg" alt="封面"></div>
                 <div class="ms-hole" aria-hidden="true"></div>
@@ -374,7 +390,7 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
             </div>
         </div>
 
-        <div class="ms-lyrics" id="ms-lyrics">
+        <div class="ms-lyrics" id="ms-lyrics" title="点击收起歌词">
             <div class="ms-lyrics-inner" id="ms-lyrics-inner"></div>
         </div>
 
@@ -428,6 +444,8 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
     var audio = null;
     var lyrics = null;
     var lyricIndex = -1;
+    var lyricsOpen = false;
+    var lyricsRecalcTimer = null;
     var lastPlaying = null;
     var lastTrackSrc = '';
     var lastListIndex = -1;
@@ -505,11 +523,14 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
 
     function renderLyrics() {
         lyricsInner.innerHTML = '';
+        var oldEmpty = lyricsBox.querySelector('.ms-lyric-empty');
+        if (oldEmpty) oldEmpty.remove();
         if (!lyrics) {
             var empty = document.createElement('div');
             empty.className = 'ms-lyric-empty';
             empty.textContent = '纯音乐 · 请欣赏';
-            lyricsInner.appendChild(empty);
+            lyricsBox.appendChild(empty); // 直接挂到歌词盒，避免零高度内层容器导致文字被顶到顶部
+            lyricIndex = -1;
             return;
         }
         lyrics.forEach(function (l) {
@@ -518,6 +539,20 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
             d.textContent = l.text;
             lyricsInner.appendChild(d);
         });
+    }
+
+    function setLyricsOpen(open) {
+        lyricsOpen = open;
+        lyricsBox.classList.toggle('open', open);
+        stage.classList.toggle('lyrics-mode', open);
+        if (open) {
+            clearTimeout(lyricsRecalcTimer);
+            lyricsRecalcTimer = setTimeout(function () {
+                lyricIndex = -1;
+                var p = getPlayer();
+                if (p) syncLyrics(p.getState().currentTime);
+            }, 380); // 等高度过渡结束后重新居中当前行
+        }
     }
 
     function syncLyrics(t) {
@@ -572,6 +607,7 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
             var dur = st.duration || 0;
             var max = String(dur || 100);
             if (seek.max !== max) seek.max = max;
+            if (isFinite(st.currentTime)) seek.value = Math.floor(st.currentTime);
             var pct = dur ? (st.currentTime / dur) * 100 : 0;
             if (Math.abs(pct - lastPct) > 0.25) {
                 lastPct = pct;
@@ -779,6 +815,8 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
     playBtn.addEventListener('click', function () { var p = getPlayer(); if (p) p.togglePlay(); });
     prevBtn.addEventListener('click', function () { var p = getPlayer(); if (p) p.playPrev(); });
     nextBtn.addEventListener('click', function () { var p = getPlayer(); if (p) p.playNext(); });
+    vinyl.addEventListener('click', function () { setLyricsOpen(true); });
+    lyricsBox.addEventListener('click', function () { if (lyricsOpen) setLyricsOpen(false); });
 
     modeBtn.addEventListener('click', function () {
         var lb = document.getElementById('loop-btn');
@@ -862,6 +900,7 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
             case 'n': case 'N': if (p) p.playNext(); break;
             case 'p': case 'P': if (p) p.playPrev(); break;
             case 'm': case 'M': muteBtn.click(); break;
+            case 'l': case 'L': setLyricsOpen(!lyricsOpen); break;
         }
     });
 

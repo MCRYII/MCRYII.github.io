@@ -130,19 +130,28 @@
     }
 
     function loadPage(url, push) {
-        if (loading) return;
+        if (loading) {
+            // 已有请求在途/卡住时不再静默丢弃点击，直接整页跳转
+            window.location.href = url;
+            return;
+        }
         loading = true;
-        fetch(url, { headers: { 'X-PJAX': '1' }, credentials: 'same-origin' })
+        var ctrl = new AbortController();
+        // ponytail: 15s 上限，网络卡住时自动放弃局部刷新，改整页跳转
+        var timer = setTimeout(function () { ctrl.abort(); }, 15000);
+        fetch(url, { headers: { 'X-PJAX': '1' }, credentials: 'same-origin', signal: ctrl.signal })
             .then(function (res) {
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 return res.text();
             })
             .then(function (html) {
+                clearTimeout(timer);
                 var doc = new DOMParser().parseFromString(html, 'text/html');
                 applyPage(doc, url, push);
                 loading = false;
             })
             .catch(function (err) {
+                clearTimeout(timer);
                 loading = false;
                 console.warn('局部刷新失败，整页跳转:', err);
                 window.location.href = url;
