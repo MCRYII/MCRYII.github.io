@@ -1,10 +1,9 @@
-{{- $navItems := slice
+﻿{{- $navItems := slice
     (dict "name" "主页" "url" "/")
     (dict "name" "文章" "children" (slice
         (dict "name" "文章列表" "url" "/posts/" "icon" "📄")
         (dict "name" "分类" "url" "/categories/" "icon" "🗂️")
-        (dict "name" "归档" "url" "/archive/" "icon" "📚")
-        (dict "name" "写文章" "url" "/write/" "icon" "✍️")))
+        (dict "name" "归档" "url" "/archive/" "icon" "📚")))
     (dict "name" "网站导航" "url" "/site-nav/")
     (dict "name" "动态" "children" (slice
         (dict "name" "动态" "url" "/dynamic/" "icon" "💬")
@@ -18,7 +17,8 @@
     (dict "name" "关于" "children" (slice
         (dict "name" "关于我" "url" "/about/" "icon" "👤")
         (dict "name" "友链" "url" "/friends/" "icon" "🔗")
-        (dict "name" "赞助" "url" "/sponsor/" "icon" "💝")))
+        (dict "name" "赞助" "url" "/sponsor/" "icon" "💝")
+        (dict "name" "下载" "url" "/downloads/" "icon" "📦")))
 -}}
 
 <header class="site-header">

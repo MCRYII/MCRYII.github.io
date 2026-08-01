@@ -2,7 +2,9 @@
 """MCRYII 博客写作助手（现代化重构版）
 
 功能：文章管理 / 封面编辑 / Markdown 预览 / 图片插入 / 本地预览 / 一键推送
+网页版：python blog_tool.py --web 后浏览器打开 http://127.0.0.1:8777/
 """
+import base64
 import datetime
 import json
 import os
@@ -10,8 +12,12 @@ import re
 import shutil
 import socket
 import subprocess
+import sys
+import threading
 import tkinter as tk
+import urllib.parse
 import webbrowser
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
 from PIL import Image, ImageTk
@@ -21,6 +27,8 @@ BLOG_ROOT = r"D:\Downloads\Programs\myblog-new"
 POSTS_BASE = os.path.join(BLOG_ROOT, "content", "posts")
 IMAGES_DIR = os.path.join(BLOG_ROOT, "static", "images")
 DEFAULT_COVER = os.path.join(IMAGES_DIR, "default-cover.png")
+MOMENTS_FILE = os.path.join(BLOG_ROOT, "data", "moments.json")
+MOMENTS_IMAGES_DIR = os.path.join(IMAGES_DIR, "moments")
 
 # ==================== 配色（深色 + 金色，与博客一致） ====================
 COL_BG = "#16161a"
@@ -42,6 +50,103 @@ FONT_MONO = "Consolas"
 
 def is_git_repo():
     return os.path.isdir(os.path.join(BLOG_ROOT, ".git"))
+
+
+def load_moments():
+    """读取动态列表，文件不存在或损坏时返回空列表"""
+    try:
+        with open(MOMENTS_FILE, "r", encoding="utf-8") as f:
+            entries = json.load(f).get("moments", [])
+    except (OSError, ValueError):
+        return []
+    changed = False
+    for i, e in enumerate(entries):
+        if not e.get("id"):
+            e["id"] = "m{}{}".format(datetime.datetime.now().strftime("%Y%m%d%H%M%S"), i)
+            changed = True
+    if changed:
+        save_moments(entries)
+    return entries
+
+
+def save_moments(entries):
+    os.makedirs(os.path.dirname(MOMENTS_FILE), exist_ok=True)
+    with open(MOMENTS_FILE, "w", encoding="utf-8") as f:
+        json.dump({"moments": entries}, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+
+
+def scan_posts():
+    """扫描 content/posts 下所有 markdown，返回 (相对路径, 绝对路径) 列表"""
+    out = []
+    for root, _, files in os.walk(POSTS_BASE):
+        for f in files:
+            if f.endswith(".md"):
+                full = os.path.join(root, f)
+                out.append((os.path.relpath(full, POSTS_BASE), full))
+    return out
+
+
+def parse_list(raw):
+    try:
+        return json.loads(f"[{raw}]")
+    except Exception:
+        return [x.strip().strip("\"'") for x in raw.split(",") if x.strip()]
+
+
+def parse_front(content):
+    """解析文章 front matter，返回 dict（title/date/categories/tags/draft/cover）"""
+    data = {"title": None, "date": None, "categories": [], "tags": [],
+            "draft": False, "cover": None}
+    m = re.match(r"^---\s*\n(.*?)\n---\s*\n", content, re.DOTALL)
+    if not m:
+        return data
+    yaml_text = m.group(1)
+    t = re.search(r"title:\s*[\"']?(.*?)[\"']?\s*$", yaml_text, re.MULTILINE)
+    d = re.search(r"date:\s*(\S+)", yaml_text)
+    dr = re.search(r"draft:\s*(true|false)", yaml_text)
+    c = re.search(r"categories:\s*\[(.*?)\]", yaml_text)
+    g = re.search(r"tags:\s*\[(.*?)\]", yaml_text)
+    cv = re.search(r"cover:\s*\n\s+image:\s*[\"']?(.+?)[\"']?\s*$", yaml_text, re.MULTILINE)
+    if t:
+        data["title"] = t.group(1).strip("\"' ")
+    if d:
+        data["date"] = d.group(1).strip()
+    if dr:
+        data["draft"] = dr.group(1) == "true"
+    if c:
+        data["categories"] = parse_list(c.group(1))
+    if g:
+        data["tags"] = parse_list(g.group(1))
+    if cv:
+        data["cover"] = cv.group(1).strip()
+    return data
+
+
+def build_article_front(title, date, cats, tags, draft, cover):
+    """组装文章 front matter 文本"""
+    lines = ["---", f'title: "{title}"', f"date: {date}",
+             f"categories: {json.dumps(cats or [], ensure_ascii=False)}",
+             f"tags: {json.dumps(tags or [], ensure_ascii=False)}",
+             f"draft: {str(bool(draft)).lower()}"]
+    if cover:
+        lines.append("cover:")
+        lines.append(f'  image: "{cover}"')
+    lines.append("---")
+    return "\n".join(lines) + "\n\n"
+
+
+def save_article_file(filepath, title, date, cats, tags, draft, cover, body):
+    """写入文章文件；新文章自动生成文件名，返回最终路径"""
+    if not filepath or not os.path.exists(filepath):
+        safe = re.sub(r'[\\/:*?"<>|]', "", title).replace(" ", "-")
+        filepath = os.path.join(POSTS_BASE, safe + ".md")
+        if os.path.exists(filepath):
+            filepath = os.path.join(POSTS_BASE, safe + f"-{int(datetime.datetime.now().timestamp())}.md")
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(build_article_front(title, date, cats, tags, draft, cover) + body)
+    return filepath
 
 
 class TagInputWidget(tk.Frame):
@@ -265,11 +370,14 @@ class BlogTool:
         self._img_refs = []
         self._tree_imgs = {}
         self._preview_imgs = []
+        self.moment_images = []
+        self.moment_entries = []
 
         self._setup_style()
         self._build_ui()
         self._bind_shortcuts()
         self.refresh_article_list()
+        self.refresh_moment_list()
         self._update_server_status()
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
@@ -373,10 +481,13 @@ class BlogTool:
         self.notebook.add(edit_tab, text="✏ 编辑")
         preview_tab = tk.Frame(self.notebook, bg=COL_PANEL)
         self.notebook.add(preview_tab, text="👁 预览")
+        moments_tab = tk.Frame(self.notebook, bg=COL_PANEL)
+        self.notebook.add(moments_tab, text="💬 动态")
         self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
 
         self._build_edit_tab(edit_tab)
         self._build_preview_tab(preview_tab)
+        self._build_moments_tab(moments_tab)
 
         # 状态栏
         status = tk.Frame(self.root, bg=COL_PANEL2, height=30)
@@ -508,61 +619,17 @@ class BlogTool:
         return datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S+08:00")
 
     # ---------------- 文章列表 ----------------
-    def _scan_posts(self):
-        out = []
-        for root, _, files in os.walk(POSTS_BASE):
-            for f in files:
-                if f.endswith(".md"):
-                    full = os.path.join(root, f)
-                    rel = os.path.relpath(full, POSTS_BASE)
-                    out.append((rel, full))
-        return out
-
-    def _parse_front(self, content):
-        data = {"title": None, "date": None, "categories": [], "tags": [],
-                "draft": False, "cover": None}
-        m = re.match(r"^---\s*\n(.*?)\n---\s*\n", content, re.DOTALL)
-        if not m:
-            return data
-        yaml_text = m.group(1)
-        t = re.search(r"title:\s*[\"']?(.*?)[\"']?\s*$", yaml_text, re.MULTILINE)
-        d = re.search(r"date:\s*(\S+)", yaml_text)
-        dr = re.search(r"draft:\s*(true|false)", yaml_text)
-        c = re.search(r"categories:\s*\[(.*?)\]", yaml_text)
-        g = re.search(r"tags:\s*\[(.*?)\]", yaml_text)
-        cv = re.search(r"cover:\s*\n\s+image:\s*[\"']?(.+?)[\"']?\s*$", yaml_text, re.MULTILINE)
-        if t:
-            data["title"] = t.group(1).strip("\"' ")
-        if d:
-            data["date"] = d.group(1).strip()
-        if dr:
-            data["draft"] = dr.group(1) == "true"
-        if c:
-            data["categories"] = self._parse_list(c.group(1))
-        if g:
-            data["tags"] = self._parse_list(g.group(1))
-        if cv:
-            data["cover"] = cv.group(1).strip()
-        return data
-
-    @staticmethod
-    def _parse_list(raw):
-        try:
-            return json.loads(f"[{raw}]")
-        except Exception:
-            return [x.strip().strip("\"'") for x in raw.split(",") if x.strip()]
-
     def refresh_article_list(self):
         self.tree.delete(*self.tree.get_children())
         self._tree_imgs.clear()
         items = []
-        for rel, full in self._scan_posts():
+        for rel, full in scan_posts():
             try:
                 with open(full, encoding="utf-8") as f:
                     content = f.read()
             except OSError:
                 continue
-            data = self._parse_front(content)
+            data = parse_front(content)
             title = data["title"] or os.path.splitext(os.path.basename(full))[0]
             date = (data["date"] or "")[:10]
             mtime = os.path.getmtime(full)
@@ -616,7 +683,7 @@ class BlogTool:
         except OSError as e:
             messagebox.showerror("错误", f"读取失败：{e}")
             return
-        data = self._parse_front(content)
+        data = parse_front(content)
         m = re.match(r"^---\s*\n.*?\n---\s*\n", content, re.DOTALL)
         body = content[m.end():].strip() if m else content.strip()
         self.title_entry.delete(0, tk.END)
@@ -674,29 +741,11 @@ class BlogTool:
         if re.match(r"^\d{4}-\d{2}-\d{2}$", date):
             date += "T00:00:00+08:00"
         body = self.text_area.get("1.0", tk.END).rstrip()
-        cats = json.dumps(self.cats.get_tags(), ensure_ascii=False)
-        tags = json.dumps(self.tags.get_tags(), ensure_ascii=False)
-
-        lines = ["---", f'title: "{title}"', f"date: {date}",
-                 f"categories: {cats}", f"tags: {tags}",
-                 f"draft: {str(self.draft_var.get()).lower()}"]
-        if self.cover_path:
-            lines.append("cover:")
-            lines.append(f'  image: "{self.cover_path}"')
-        lines.append("---")
-        front = "\n".join(lines) + "\n\n"
-
-        if self.current_file_path and os.path.exists(self.current_file_path):
-            filepath = self.current_file_path
-        else:
-            safe = re.sub(r'[\\/:*?"<>|]', "", title).replace(" ", "-")
-            filepath = os.path.join(POSTS_BASE, safe + ".md")
-            if os.path.exists(filepath):
-                filepath = os.path.join(POSTS_BASE, safe + f"-{int(datetime.datetime.now().timestamp())}.md")
         try:
-            os.makedirs(os.path.dirname(filepath), exist_ok=True)
-            with open(filepath, "w", encoding="utf-8") as f:
-                f.write(front + body)
+            filepath = save_article_file(
+                self.current_file_path, title, date,
+                self.cats.get_tags(), self.tags.get_tags(),
+                self.draft_var.get(), self.cover_path, body)
         except OSError as e:
             messagebox.showerror("错误", f"保存失败：{e}")
             return
@@ -727,6 +776,149 @@ class BlogTool:
             self.text_area.delete("1.0", tk.END)
             self.dirty = True
             self._update_count()
+
+    # ---------------- 动态 ----------------
+    def _build_moments_tab(self, parent):
+        pad = {"padx": 14, "pady": 6}
+        tk.Label(parent, text="写下此刻（Ctrl+Enter 发布，会显示在 /dynamic/ 动态页）", anchor="w",
+                 bg=COL_PANEL, fg=COL_TEXT, font=(FONT, 11, "bold")).pack(fill=tk.X, **pad)
+        self.moment_text = tk.Text(parent, height=5, bg=COL_INPUT, fg=COL_TEXT,
+                                   insertbackground=COL_GOLD, relief=tk.FLAT, wrap=tk.WORD,
+                                   highlightthickness=1, highlightbackground=COL_BORDER,
+                                   highlightcolor=COL_GOLD, font=(FONT, 11))
+        self.moment_text.pack(fill=tk.X, **pad)
+        self.moment_text.bind("<Control-Return>", lambda e: self.publish_moment())
+
+        imgs_row = tk.Frame(parent, bg=COL_PANEL)
+        imgs_row.pack(fill=tk.X, **pad)
+        self._btn(imgs_row, "🖼 添加图片", self._pick_moment_images, width=10).pack(side=tk.LEFT)
+        self._btn(imgs_row, "🗑 移除选中", self._remove_moment_images, "danger",
+                  width=10).pack(side=tk.LEFT, padx=8)
+        self.moment_imgs_list = tk.Listbox(parent, height=3, bg=COL_INPUT, fg=COL_TEXT,
+                                           relief=tk.FLAT, highlightthickness=1,
+                                           highlightbackground=COL_BORDER,
+                                           selectbackground=COL_SELECT,
+                                           selectforeground=COL_GOLD, font=(FONT, 9))
+        self.moment_imgs_list.pack(fill=tk.X, **pad)
+
+        link_row = tk.Frame(parent, bg=COL_PANEL)
+        link_row.pack(fill=tk.X, **pad)
+        tk.Label(link_row, text="链接（可选）", bg=COL_PANEL, fg=COL_MUTED,
+                 font=(FONT, 9)).pack(side=tk.LEFT)
+        self.moment_link_entry = tk.Entry(link_row, bg=COL_INPUT, fg=COL_TEXT,
+                                          insertbackground=COL_GOLD, relief=tk.FLAT,
+                                          highlightthickness=1, highlightbackground=COL_BORDER,
+                                          highlightcolor=COL_GOLD, font=(FONT, 10))
+        self.moment_link_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=4, padx=(8, 0))
+
+        self._btn(parent, "📌 发布动态", self.publish_moment, "gold").pack(anchor="w", **pad)
+
+        tk.Label(parent, text="已有动态", anchor="w", bg=COL_PANEL, fg=COL_TEXT,
+                 font=(FONT, 11, "bold")).pack(fill=tk.X, **pad)
+        self.moment_tree = ttk.Treeview(parent, columns=("text",), show="tree headings",
+                                        selectmode="browse")
+        self.moment_tree.heading("#0", text="时间", anchor="w")
+        self.moment_tree.heading("text", text="内容", anchor="w")
+        self.moment_tree.column("#0", width=150, anchor="w")
+        self.moment_tree.column("text", width=520, anchor="w")
+        self.moment_tree.pack(fill=tk.BOTH, expand=True, **pad)
+        tree_bottom = tk.Frame(parent, bg=COL_PANEL)
+        tree_bottom.pack(fill=tk.X, **pad)
+        self._btn(tree_bottom, "🗑 删除选中", self.delete_moment, "danger").pack(side=tk.LEFT)
+        self._btn(tree_bottom, "🔄 刷新", self.refresh_moment_list).pack(side=tk.RIGHT)
+
+    def _pick_moment_images(self):
+        paths = filedialog.askopenfilenames(
+            title="选择动态图片（可多选）",
+            filetypes=[("图片", "*.png *.jpg *.jpeg *.gif *.webp *.avif")])
+        for p in paths:
+            if p not in self.moment_images:
+                self.moment_images.append(p)
+        self._refresh_moment_imgs()
+
+    def _remove_moment_images(self):
+        for i in reversed(self.moment_imgs_list.curselection()):
+            self.moment_images.pop(i)
+        self._refresh_moment_imgs()
+
+    def _refresh_moment_imgs(self):
+        self.moment_imgs_list.delete(0, tk.END)
+        for p in self.moment_images:
+            self.moment_imgs_list.insert(tk.END, os.path.basename(p))
+
+    def _copy_to_moments(self, src):
+        os.makedirs(MOMENTS_IMAGES_DIR, exist_ok=True)
+        name = "{}-{}".format(datetime.datetime.now().strftime("%Y%m%d%H%M%S"),
+                              os.path.basename(src))
+        try:
+            shutil.copy(src, os.path.join(MOMENTS_IMAGES_DIR, name))
+        except OSError as e:
+            messagebox.showerror("错误", f"复制图片失败：{e}")
+            return None
+        return "/images/moments/" + name
+
+    def publish_moment(self):
+        text = self.moment_text.get("1.0", tk.END).strip()
+        if not text:
+            messagebox.showwarning("提示", "动态内容不能为空")
+            return
+        entry = {
+            "date": datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S+08:00"),
+            "text": text,
+        }
+        images = [url for url in (self._copy_to_moments(p) for p in self.moment_images) if url]
+        if images:
+            entry["images"] = images
+        link = self.moment_link_entry.get().strip()
+        if link:
+            entry["link"] = link
+        entries = load_moments()
+        entries.insert(0, entry)
+        save_moments(entries)
+        self.moment_text.delete("1.0", tk.END)
+        self.moment_images = []
+        self.moment_link_entry.delete(0, tk.END)
+        self._refresh_moment_imgs()
+        self.refresh_moment_list()
+        self.status_var.set("📌 动态已发布，重新构建后即可在 /dynamic/ 看到")
+        messagebox.showinfo("成功", "动态已发布\n重新构建网站后可在 /dynamic/ 查看")
+
+    def refresh_moment_list(self):
+        self.moment_tree.delete(*self.moment_tree.get_children())
+        self.moment_entries = sorted(load_moments(),
+                                     key=lambda e: e.get("date", ""), reverse=True)
+        for i, e in enumerate(self.moment_entries):
+            date = e.get("date", "")[:16].replace("T", " ")
+            text = e.get("text", "").replace("\n", " ")
+            if len(text) > 40:
+                text = text[:40] + "…"
+            self.moment_tree.insert("", tk.END, iid=str(i), text=date, values=(text,))
+
+    def delete_moment(self):
+        sel = self.moment_tree.selection()
+        if not sel:
+            messagebox.showwarning("提示", "请先选中要删除的动态")
+            return
+        idx = int(sel[0])
+        entry = self.moment_entries[idx]
+        preview = entry.get("text", "")[:30].replace("\n", " ")
+        if not messagebox.askyesno("确认删除", f"删除这条动态？\n{preview}\n（关联的图片会一并删除）"):
+            return
+        for url in entry.get("images", []):
+            rel = url.replace("/images/moments/", "", 1) if url.startswith("/images/moments/") \
+                else os.path.basename(url)
+            if ".." in rel or not rel:
+                continue
+            img_path = os.path.join(MOMENTS_IMAGES_DIR, rel)
+            if os.path.isfile(img_path):
+                try:
+                    os.remove(img_path)
+                except OSError:
+                    pass
+        self.moment_entries.pop(idx)
+        save_moments(self.moment_entries)
+        self.refresh_moment_list()
+        self.status_var.set("已删除动态")
 
     # ---------------- 图片 / 封面 ----------------
     def insert_image(self):
@@ -1039,10 +1231,722 @@ class BlogTool:
             messagebox.showerror("错误", str(e))
 
 
+# ==================== 网页版（python blog_tool.py --web） ====================
+WEB_PORT = 8777
+
+WEB_UI_HTML = """<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>博客写作助手 · 网页版</title>
+<style>
+:root { --bg:#16161a; --panel:#202024; --panel2:#26262c; --border:#34343c; --text:#e8e8e8; --muted:#8f8f98; --gold:#d4af37; --gold-dark:#a8872a; --red:#e5484d; --input:#1b1b1f; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--text); font-family:"Microsoft YaHei",system-ui,sans-serif; }
+header { display:flex; align-items:center; gap:14px; padding:14px 20px; background:var(--panel); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:10; }
+h1 { font-size:1.05rem; color:var(--gold); margin:0; }
+#status { font-size:.8rem; color:var(--muted); }
+.tabs { display:flex; gap:8px; margin-left:auto; }
+.tab-btn { background:var(--panel2); color:var(--muted); border:1px solid var(--border); border-radius:10px; padding:8px 18px; cursor:pointer; font-size:.9rem; font-family:inherit; }
+.tab-btn.active { background:#3a3522; color:var(--gold); border-color:var(--gold-dark); }
+.view { display:none; }
+.view.active { display:flex; }
+#art-list-pane { width:280px; border-right:1px solid var(--border); background:var(--panel); overflow-y:auto; height:calc(100vh - 58px); flex-shrink:0; }
+#art-list { list-style:none; margin:0; padding:8px; }
+#art-list li { padding:10px 12px; border-radius:10px; cursor:pointer; border:1px solid transparent; }
+#art-list li:hover { background:var(--panel2); }
+#art-list li.sel { background:#3a3522; border-color:var(--gold-dark); }
+#art-list .a-title { font-size:.88rem; font-weight:700; }
+#art-list .a-meta { font-size:.7rem; color:var(--muted); margin-top:3px; }
+#art-list .draft-tag { color:var(--red); }
+#art-form { flex:1; padding:16px 20px; overflow-y:auto; height:calc(100vh - 58px); }
+.row { margin-bottom:12px; display:flex; gap:12px; align-items:center; }
+.row label { width:64px; color:var(--muted); font-size:.85rem; flex-shrink:0; }
+input[type=text], textarea { background:var(--input); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:.9rem; font-family:inherit; }
+input[type=text]:focus, textarea:focus { outline:none; border-color:var(--gold); }
+textarea#f-body { width:100%; height:44vh; font-family:Consolas,monospace; font-size:.88rem; line-height:1.6; resize:vertical; }
+.btn { background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:10px; padding:8px 16px; cursor:pointer; font-size:.88rem; font-family:inherit; }
+.btn:hover { background:var(--panel); }
+.btn.gold { background:var(--gold); color:#1b1405; border-color:var(--gold); font-weight:700; }
+.btn.gold:hover { background:#e0bc4e; }
+.btn.danger { background:#3a2023; color:var(--red); border-color:#5a2c30; }
+.btn.sm { padding:4px 10px; font-size:.78rem; }
+#pv { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-top:12px; display:none; font-size:.88rem; line-height:1.7; }
+#pv h1,#pv h2,#pv h3 { color:var(--gold); }
+#pv img { max-width:100%; border-radius:8px; }
+#pv a { color:#7fb3ff; }
+#pv code { background:#2a2a30; border-radius:4px; padding:1px 6px; }
+#pv pre { background:#2a2a30; padding:10px; border-radius:8px; overflow-x:auto; }
+#pv blockquote { border-left:3px solid var(--gold-dark); margin:0; padding-left:12px; color:var(--muted); }
+#mom-pane { flex:1; padding:16px 20px; overflow-y:auto; height:calc(100vh - 58px); display:flex; gap:20px; }
+#mom-form { width:420px; flex-shrink:0; }
+#mom-form textarea { width:100%; height:120px; resize:vertical; }
+#mom-imgs { list-style:none; margin:8px 0; padding:0; }
+#mom-imgs li { display:flex; align-items:center; gap:8px; font-size:.8rem; color:var(--muted); padding:4px 0; }
+#mom-list { flex:1; min-width:0; }
+#mom-items { list-style:none; margin:0; padding:0; }
+#mom-items li { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:.85rem; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
+#mom-items li.hl { border-color:var(--gold); background:#2c2618; }
+.mom-meta { font-size:.72rem; color:var(--muted); margin-bottom:4px; display:flex; gap:10px; align-items:center; }
+.mom-del { margin-left:auto; }
+.small { font-size:.75rem; color:var(--muted); }
+.hidden-file { display:none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>✒ 博客写作助手 · 网页版</h1>
+  <span id="status">就绪</span>
+  <div class="tabs">
+    <button class="tab-btn active" id="tab-articles">📝 文章</button>
+    <button class="tab-btn" id="tab-moments">💬 动态</button>
+  </div>
+</header>
+<main>
+  <section class="view active" id="view-articles">
+    <div id="art-list-pane"><ul id="art-list"></ul></div>
+    <div id="art-form">
+      <input type="hidden" id="f-file">
+      <div class="row"><label>标题</label><input type="text" id="f-title" style="flex:1"></div>
+      <div class="row"><label>日期</label><input type="text" id="f-date" placeholder="2026-08-01 或 2026-08-01T21:24:37+08:00" style="flex:1"></div>
+      <div class="row"><label>分类</label><input type="text" id="f-cats" placeholder="逗号分隔" style="flex:1"></div>
+      <div class="row"><label>标签</label><input type="text" id="f-tags" placeholder="逗号分隔" style="flex:1"></div>
+      <div class="row">
+        <label>封面</label><input type="text" id="f-cover" placeholder="/images/xxx.jpg" style="flex:1">
+        <input type="file" id="f-cover-file" class="hidden-file" accept="image/*">
+        <button class="btn sm" id="btn-cover-up">上传封面</button>
+        <label style="width:auto; display:flex; align-items:center; gap:6px; color:var(--muted); font-size:.85rem; cursor:pointer;"><input type="checkbox" id="f-draft"> 草稿</label>
+      </div>
+      <div class="row" style="align-items:flex-start;">
+        <label>正文</label>
+        <div style="flex:1">
+          <textarea id="f-body" placeholder="Markdown 正文"></textarea>
+          <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <button class="btn gold" id="btn-save">💾 保存</button>
+            <button class="btn" id="btn-new">＋ 新建</button>
+            <button class="btn danger" id="btn-del">🗑 删除</button>
+            <input type="file" id="f-img-file" class="hidden-file" accept="image/*">
+            <button class="btn" id="btn-img-up">🖼 插入图片</button>
+            <button class="btn" id="btn-pv">👁 预览</button>
+          </div>
+          <div id="pv"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="view" id="view-moments">
+    <div id="mom-pane">
+      <div id="mom-form">
+        <div class="small" style="margin-bottom:8px">写下此刻（发布到博客 /dynamic/ 动态页）</div>
+        <textarea id="m-text" placeholder="随便写点什么…"></textarea>
+        <div class="row" style="margin-top:10px">
+          <input type="file" id="m-img-file" class="hidden-file" accept="image/*" multiple>
+          <button class="btn sm" id="btn-m-img">🖼 添加图片</button>
+        </div>
+        <ul id="mom-imgs"></ul>
+        <div class="row"><label>链接（可选）</label><input type="text" id="m-link" placeholder="https://..." style="flex:1"></div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn gold" id="btn-m-save">📌 发布动态</button>
+          <button class="btn" id="btn-m-cancel" style="display:none">取消编辑</button>
+        </div>
+      </div>
+      <div id="mom-list">
+        <div class="small" style="margin-bottom:8px">已有动态</div>
+        <ul id="mom-items"></ul>
+      </div>
+    </div>
+  </section>
+</main>
+<script>
+(function () {
+    var $ = function (id) { return document.getElementById(id); };
+    var state = { articles: [], curFile: null, moments: [], momImgs: [], editingId: null };
+    var pendingMomentId = null;
+
+    function api(path, opts) {
+        opts = opts || {};
+        opts.headers = Object.assign({}, opts.headers || {}, { 'Content-Type': 'application/json' });
+        return fetch(path, opts).then(function (r) { return r.json(); });
+    }
+    function setStatus(t) { $('status').textContent = t; }
+    function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+    function splitList(s) { return s.split(/[,，]/).map(function (x) { return x.trim(); }).filter(Boolean); }
+
+    // ---- 页签 ----
+    function showTab(name) {
+        $('view-articles').classList.toggle('active', name === 'articles');
+        $('view-moments').classList.toggle('active', name === 'moments');
+        $('tab-articles').classList.toggle('active', name === 'articles');
+        $('tab-moments').classList.toggle('active', name === 'moments');
+    }
+    $('tab-articles').addEventListener('click', function () { showTab('articles'); });
+    $('tab-moments').addEventListener('click', function () { showTab('moments'); });
+
+    // ---- 文章 ----
+    function renderArtList() {
+        var ul = $('art-list');
+        ul.innerHTML = '';
+        state.articles.forEach(function (a) {
+            var li = document.createElement('li');
+            li.className = a.file === state.curFile ? 'sel' : '';
+            li.innerHTML = '<div class="a-title">' + (a.draft ? '<span class="draft-tag">[草稿] </span>' : '') + esc(a.title) + '</div>' +
+                '<div class="a-meta">' + esc(a.date || '') + '</div>';
+            li.addEventListener('click', function () { loadArticle(a.file); });
+            ul.appendChild(li);
+        });
+    }
+    function loadArticles() {
+        api('/api/articles').then(function (list) {
+            state.articles = list;
+            renderArtList();
+            if (!state.curFile && list.length) loadArticle(list[0].file);
+        });
+    }
+    function loadArticle(file) {
+        state.curFile = file;
+        api('/api/article?file=' + encodeURIComponent(file)).then(function (d) {
+            $('f-file').value = d.file || '';
+            $('f-title').value = d.title || '';
+            $('f-date').value = d.date || '';
+            $('f-cats').value = (d.categories || []).join(', ');
+            $('f-tags').value = (d.tags || []).join(', ');
+            $('f-cover').value = d.cover || '';
+            $('f-draft').checked = !!d.draft;
+            $('f-body').value = d.body || '';
+            renderArtList();
+            setStatus('已打开：' + file);
+        }).catch(function () { setStatus('打开失败'); });
+    }
+    function saveArticle() {
+        var payload = {
+            file: $('f-file').value || null,
+            title: $('f-title').value,
+            date: $('f-date').value,
+            categories: splitList($('f-cats').value),
+            tags: splitList($('f-tags').value),
+            draft: $('f-draft').checked,
+            cover: $('f-cover').value,
+            body: $('f-body').value.replace(/\\s+$/, '')
+        };
+        api('/api/article', { method: 'POST', body: JSON.stringify(payload) }).then(function (r) {
+            if (r.error) { alert(r.error); return; }
+            setStatus('✅ 已保存：' + r.file);
+            loadArticles();
+        });
+    }
+    function newArticle() {
+        state.curFile = null;
+        $('f-file').value = '';
+        $('f-title').value = '';
+        $('f-date').value = '';
+        $('f-cats').value = '';
+        $('f-tags').value = '';
+        $('f-cover').value = '';
+        $('f-draft').checked = false;
+        $('f-body').value = '';
+        renderArtList();
+        $('f-title').focus();
+    }
+    function delArticle() {
+        if (!state.curFile || !confirm('确定删除这篇文件？\\n' + state.curFile)) return;
+        api('/api/article?file=' + encodeURIComponent(state.curFile), { method: 'DELETE' }).then(function (r) {
+            if (r.error) { alert(r.error); return; }
+            state.curFile = null;
+            newArticle();
+            loadArticles();
+            setStatus('已删除');
+        });
+    }
+    function uploadImg(input, target, done) {
+        var f = input.files && input.files[0];
+        if (!f) return;
+        var reader = new FileReader();
+        reader.onload = function () {
+            api('/api/upload', { method: 'POST', body: JSON.stringify({ name: f.name, data: reader.result, target: target }) })
+                .then(function (r) { if (r.error) { alert(r.error); return; } done(r.url); });
+        };
+        reader.readAsDataURL(f);
+    }
+    $('btn-save').addEventListener('click', saveArticle);
+    $('btn-new').addEventListener('click', newArticle);
+    $('btn-del').addEventListener('click', delArticle);
+    $('btn-img-up').addEventListener('click', function () { $('f-img-file').click(); });
+    $('f-img-file').addEventListener('change', function () {
+        uploadImg(this, 'post', function (url) {
+            var ta = $('f-body');
+            var p = ta.selectionStart || ta.value.length;
+            ta.value = ta.value.slice(0, p) + '![](' + url + ')\\n\\n' + ta.value.slice(p);
+            ta.focus();
+            ta.selectionStart = ta.selectionEnd = p + url.length + 5;
+        });
+    });
+    $('btn-cover-up').addEventListener('click', function () { $('f-cover-file').click(); });
+    $('f-cover-file').addEventListener('change', function () {
+        uploadImg(this, 'post', function (url) { $('f-cover').value = url; });
+    });
+    $('btn-pv').addEventListener('click', function () {
+        var pv = $('pv');
+        pv.style.display = pv.style.display === 'none' ? 'block' : 'none';
+        pv.innerHTML = mdRender($('f-body').value);
+    });
+
+    // ---- 动态 ----
+    function loadMoments() {
+        api('/api/moments').then(function (list) {
+            state.moments = list;
+            var ul = $('mom-items');
+            ul.innerHTML = '';
+            list.forEach(function (m, i) {
+                var li = document.createElement('li');
+                if (state.editingId && m.id === state.editingId) li.className = 'hl';
+                li.innerHTML = '<div class="mom-meta"><span>' + esc((m.date || '').slice(0, 16).replace('T', ' ')) + '</span>' +
+                    (m.images && m.images.length ? '<span>🖼 ' + m.images.length + '</span>' : '') +
+                    '<button class="btn sm mom-edit">编辑</button>' +
+                    '<button class="btn sm danger mom-del">删除</button></div>' +
+                    '<div>' + esc(m.text) + '</div>';
+                li.querySelector('.mom-edit').addEventListener('click', function () { loadMomentToEdit(i); });
+                li.querySelector('.mom-del').addEventListener('click', function () { delMoment(m.id); });
+                ul.appendChild(li);
+            });
+            if (pendingMomentId) {
+                var idx = list.findIndex(function (m) { return m.id === pendingMomentId; });
+                if (idx >= 0) {
+                    loadMomentToEdit(idx);
+                    if (ul.children[idx]) ul.children[idx].scrollIntoView({ block: 'center' });
+                }
+                pendingMomentId = null;
+            }
+        });
+    }
+    function loadMomentToEdit(i) {
+        var m = state.moments[i];
+        if (!m) return;
+        state.editingId = m.id;
+        $('m-text').value = m.text || '';
+        $('m-link').value = m.link || '';
+        state.momImgs = (m.images || []).slice();
+        renderMomImgs();
+        $('btn-m-save').textContent = '💾 保存修改';
+        $('btn-m-cancel').style.display = '';
+        setStatus('正在编辑动态，发布时间保持不变');
+        loadMoments();
+    }
+    function resetMomentForm() {
+        state.editingId = null;
+        $('m-text').value = '';
+        $('m-link').value = '';
+        state.momImgs = [];
+        renderMomImgs();
+        $('btn-m-save').textContent = '📌 发布动态';
+        $('btn-m-cancel').style.display = 'none';
+    }
+    function delMoment(id) {
+        if (!confirm('删除这条动态？关联图片也会删除。')) return;
+        api('/api/moment?id=' + encodeURIComponent(id), { method: 'DELETE' }).then(function (r) {
+            if (r.error) { alert(r.error); return; }
+            if (state.editingId === id) resetMomentForm();
+            loadMoments();
+        });
+    }
+    function renderMomImgs() {
+        var ul = $('mom-imgs');
+        ul.innerHTML = '';
+        state.momImgs.forEach(function (u, i) {
+            var li = document.createElement('li');
+            li.innerHTML = esc(u) + ' <button class="btn sm danger">✕</button>';
+            li.querySelector('button').addEventListener('click', function () { state.momImgs.splice(i, 1); renderMomImgs(); });
+            ul.appendChild(li);
+        });
+    }
+    $('btn-m-img').addEventListener('click', function () { $('m-img-file').click(); });
+    $('m-img-file').addEventListener('change', function () {
+        Array.prototype.forEach.call(this.files, function (f) {
+            var reader = new FileReader();
+            reader.onload = function () {
+                api('/api/upload', { method: 'POST', body: JSON.stringify({ name: f.name, data: reader.result, target: 'moment' }) })
+                    .then(function (r) { if (r.error) { alert(r.error); return; } state.momImgs.push(r.url); renderMomImgs(); });
+            };
+            reader.readAsDataURL(f);
+        });
+        this.value = '';
+    });
+    $('btn-m-save').addEventListener('click', function () {
+        var text = $('m-text').value.trim();
+        if (!text) { alert('动态内容不能为空'); return; }
+        var payload = { text: text, images: state.momImgs, link: $('m-link').value.trim() };
+        var isEdit = !!state.editingId;
+        if (isEdit) payload.id = state.editingId;
+        api('/api/moment', { method: 'POST', body: JSON.stringify(payload) })
+            .then(function (r) {
+                if (r.error) { alert(r.error); return; }
+                resetMomentForm();
+                loadMoments();
+                setStatus(isEdit ? '✅ 动态已更新' : '📌 动态已发布');
+            });
+    });
+    $('btn-m-cancel').addEventListener('click', function () {
+        resetMomentForm();
+        loadMoments();
+        setStatus('已取消编辑');
+    });
+
+    // ---- 迷你 Markdown 渲染（仅预览用） ----
+    function mdEscape(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    function mdInline(s) {
+        s = mdEscape(s);
+        s = s.replace(/!\\[([^\\]]*)\\]\\(([^)]+)\\)/g, '<img src="$2" alt="$1">');
+        s = s.replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g, '<a href="$2" target="_blank">$1</a>');
+        s = s.replace(/\\*\\*([^*]+)\\*\\*/g, '<b>$1</b>');
+        s = s.replace(/\\*([^*]+)\\*/g, '<i>$1</i>');
+        s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+        return s;
+    }
+    function mdRender(src) {
+        var out = [], code = false, block = [], buf = [];
+        function flush() {
+            if (buf.length) { out.push('<p>' + buf.map(mdInline).join('<br>') + '</p>'); buf = []; }
+        }
+        src.split('\\n').forEach(function (line) {
+            var s = line.trim();
+            if (s.indexOf('```') === 0) {
+                flush();
+                if (code) { out.push('<pre>' + mdEscape(block.join('\\n')) + '</pre>'); }
+                block = [];
+                code = !code;
+                return;
+            }
+            if (code) { block.push(line); return; }
+            if (!s) { flush(); return; }
+            var h = s.match(/^(#{1,3})\\s/);
+            if (h) { flush(); var n = h[1].length; out.push('<h' + n + '>' + mdInline(s.slice(n + 1)) + '</h' + n + '>'); return; }
+            if (s.indexOf('> ') === 0) { buf.push('<blockquote>' + mdInline(s.slice(2)) + '</blockquote>'); return; }
+            if (/^[-*]\\s/.test(s)) { buf.push('• ' + mdInline(s.slice(2))); return; }
+            buf.push(mdInline(s));
+        });
+        if (code) { out.push('<pre>' + mdEscape(block.join('\\n')) + '</pre>'); }
+        flush();
+        return out.join('\\n');
+    }
+
+    // ---- 初始化 ----
+    loadArticles();
+    loadMoments();
+    var q = new URLSearchParams(location.search);
+    if (q.get('new') === '1') { newArticle(); showTab('articles'); }
+    else if (q.get('file')) { loadArticle(q.get('file')); showTab('articles'); }
+    else if (q.get('tab') === 'moments' || q.get('id')) { showTab('moments'); }
+    if (q.get('id')) pendingMomentId = q.get('id');
+})();
+</script>
+</body>
+</html>
+"""
+
+
+def _safe_join(base, rel):
+    """把相对路径安全拼到 base 下，越界返回 None"""
+    base = os.path.normpath(base)
+    full = os.path.normpath(os.path.join(base, rel))
+    if os.path.commonpath([base, full]) != base:
+        return None
+    return full
+
+
+class BlogWebHandler(BaseHTTPRequestHandler):
+    server_version = "BlogToolWeb/1.0"
+
+    def log_message(self, fmt, *args):
+        pass
+
+    def _reply(self, code, body, ctype="application/json; charset=utf-8"):
+        data = body if isinstance(body, bytes) else body.encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(data)
+
+    def _json(self, obj, code=200):
+        self._reply(code, json.dumps(obj, ensure_ascii=False))
+
+    def _read_json(self):
+        length = int(self.headers.get("Content-Length") or 0)
+        return json.loads(self.rfile.read(length).decode("utf-8"))
+
+    def _content_file(self, rel):
+        """content 目录下的文件绝对路径；非法路径返回 None"""
+        rel = (rel or "").replace("\\", "/")
+        if not rel or ".." in rel.split("/"):
+            return None
+        if rel.startswith("content/"):
+            rel = rel[len("content/"):]
+        return _safe_join(os.path.join(BLOG_ROOT, "content"), rel)
+
+    def do_GET(self):
+        parsed = urllib.parse.urlparse(self.path)
+        qs = urllib.parse.parse_qs(parsed.query)
+        try:
+            if parsed.path == "/":
+                self._reply(200, WEB_UI_HTML, "text/html; charset=utf-8")
+            elif parsed.path == "/api/ping":
+                self._json({"ok": True})
+            elif parsed.path == "/api/articles":
+                items = []
+                for rel, full in scan_posts():
+                    try:
+                        with open(full, encoding="utf-8") as f:
+                            data = parse_front(f.read())
+                    except OSError:
+                        continue
+                    items.append({
+                        "file": "content/posts/" + rel.replace("\\", "/"),
+                        "title": data["title"] or os.path.splitext(os.path.basename(full))[0],
+                        "date": (data["date"] or "")[:10],
+                        "draft": data["draft"],
+                    })
+                items.sort(key=lambda x: x["date"], reverse=True)
+                self._json(items)
+            elif parsed.path == "/api/article":
+                full = self._content_file(qs.get("file", [""])[0])
+                if not full or not os.path.isfile(full):
+                    self._json({"error": "文件不存在"}, 404)
+                    return
+                with open(full, encoding="utf-8") as f:
+                    content = f.read()
+                data = parse_front(content)
+                m = re.match(r"^---\s*\n.*?\n---\s*\n", content, re.DOTALL)
+                data["body"] = content[m.end():].strip() if m else content.strip()
+                data["file"] = os.path.relpath(full, os.path.join(BLOG_ROOT, "content")).replace("\\", "/")
+                self._json(data)
+            elif parsed.path == "/api/moments":
+                self._json(sorted(load_moments(), key=lambda e: e.get("date", ""), reverse=True))
+            else:
+                self._json({"error": "not found"}, 404)
+        except Exception as e:
+            self._json({"error": str(e)}, 500)
+
+    def do_POST(self):
+        parsed = urllib.parse.urlparse(self.path)
+        try:
+            payload = self._read_json()
+        except Exception:
+            self._json({"error": "请求体不是合法 JSON"}, 400)
+            return
+        try:
+            if parsed.path == "/api/article":
+                self._post_article(payload)
+            elif parsed.path == "/api/moment":
+                self._post_moment(payload)
+            elif parsed.path == "/api/upload":
+                self._post_upload(payload)
+            else:
+                self._json({"error": "not found"}, 404)
+        except Exception as e:
+            self._json({"error": str(e)}, 500)
+
+    def _post_article(self, p):
+        title = (p.get("title") or "").strip()
+        if not title:
+            self._json({"error": "标题不能为空"}, 400)
+            return
+        date = (p.get("date") or "").strip()
+        if not re.match(r"^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}\+08:00)?$", date):
+            self._json({"error": "日期格式应为 2026-06-06 或 2026-06-06T21:24:37+08:00"}, 400)
+            return
+        if re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+            date += "T00:00:00+08:00"
+        rel = (p.get("file") or "").strip()
+        full = self._content_file(rel) if rel else None
+        if rel and (not full or os.path.isdir(full)):
+            self._json({"error": "非法文件路径"}, 400)
+            return
+        body = (p.get("body") or "").rstrip()
+        saved = save_article_file(full, title, date, p.get("categories") or [],
+                                  p.get("tags") or [], bool(p.get("draft")),
+                                  (p.get("cover") or "").strip() or None, body)
+        rel_saved = os.path.relpath(saved, POSTS_BASE).replace("\\", "/")
+        self._json({"ok": True, "file": "content/posts/" + rel_saved})
+
+    def _post_moment(self, p):
+        text = (p.get("text") or "").strip()
+        if not text:
+            self._json({"error": "动态内容不能为空"}, 400)
+            return
+        images = [u for u in (p.get("images") or [])
+                  if isinstance(u, str) and u.startswith("/images/moments/")]
+        link = (p.get("link") or "").strip()
+        entries = load_moments()
+        eid = (p.get("id") or "").strip()
+        if eid:
+            entry = next((e for e in entries if e.get("id") == eid), None)
+            if entry is None:
+                self._json({"error": "动态不存在"}, 404)
+                return
+            for url in entry.get("images", []):
+                if url not in images:
+                    self._remove_moment_image(url)
+            entry["text"] = text
+            if images:
+                entry["images"] = images
+            else:
+                entry.pop("images", None)
+            if link:
+                entry["link"] = link
+            else:
+                entry.pop("link", None)
+            save_moments(entries)
+            self._json({"ok": True, "id": eid})
+        else:
+            entry = {
+                "id": "m{}{}".format(datetime.datetime.now().strftime("%Y%m%d%H%M%S"), len(entries)),
+                "date": datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S+08:00"),
+                "text": text,
+            }
+            if images:
+                entry["images"] = images
+            if link:
+                entry["link"] = link
+            entries.insert(0, entry)
+            save_moments(entries)
+            self._json({"ok": True, "id": entry["id"]})
+
+    def _remove_moment_image(self, url):
+        """删除一条动态图片文件（只在 URL 属于动态图片目录时）"""
+        rel = url.replace("/images/moments/", "", 1) if url.startswith("/images/moments/") \
+            else os.path.basename(url)
+        if ".." in rel or not rel:
+            return
+        img_path = os.path.join(MOMENTS_IMAGES_DIR, rel)
+        if os.path.isfile(img_path):
+            try:
+                os.remove(img_path)
+            except OSError:
+                pass
+
+    def _post_upload(self, p):
+        raw = p.get("data") or ""
+        try:
+            blob = base64.b64decode(raw.split(",", 1)[-1])
+        except Exception:
+            self._json({"error": "图片数据无效"}, 400)
+            return
+        if not blob:
+            self._json({"error": "图片数据为空"}, 400)
+            return
+        name = os.path.basename(p.get("name") or "upload.png")
+        safe = re.sub(r"[^A-Za-z0-9._-]", "_", name)
+        sub = "moments" if p.get("target") == "moment" else ""
+        dest_dir = os.path.join(IMAGES_DIR, sub)
+        os.makedirs(dest_dir, exist_ok=True)
+        dest = os.path.join(dest_dir, "{}-{}".format(
+            datetime.datetime.now().strftime("%Y%m%d%H%M%S"), safe))
+        with open(dest, "wb") as f:
+            f.write(blob)
+        url = "/images/" + (sub + "/" if sub else "") + os.path.basename(dest)
+        self._json({"ok": True, "url": url})
+
+    def do_DELETE(self):
+        parsed = urllib.parse.urlparse(self.path)
+        qs = urllib.parse.parse_qs(parsed.query)
+        try:
+            if parsed.path == "/api/article":
+                full = self._content_file(qs.get("file", [""])[0])
+                posts_base = os.path.join(BLOG_ROOT, "content", "posts")
+                if not full or not os.path.isfile(full) or \
+                        os.path.commonpath([posts_base, full]) != os.path.normpath(posts_base):
+                    self._json({"error": "非法文件路径"}, 400)
+                    return
+                os.remove(full)
+                self._json({"ok": True})
+            elif parsed.path == "/api/moment":
+                eid = qs.get("id", [""])[0]
+                entries = load_moments()
+                target = next((e for e in entries if e.get("id") == eid), None)
+                if target is None:
+                    self._json({"error": "动态不存在"}, 404)
+                    return
+                entries = [e for e in entries if e.get("id") != eid]
+                for url in target.get("images", []):
+                    self._remove_moment_image(url)
+                save_moments(entries)
+                self._json({"ok": True})
+            else:
+                self._json({"error": "not found"}, 404)
+        except Exception as e:
+            self._json({"error": str(e)}, 500)
+
+
+def _parse_web_params(raw_url):
+    """解析 blogtool://edit?file=xxx 形式的外部调用参数，失败返回 None"""
+    try:
+        parts = urllib.parse.urlparse(raw_url or "")
+        qs = urllib.parse.parse_qs(parts.query)
+        params = {k: v[0] for k, v in qs.items()}
+        if parts.netloc == "new":
+            params["new"] = "1"
+        return params
+    except Exception:
+        return None
+
+
+def _safe_print(*args):
+    """控制台可能不存在（pythonw）或编码不支持特殊字符，输出失败时静默"""
+    try:
+        print(*args)
+    except Exception:
+        pass
+
+
+def _port_in_use(host, port):
+    """探测本地端口是否已有服务在监听"""
+    try:
+        with socket.create_connection((host, port), timeout=0.5):
+            return True
+    except OSError:
+        return False
+
+
+def run_web_server(host="127.0.0.1", port=WEB_PORT, web_params=None):
+    """启动本地网页版写作工具（仅本机可访问）；已运行时只跳转不重复启动"""
+    os.makedirs(POSTS_BASE, exist_ok=True)
+    os.makedirs(IMAGES_DIR, exist_ok=True)
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+    target = f"http://{host}:{port}/"
+    if web_params:
+        target += "?" + urllib.parse.urlencode(web_params)
+    if _port_in_use(host, port):
+        webbrowser.open(target)  # 工具已在运行，直接跳到目标页
+        return
+    try:
+        server = ThreadingHTTPServer((host, port), BlogWebHandler)
+    except OSError as e:
+        _safe_print(f"启动失败：{e}")
+        return
+    _safe_print(f"✒ 博客写作助手网页版已启动：{target}")
+    _safe_print("按 Ctrl+C 停止服务。")
+    webbrowser.open(target)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+
+
 def main():
     if not os.path.isdir(BLOG_ROOT):
         print(f"错误：博客目录不存在 - {BLOG_ROOT}")
         input("按 Enter 退出...")
+        return
+    if "--web" in sys.argv:
+        extra = [a for a in sys.argv[1:] if a != "--web"]
+        web_params = _parse_web_params(extra[0]) if extra else None
+        run_web_server(web_params=web_params)
         return
     os.makedirs(POSTS_BASE, exist_ok=True)
     os.makedirs(IMAGES_DIR, exist_ok=True)

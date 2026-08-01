@@ -42,6 +42,22 @@
     color: #999;
     font-size: 0.95rem;
 }
+.ps-tool-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    padding: 6px 16px;
+    border-radius: 999px;
+    background: rgba(212, 175, 55, 0.12);
+    border: 1px solid rgba(212, 175, 55, 0.5);
+    color: #d4af37;
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-weight: 700;
+    transition: all 0.2s;
+}
+.ps-tool-edit:hover { background: rgba(212, 175, 55, 0.25); }
 </style>
 <div class="three-col">
     {{ partial "posts-sidebar-left.html" . }}
@@ -66,6 +82,10 @@
                     {{- partial "edit_post.html" . -}}
                     {{- partial "post_canonical.html" . -}}
                 </div>
+                {{- end }}
+                {{- with .File }}
+                <a class="ps-tool-edit" id="ps-tool-edit"
+                   href="blogtool://edit?file=content/{{ replace .Path "\\" "/" }}" style="display:none">✏ 在写作工具中编辑</a>
                 {{- end }}
             </header>
             {{- if (.Param "ShowToc") }}
@@ -102,4 +122,12 @@
     </div>
     {{ partial "posts-sidebar-right.html" . }}
 </div>
+<script>
+(function () {
+    var btn = document.getElementById('ps-tool-edit');
+    if (btn && ['localhost', '127.0.0.1'].includes(location.hostname)) {
+        btn.style.display = 'inline-flex';
+    }
+})();
+</script>
 {{- end }}

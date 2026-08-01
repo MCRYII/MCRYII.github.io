@@ -1,78 +1,323 @@
 {{ define "main" }}
 <style>main.main { max-width: none !important; }</style>
 <style>
-.dyn-list { list-style: none; margin: 14px 0 0; padding: 0; }
-.dyn-item {
+.dyn-wrap { max-width: 780px; margin: 0 auto; padding: 8px 16px 30px; }
+.dyn-head { text-align: center; margin-bottom: 20px; }
+.dyn-sub { color: var(--secondary); font-size: .85rem; margin-top: 6px; }
+.dyn-tool-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    padding: 6px 16px;
+    border-radius: 999px;
+    background: rgba(212, 175, 55, 0.12);
+    border: 1px solid rgba(212, 175, 55, 0.5);
+    color: #d4af37;
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-weight: 700;
+    transition: all 0.2s;
+}
+.dyn-tool-btn:hover { background: rgba(212, 175, 55, 0.25); }
+.dyn-board {
+    position: relative;
+    border: 1px dashed rgba(212, 175, 55, .4);
+    border-radius: var(--radius-lg);
+    background-color: rgba(212, 175, 55, .045);
+    background-image: radial-gradient(rgba(212, 175, 55, .16) 1.2px, transparent 1.6px);
+    background-size: 22px 22px;
+    padding: 32px 14px 26px;
+}
+html[data-theme="dark"] .dyn-board { background-color: rgba(0, 0, 0, .18); }
+.dyn-empty { text-align: center; color: var(--secondary); font-size: .9rem; padding: 36px 0; }
+
+/* 便签（动态） */
+.mom-note {
+    position: relative;
+    margin: 22px 10px 28px;
+    padding: 18px 18px 14px;
+    border-radius: 6px;
+    background: linear-gradient(180deg, #fffdf4, #fff6dd);
+    color: #3b3321;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .28), inset 0 0 0 1px rgba(212, 175, 55, .45);
+    transform: rotate(var(--rot, 0deg));
+}
+html[data-theme="dark"] .mom-note {
+    background: linear-gradient(180deg, #2c2618, #262216);
+    color: #f0e6c8;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .5), inset 0 0 0 1px rgba(212, 175, 55, .4);
+}
+.mom-pin {
+    position: absolute;
+    top: -9px;
+    left: 50%;
+    width: 18px;
+    height: 18px;
+    margin-left: -9px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 32%, #ffe08a, #d4af37 62%, #8a6d1f);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, .45);
+    z-index: 1;
+}
+.mom-date { font-size: .72rem; color: #a08b4f; margin-bottom: 8px; letter-spacing: .3px; }
+html[data-theme="dark"] .mom-date { color: #c2a96a; }
+.mom-text { font-size: .93rem; line-height: 1.75; white-space: pre-wrap; word-break: break-word; }
+.mom-edit {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    font-size: .78rem;
+    color: #a08b4f;
+    text-decoration: none;
+    opacity: .75;
+}
+.mom-edit:hover { opacity: 1; color: #d4af37; }
+
+/* 图片网格 */
+.mom-imgs { display: grid; gap: 8px; margin-top: 12px; }
+.imgs-1 { grid-template-columns: 1fr; max-width: 72%; }
+.imgs-2 { grid-template-columns: 1fr 1fr; }
+.imgs-3 { grid-template-columns: repeat(3, 1fr); }
+.imgs-4 { grid-template-columns: 1fr 1fr; }
+.mom-img {
+    display: block;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, .14);
+    background: #000;
+}
+.mom-img img { display: block; width: 100%; height: 100%; object-fit: cover; aspect-ratio: 1 / 1; transition: transform .25s; }
+.imgs-1 .mom-img img { aspect-ratio: 16 / 10; max-height: 330px; }
+.mom-img:hover img { transform: scale(1.04); }
+.mom-img-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, .45);
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+.mom-link {
+    display: inline-block;
+    margin-top: 12px;
+    max-width: 100%;
+    padding: 4px 12px;
+    font-size: .8rem;
+    color: #8a6d1f;
+    background: rgba(212, 175, 55, .15);
+    border: 1px solid rgba(212, 175, 55, .5);
+    border-radius: 999px;
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+html[data-theme="dark"] .mom-link { color: #e5c56e; }
+.mom-link:hover { background: rgba(212, 175, 55, .28); }
+
+/* 文章剪报 */
+.mom-post {
     display: flex;
     gap: 14px;
-    padding: 12px 14px;
+    margin: 22px 10px 28px;
+    padding: 14px;
+    background: var(--card-bg);
+    border: 1px solid rgba(212, 175, 55, .28);
+    border-left: 4px solid #d4af37;
     border-radius: var(--radius-md);
-    background: #ffffff;
-    border: 1px solid rgba(212, 175, 55, 0.18);
-    margin-bottom: 10px;
-    transition: all 0.18s;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, .12);
 }
-html[data-theme="dark"] .dyn-item { background: #262216; }
-.dyn-item:hover {
-    border-color: rgba(212, 175, 55, 0.6);
-    transform: translateX(4px);
+html[data-theme="dark"] .mom-post { background: var(--card-bg-dark); box-shadow: 0 6px 16px rgba(0, 0, 0, .45); }
+.mom-post-cover {
+    flex: 0 0 150px;
+    width: 150px;
+    align-self: flex-start;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(212, 175, 55, .3);
 }
-.dyn-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #d4af37;
-    box-shadow: 0 0 10px rgba(212, 175, 55, 0.7);
-    flex-shrink: 0;
-    margin-top: 6px;
+.mom-post-cover img { display: block; width: 100%; height: 100%; object-fit: cover; aspect-ratio: 5 / 3; }
+.mom-post-body { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.mom-post-meta { display: flex; align-items: center; gap: 10px; font-size: .74rem; color: #999; }
+.mom-post-cat {
+    background: rgba(212, 175, 55, .14);
+    color: #c8a53f;
+    padding: 2px 8px;
+    border-radius: 999px;
 }
-.dyn-body { min-width: 0; }
-.dyn-date { font-size: 0.74rem; color: #999; }
-.dyn-item a {
-    display: block;
-    color: var(--primary);
-    text-decoration: none;
-    font-size: 0.94rem;
-    font-weight: 600;
-    margin: 3px 0;
-}
-.dyn-item a:hover { color: #d4af37; }
-.dyn-summary {
-    font-size: 0.8rem;
-    color: #999;
-    line-height: 1.5;
+.mom-post-title { margin: 0; font-size: 1rem; font-weight: 800; line-height: 1.4; }
+.mom-post-title a { color: var(--primary); text-decoration: none; }
+.mom-post-title a:hover { color: #d4af37; }
+.mom-post-summary {
+    margin: 0;
+    font-size: .82rem;
+    color: var(--secondary);
+    line-height: 1.6;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
+.mom-post-more { margin-top: auto; font-size: .78rem; color: #d4af37; text-decoration: none; font-weight: 700; }
+.mom-post-more:hover { text-decoration: underline; }
+.mom-post-edit { font-size: .72rem; color: #a08b4f; text-decoration: none; align-self: flex-start; }
+.mom-post-edit:hover { color: #d4af37; }
+
+/* 灯箱 */
+.lb { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0, 0, 0, .82); align-items: center; justify-content: center; }
+.lb.open { display: flex; }
+.lb-img { max-width: min(92vw, 1100px); max-height: 88vh; border-radius: 8px; box-shadow: 0 10px 40px rgba(0, 0, 0, .6); }
+.lb-close { position: absolute; top: 18px; right: 24px; color: #fff; font-size: 1.4rem; cursor: pointer; opacity: .85; }
+.lb-close:hover { opacity: 1; }
+.lb-nav button {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 64px;
+    background: rgba(255, 255, 255, .12);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.6rem;
+    cursor: pointer;
+}
+.lb-prev { left: 14px; }
+.lb-next { right: 14px; }
+
+@media (max-width: 640px) {
+    .mom-post { flex-direction: column; }
+    .mom-post-cover { flex: none; width: 100%; }
+    .imgs-1 { max-width: 100%; }
+}
 </style>
-<div class="three-col">
-    {{ partial "sidebar-left.html" . }}
-    <div class="col-main">
-        <article class="post-single">
-            <header class="post-header">
-                <h1 class="post-title">{{ .Title }}</h1>
-            </header>
-            <div class="post-content">
-                {{ .Content }}
-                <p>这里是最近发布的动态：</p>
-                <ul class="dyn-list">
-                    {{- $posts := where .Site.RegularPages "Section" "posts" }}
-                    {{- range first 10 (sort $posts "Date" "desc") }}
-                    <li class="dyn-item">
-                        <span class="dyn-dot"></span>
-                        <div class="dyn-body">
-                            <div class="dyn-date">{{ .Date.Format "2006-01-02 15:04" }}</div>
-                            <a href="{{ .RelPermalink }}">{{ .Title }}</a>
-                            <div class="dyn-summary">{{ .Summary | plainify | htmlUnescape }}</div>
-                        </div>
-                    </li>
+
+{{- $feed := slice }}
+{{- with hugo.Data.moments }}
+    {{- range .moments }}
+        {{- if .date }}
+            {{- $feed = $feed | append (dict "date" (time .date) "kind" "moment" "m" .) }}
+        {{- end }}
+    {{- end }}
+{{- end }}
+{{- range where site.RegularPages "Section" "posts" }}
+    {{- if and (not .Draft) .Date }}
+        {{- $feed = $feed | append (dict "date" .Date "kind" "post" "p" .) }}
+    {{- end }}
+{{- end }}
+{{- $feed = sort $feed "date" "desc" }}
+
+<div class="dyn-wrap">
+    <header class="dyn-head">
+        <h1 class="post-title">{{ .Title }}</h1>
+        <p class="dyn-sub">📌 公告板 · 随手记下的碎片，和文章剪报</p>
+        <div>
+            <a class="dyn-tool-btn dyn-tool-link" id="dyn-add-btn" style="display:none"
+               href="blogtool://edit?tab=moments">＋ 发动态</a>
+        </div>
+    </header>
+    <div class="dyn-board">
+        {{- if eq (len $feed) 0 }}
+        <p class="dyn-empty">还没有动态，去写作工具里发一条吧。</p>
+        {{- end }}
+        {{- range $i, $item := $feed }}
+            {{- if eq $item.kind "moment" }}
+                {{- $m := $item.m }}
+                <article class="mom-note" style="--rot:{{ if eq (mod $i 2) 0 }}-1.1deg{{ else }}0.9deg{{ end }}">
+                    <span class="mom-pin"></span>
+                    {{- with $m.id }}
+                    <a class="mom-edit dyn-tool-link" style="display:none"
+                       href="blogtool://edit?tab=moments&amp;id={{ . }}"
+                       title="在写作工具中编辑/删除">✏ 编辑</a>
                     {{- end }}
-                </ul>
-            </div>
-        </article>
+                    <div class="mom-date">{{ $m.date | dateFormat "2006-01-02 15:04" }}</div>
+                    {{- with $m.text }}
+                    <div class="mom-text">{{ . }}</div>
+                    {{- end }}
+                    {{- with $m.images }}
+                        {{- $imgs := . }}
+                        {{- $more := 0 }}
+                        {{- if gt (len $imgs) 4 }}{{ $more = sub (len $imgs) 4 }}{{ $imgs = first 4 $imgs }}{{ end }}
+                        <div class="mom-imgs imgs-{{ len $imgs }}">
+                            {{- range $imgs }}
+                            <a class="mom-img" href="{{ . }}" data-lb><img src="{{ . }}" alt="" loading="lazy"></a>
+                            {{- end }}
+                            {{- if gt $more 0 }}
+                            <div class="mom-img-more">+{{ $more }}</div>
+                            {{- end }}
+                        </div>
+                    {{- end }}
+                    {{- with $m.link }}
+                    <a class="mom-link" href="{{ . }}" target="_blank" rel="noopener">🔗 {{ . }}</a>
+                    {{- end }}
+                </article>
+            {{- else }}
+                {{- $p := $item.p }}
+                <article class="mom-post">
+                    {{- with $p.Params.cover.image }}
+                    <a class="mom-post-cover" href="{{ $p.RelPermalink }}"><img src="{{ . }}" alt="" loading="lazy"></a>
+                    {{- end }}
+                    <div class="mom-post-body">
+                        <div class="mom-post-meta">
+                            <span>{{ $p.Date.Format "2006-01-02" }}</span>
+                            {{- with $p.Params.categories }}
+                            <span class="mom-post-cat">{{ delimit . " / " }}</span>
+                            {{- end }}
+                        </div>
+                        <h3 class="mom-post-title"><a href="{{ $p.RelPermalink }}">{{ $p.Title }}</a></h3>
+                        <p class="mom-post-summary">{{ $p.Summary | plainify | htmlUnescape }}</p>
+                        <div style="display:flex; gap:12px; align-items:center; margin-top:auto;">
+                            <a class="mom-post-more" href="{{ $p.RelPermalink }}">查看全文 →</a>
+                            <a class="mom-post-edit dyn-tool-link" style="display:none"
+                               href="blogtool://edit?file=content/{{ replace $p.File.Path "\\" "/" }}">✏ 编辑</a>
+                        </div>
+                    </div>
+                </article>
+            {{- end }}
+        {{- end }}
     </div>
-    {{ partial "sidebar-right.html" . }}
 </div>
+
+<script>
+(function () {
+    if (['localhost', '127.0.0.1'].includes(location.hostname)) {
+        document.querySelectorAll('.dyn-tool-link').forEach(function (el) {
+            el.style.display = '';
+        });
+    }
+})();
+(function () {
+    var links = Array.prototype.slice.call(document.querySelectorAll('.mom-img[data-lb]'));
+    if (!links.length) return;
+    var overlay = document.createElement('div');
+    overlay.className = 'lb';
+    overlay.innerHTML = '<span class="lb-close">✕</span><img class="lb-img" src="" alt=""><div class="lb-nav"><button class="lb-prev">‹</button><button class="lb-next">›</button></div>';
+    document.body.appendChild(overlay);
+    var imgEl = overlay.querySelector('.lb-img');
+    var cur = 0;
+    function show(i) {
+        cur = (i + links.length) % links.length;
+        imgEl.src = links[cur].getAttribute('href');
+        overlay.classList.add('open');
+    }
+    function close() { overlay.classList.remove('open'); }
+    links.forEach(function (a, i) {
+        a.addEventListener('click', function (e) { e.preventDefault(); show(i); });
+    });
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    overlay.querySelector('.lb-close').addEventListener('click', close);
+    overlay.querySelector('.lb-prev').addEventListener('click', function (e) { e.stopPropagation(); show(cur - 1); });
+    overlay.querySelector('.lb-next').addEventListener('click', function (e) { e.stopPropagation(); show(cur + 1); });
+    document.addEventListener('keydown', function (e) {
+        if (!overlay.classList.contains('open')) return;
+        if (e.key === 'Escape') close();
+        if (e.key === 'ArrowLeft') show(cur - 1);
+        if (e.key === 'ArrowRight') show(cur + 1);
+    });
+})();
+</script>
 {{ end }}

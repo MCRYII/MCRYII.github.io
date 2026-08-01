@@ -11,9 +11,10 @@
         {{- $calData = merge $calData (dict $d (slice $item)) -}}
     {{- end -}}
 {{- end -}}
+{{- $events := default (dict) hugo.Data.events -}}
 <style>
-main.main { max-width: 860px !important; }
-.cal-page { padding: 24px; }
+main.main { max-width: none !important; }
+.cal-main { padding: 22px; }
 .cal-big-head {
     display: flex;
     align-items: center;
@@ -33,6 +34,13 @@ main.main { max-width: 860px !important; }
     margin-left: 8px;
 }
 .cal-big-nav button:hover { background: rgba(212, 175, 55, 0.25); }
+.cal-big-nav .cal-today-btn {
+    width: auto;
+    height: 30px;
+    padding: 0 14px;
+    border-radius: 17px;
+    font-size: 0.8rem;
+}
 .cal-big-week {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -47,8 +55,9 @@ main.main { max-width: 860px !important; }
     gap: 4px;
 }
 .cal-big-cell {
+    position: relative;
     text-align: center;
-    padding: 12px 0;
+    padding: 10px 0 16px;
     border-radius: var(--radius-sm);
     font-size: 0.9rem;
     cursor: pointer;
@@ -56,6 +65,7 @@ main.main { max-width: 860px !important; }
     transition: all 0.15s;
 }
 .cal-big-cell:hover { background: rgba(212, 175, 55, 0.1); }
+.cal-big-cell.today { box-shadow: inset 0 0 0 1.5px rgba(212, 175, 55, 0.65); }
 .cal-big-cell.has-post {
     color: #d4af37;
     font-weight: 700;
@@ -66,6 +76,24 @@ main.main { max-width: 860px !important; }
     background: #d4af37;
     color: #1b1405;
     box-shadow: 0 4px 14px rgba(212, 175, 55, 0.4);
+}
+.cal-badge {
+    position: absolute;
+    top: 1px;
+    right: 3px;
+    font-size: 0.62rem;
+    line-height: 1;
+}
+.cal-big-cell.has-sched::after {
+    content: '';
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #4a90d9;
 }
 .cal-big-list {
     margin-top: 16px;
@@ -81,60 +109,208 @@ main.main { max-width: 860px !important; }
     font-size: 0.9rem;
 }
 .cal-big-list a:hover { background: rgba(212, 175, 55, 0.1); color: #d4af37; }
+.cal-big-fest { padding: 8px 12px; font-size: 0.9rem; color: #e05c5c; }
+.cal-big-sched { padding: 8px 12px; font-size: 0.9rem; color: #4a90d9; }
 .cal-big-empty { color: #999; font-size: 0.85rem; padding: 10px 12px; }
+
+/* 右侧功能栏 */
+.cal-side-empty { color: #999; font-size: 0.8rem; padding: 6px 0; }
+.cal-fest-item { font-size: 0.9rem; padding: 5px 0; }
+.cal-sched-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 5px 0;
+    font-size: 0.88rem;
+}
+.cal-del {
+    border: none;
+    background: transparent;
+    color: #b66;
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+}
+.cal-del:hover { background: rgba(200, 80, 80, 0.15); }
+.cal-up-title { margin-top: 12px; padding-top: 10px; border-top: 1px dashed rgba(212, 175, 55, 0.3); }
+.cal-up-item { font-size: 0.82rem; color: #999; padding: 4px 0; }
+#cal-form label { display: block; font-size: 0.82rem; color: #999; margin: 8px 0 2px; }
+#cal-form input,
+#cal-form select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    background: transparent;
+    color: var(--primary);
+    font-size: 0.88rem;
+}
+#cal-form button[type="submit"] {
+    margin-top: 12px;
+    width: 100%;
+    padding: 8px;
+    border-radius: 10px;
+    border: 1px solid rgba(212, 175, 55, 0.5);
+    background: rgba(212, 175, 55, 0.12);
+    color: #d4af37;
+    font-weight: 600;
+    cursor: pointer;
+}
+#cal-form button[type="submit"]:hover { background: rgba(212, 175, 55, 0.25); }
+
+/* 提醒提示条 */
+.cal-remind-bar {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    background: #1b1405;
+    color: #f4e8c1;
+    border: 1px solid rgba(212, 175, 55, 0.6);
+    border-radius: 12px;
+    padding: 12px 18px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+    max-width: min(90vw, 460px);
+}
+.cal-remind-bar .cr-item { font-size: 0.9rem; margin-top: 5px; }
+.cal-remind-bar .cr-time { color: #d4af37; margin-left: 8px; font-size: 0.78rem; }
+.cal-remind-bar button {
+    margin-top: 10px;
+    border: 1px solid rgba(212, 175, 55, 0.5);
+    background: transparent;
+    color: #d4af37;
+    border-radius: 8px;
+    padding: 3px 16px;
+    cursor: pointer;
+}
+@media (max-width: 900px) {
+    .cal-big-cell { padding: 8px 0 14px; font-size: 0.82rem; }
+    .cal-badge { font-size: 0.55rem; }
+}
 </style>
-<article class="post-single cal-page">
-    <header class="post-header">
-        <h1 class="post-title">日历</h1>
-    </header>
-    <div class="post-content">
-        <p>带金色标记的日期有内容发布，点击日期查看当天文章。</p>
-        <div class="cal-big-head">
-            <span class="cal-big-title" id="cal-big-title"></span>
-            <div class="cal-big-nav">
-                <button type="button" id="cal-big-prev">‹</button>
-                <button type="button" id="cal-big-next">›</button>
+<div class="three-col">
+    {{ partial "sidebar-left.html" . }}
+    <div class="col-main">
+        <article class="post-single cal-main">
+            <header class="post-header">
+                <h1 class="post-title">日历</h1>
+            </header>
+            <div class="post-content">
+                <div class="cal-big-head">
+                    <span class="cal-big-title" id="cal-big-title"></span>
+                    <div class="cal-big-nav">
+                        <button type="button" id="cal-big-today" class="cal-today-btn" title="回到今天">今天</button>
+                        <button type="button" id="cal-big-prev" title="上个月">‹</button>
+                        <button type="button" id="cal-big-next" title="下个月">›</button>
+                    </div>
+                </div>
+                <div class="cal-big-week">
+                    <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+                </div>
+                <div class="cal-big-grid" id="cal-big-grid"></div>
+                <div class="cal-big-list" id="cal-big-list"></div>
             </div>
-        </div>
-        <div class="cal-big-week">
-            <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
-        </div>
-        <div class="cal-big-grid" id="cal-big-grid"></div>
-        <div class="cal-big-list" id="cal-big-list"></div>
+        </article>
     </div>
-</article>
+    <aside class="side-col side-col-right">
+        <div class="side-card">
+            <div class="side-card-title">节日 · 纪念日</div>
+            <div id="cal-fest"></div>
+        </div>
+        <div class="side-card">
+            <div class="side-card-title">当天日程</div>
+            <div id="cal-sched"></div>
+            <div class="side-card-title cal-up-title">即将到来</div>
+            <div id="cal-upcoming"></div>
+        </div>
+        <div class="side-card">
+            <div class="side-card-title">添加日程</div>
+            <form id="cal-form">
+                <label>日期<input type="date" id="cal-f-date" required></label>
+                <label>时间<input type="time" id="cal-f-time"></label>
+                <label>内容<input type="text" id="cal-f-title" placeholder="要做什么" maxlength="50" required></label>
+                <label>提醒
+                    <select id="cal-f-remind">
+                        <option value="same-day">当天</option>
+                        <option value="10m">提前 10 分钟</option>
+                        <option value="1h">提前 1 小时</option>
+                    </select>
+                </label>
+                <button type="submit">添加日程</button>
+            </form>
+        </div>
+    </aside>
+</div>
 <script>
 window.__calBigData = {{ $calData | jsonify | safeJS }};
+window.__calEvents = {{ $events | jsonify | safeJS }};
 (function () {
     var data = window.__calBigData || {};
+    var events = (window.__calEvents && window.__calEvents.events) || [];
+    var SCHED_KEY = 'mcryii_calendar_schedules';
+
+    /* CAL-LOGIC-BEGIN */
+    function pad(n) { return n < 10 ? '0' + n : '' + n; }
+    function schedMs(s) {
+        var hm = (s.time || '09:00').split(':');
+        return new Date(s.date + 'T' + hm[0] + ':' + hm[1] + ':00').getTime();
+    }
+    function remindMs(s) {
+        var lead = s.remind === '10m' ? 600000 : s.remind === '1h' ? 3600000 : 0;
+        return schedMs(s) - lead;
+    }
+    function festMapForYear(events, y) {
+        var map = {};
+        events.forEach(function (e) {
+            var k = e.date.length === 5 ? y + '-' + e.date : e.date;
+            (map[k] = map[k] || []).push(e);
+        });
+        return map;
+    }
+    /* CAL-LOGIC-END */
+
     var grid = document.getElementById('cal-big-grid');
-    var title = document.getElementById('cal-big-title');
     var list = document.getElementById('cal-big-list');
+    var title = document.getElementById('cal-big-title');
+    var festEl = document.getElementById('cal-fest');
+    var schedEl = document.getElementById('cal-sched');
+    var upEl = document.getElementById('cal-upcoming');
+    var form = document.getElementById('cal-form');
+    var fDate = document.getElementById('cal-f-date');
+    var fTime = document.getElementById('cal-f-time');
+    var fTitle = document.getElementById('cal-f-title');
+    var fRemind = document.getElementById('cal-f-remind');
+    if (!grid || !list) return;
+
     var now = new Date();
     var year = now.getFullYear();
     var month = now.getMonth();
     var selected = null;
-    function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
     function key(y, m, d) { return y + '-' + pad(m + 1) + '-' + pad(d); }
-    function showDay(k) {
-        selected = k;
-        render();
-        list.innerHTML = '';
-        var items = data[k] || [];
-        if (!items.length) {
-            list.innerHTML = '<div class="cal-big-empty">当天没有内容</div>';
-            return;
-        }
-        items.forEach(function (it) {
-            var a = document.createElement('a');
-            a.href = it.url;
-            a.textContent = '📄 ' + it.title;
-            list.appendChild(a);
+    function todayKey() { return key(now.getFullYear(), now.getMonth(), now.getDate()); }
+
+    function loadSchedules() {
+        try { return JSON.parse(localStorage.getItem(SCHED_KEY) || '[]'); }
+        catch (e) { return []; }
+    }
+    function saveSchedules(list) { localStorage.setItem(SCHED_KEY, JSON.stringify(list)); }
+    function esc(s) {
+        return String(s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
         });
     }
+
     function render() {
         title.textContent = year + '年' + (month + 1) + '月';
         grid.innerHTML = '';
+        var fmap = festMapForYear(events, year);
+        var scheds = loadSchedules();
+        var tk = todayKey();
         var first = new Date(year, month, 1);
         for (var i = 0; i < first.getDay(); i++) {
             var b = document.createElement('div');
@@ -145,25 +321,203 @@ window.__calBigData = {{ $calData | jsonify | safeJS }};
         for (var d = 1; d <= days; d++) {
             var k = key(year, month, d);
             var cell = document.createElement('div');
-            cell.className = 'cal-big-cell' + (data[k] ? ' has-post' : '') + (k === selected ? ' selected' : '');
+            cell.className = 'cal-big-cell';
+            if (k === tk) cell.className += ' today';
+            if (data[k]) cell.className += ' has-post';
+            if (k === selected) cell.className += ' selected';
             cell.textContent = d;
-            cell.addEventListener('click', function () { showDay(this.dataset.k); });
+            var f = fmap[k];
+            if (f && f.length) {
+                var badge = document.createElement('span');
+                badge.className = 'cal-badge';
+                badge.textContent = f[0].emoji;
+                badge.title = f.map(function (e) { return e.name; }).join(' / ');
+                cell.appendChild(badge);
+            }
+            for (var j = 0; j < scheds.length; j++) {
+                if (scheds[j].date === k) { cell.className += ' has-sched'; break; }
+            }
+            cell.addEventListener('click', function () { selectDay(this.dataset.k); });
             cell.dataset.k = k;
             grid.appendChild(cell);
         }
     }
+
+    function renderSchedSide(k) {
+        var scheds = loadSchedules();
+        schedEl.innerHTML = '';
+        var dayScheds = scheds.filter(function (s) { return s.date === k; });
+        if (!dayScheds.length) {
+            schedEl.innerHTML = '<div class="cal-side-empty">这一天没有日程</div>';
+        } else {
+            dayScheds.forEach(function (s) {
+                var row = document.createElement('div');
+                row.className = 'cal-sched-row';
+                var info = document.createElement('span');
+                info.textContent = (s.time || '全天') + ' ' + s.title;
+                var del = document.createElement('button');
+                del.type = 'button';
+                del.className = 'cal-del';
+                del.textContent = '✕';
+                del.title = '删除该日程';
+                del.addEventListener('click', function () {
+                    saveSchedules(loadSchedules().filter(function (x) { return x.id !== s.id; }));
+                    selectDay(selected);
+                });
+                row.appendChild(info);
+                row.appendChild(del);
+                schedEl.appendChild(row);
+            });
+        }
+        upEl.innerHTML = '';
+        var upcoming = scheds
+            .filter(function (s) { return s.date > todayKey(); })
+            .sort(function (a, b) { return schedMs(a) - schedMs(b); })
+            .slice(0, 5);
+        if (!upcoming.length) {
+            upEl.innerHTML = '<div class="cal-side-empty">暂无</div>';
+        } else {
+            upcoming.forEach(function (s) {
+                var div = document.createElement('div');
+                div.className = 'cal-up-item';
+                div.textContent = s.date.slice(5).replace('-', '/') + ' ' + (s.time || '') + ' ' + esc(s.title);
+                upEl.appendChild(div);
+            });
+        }
+    }
+
+    function selectDay(k) {
+        selected = k;
+        render();
+        var fests = festMapForYear(events, +k.slice(0, 4))[k] || [];
+        var scheds = loadSchedules().filter(function (s) { return s.date === k; });
+        var items = data[k] || [];
+        list.innerHTML = '';
+        if (!fests.length && !scheds.length && !items.length) {
+            list.innerHTML = '<div class="cal-big-empty">当天没有内容</div>';
+        }
+        fests.forEach(function (e) {
+            var div = document.createElement('div');
+            div.className = 'cal-big-fest';
+            div.textContent = e.emoji + ' ' + e.name + (e.type === 'memorial' ? '（纪念日）' : '');
+            list.appendChild(div);
+        });
+        scheds.forEach(function (s) {
+            var div = document.createElement('div');
+            div.className = 'cal-big-sched';
+            div.textContent = '⏰ ' + (s.time || '全天') + ' ' + esc(s.title);
+            list.appendChild(div);
+        });
+        items.forEach(function (it) {
+            var a = document.createElement('a');
+            a.href = it.url;
+            a.textContent = '📄 ' + it.title;
+            list.appendChild(a);
+        });
+        festEl.innerHTML = '';
+        if (!fests.length) {
+            festEl.innerHTML = '<div class="cal-side-empty">这一天没有节日</div>';
+        } else {
+            fests.forEach(function (e) {
+                var div = document.createElement('div');
+                div.className = 'cal-fest-item';
+                div.textContent = e.emoji + ' ' + e.name;
+                festEl.appendChild(div);
+            });
+        }
+        renderSchedSide(k);
+        fDate.value = k;
+    }
+
+    form.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        var d = fDate.value;
+        var txt = fTitle.value.trim();
+        if (!d || !txt) return;
+        var scheds = loadSchedules();
+        scheds.push({
+            id: Date.now().toString(36),
+            date: d,
+            time: fTime.value,
+            title: txt,
+            remind: fRemind.value,
+            notified: false
+        });
+        saveSchedules(scheds);
+        fTitle.value = '';
+        if (window.Notification && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+        year = +d.slice(0, 4);
+        month = +d.slice(5, 7) - 1;
+        selectDay(d);
+    });
+
+    function checkReminders() {
+        var scheds = loadSchedules();
+        var changed = false;
+        var due = [];
+        var t = Date.now();
+        var DAY = 86400000;
+        scheds.forEach(function (s) {
+            if (s.notified) return;
+            var evMs = schedMs(s);
+            var rmMs = remindMs(s);
+            if (t >= evMs + DAY) { s.notified = true; changed = true; return; }
+            if (t >= rmMs) {
+                s.notified = true;
+                changed = true;
+                due.push(s);
+            }
+        });
+        if (changed) saveSchedules(scheds);
+        if (!due.length) return;
+        var bar = document.createElement('div');
+        bar.className = 'cal-remind-bar';
+        var head = document.createElement('b');
+        head.textContent = '📅 日程提醒';
+        bar.appendChild(head);
+        due.forEach(function (s) {
+            var div = document.createElement('div');
+            div.className = 'cr-item';
+            div.textContent = esc(s.title);
+            var time = document.createElement('span');
+            time.className = 'cr-time';
+            time.textContent = s.date + (s.time ? ' ' + s.time : '');
+            div.appendChild(time);
+            bar.appendChild(div);
+        });
+        var close = document.createElement('button');
+        close.type = 'button';
+        close.textContent = '知道了';
+        close.addEventListener('click', function () { bar.remove(); });
+        bar.appendChild(close);
+        document.body.appendChild(bar);
+        if (window.Notification && Notification.permission === 'granted') {
+            due.forEach(function (s) {
+                try {
+                    new Notification('📅 ' + s.title, { body: s.date + (s.time ? ' ' + s.time : '') });
+                } catch (e) {}
+            });
+        }
+    }
+
     document.getElementById('cal-big-prev').addEventListener('click', function () {
         month--; if (month < 0) { month = 11; year--; }
-        selected = null;
-        render();
+        selectDay(key(year, month, 1));
     });
     document.getElementById('cal-big-next').addEventListener('click', function () {
         month++; if (month > 11) { month = 0; year++; }
-        selected = null;
-        render();
+        selectDay(key(year, month, 1));
     });
-    render();
-    showDay(key(year, month, now.getDate()));
+    document.getElementById('cal-big-today').addEventListener('click', function () {
+        year = now.getFullYear();
+        month = now.getMonth();
+        selectDay(todayKey());
+    });
+
+    selectDay(todayKey());
+    checkReminders();
 })();
 </script>
 {{ end }}
