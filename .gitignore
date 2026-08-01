@@ -2,3 +2,4 @@
 docs/
 resources/
 .hugo_build.lock
+static/bookmarks-local.json

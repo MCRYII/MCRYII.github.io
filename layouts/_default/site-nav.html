@@ -343,10 +343,12 @@ html[data-theme="dark"] #lock-cancel { background: rgba(255, 255, 255, 0.08); }
                 var countText = unlocked
                     ? (total + ' 个链接 · ' + cats.length + ' 个分类')
                     : (visibleLinks + ' 个链接');
+                var lockHtml = hiddenCount > 0
+                    ? '<button type="button" class="' + lockCls + '" id="lock-btn">' + lockText + '</button>'
+                    : '';
                 var html = '<div class="bm-toolbar">' +
                     '<input type="text" id="bm-search" placeholder="🔍 搜索收藏夹（标题 / 网址）..." autocomplete="off">' +
-                    '<span class="bm-count">' + countText + '</span>' +
-                    '<button type="button" class="' + lockCls + '" id="lock-btn">' + lockText + '</button></div>';
+                    '<span class="bm-count">' + countText + '</span>' + lockHtml + '</div>';
                 cats.forEach(function (cat) {
                     var catHidden = cat.links.some(function (l) { return isHidden(cat.name, l); });
                     var links = cat.links;
@@ -401,11 +403,38 @@ html[data-theme="dark"] #lock-cancel { background: rgba(255, 255, 255, 0.08); }
                 }
             }
 
+            function isLocalHost() {
+                var h = location.hostname;
+                return h === 'localhost' || h === '127.0.0.1';
+            }
+
+            function mergeLocalData(data, local) {
+                (local.categories || []).forEach(function (lc) {
+                    var match = null;
+                    (data.categories || []).forEach(function (c) {
+                        if (c.name === lc.name) match = c;
+                    });
+                    if (match) match.links = match.links.concat(lc.links);
+                    else data.categories.push(lc);
+                });
+                data.total = (data.total || 0) + (local.total || 0);
+            }
+
             var unlocked = localStorage.getItem(STORAGE_KEY) === '1';
             fetch('/bookmarks.json', { cache: 'no-store' })
                 .then(function (r) {
                     if (!r.ok) throw new Error('HTTP ' + r.status);
                     return r.json();
+                })
+                .then(function (data) {
+                    if (!isLocalHost()) return data;
+                    return fetch('/bookmarks-local.json', { cache: 'no-store' })
+                        .then(function (r) { return r.ok ? r.json() : null; })
+                        .then(function (local) {
+                            if (local) mergeLocalData(data, local);
+                            return data;
+                        })
+                        .catch(function () { return data; });
                 })
                 .then(function (data) { renderBookmarks(data, unlocked); })
                 .catch(function () {
