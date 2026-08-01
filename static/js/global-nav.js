@@ -137,8 +137,8 @@
         }
         loading = true;
         var ctrl = new AbortController();
-        // ponytail: 15s 上限，网络卡住时自动放弃局部刷新，改整页跳转
-        var timer = setTimeout(function () { ctrl.abort(); }, 15000);
+        // ponytail: 5s 上限，网络卡住时自动放弃局部刷新，改整页跳转
+        var timer = setTimeout(function () { ctrl.abort(); }, 5000);
         fetch(url, { headers: { 'X-PJAX': '1' }, credentials: 'same-origin', signal: ctrl.signal })
             .then(function (res) {
                 if (!res.ok) throw new Error('HTTP ' + res.status);
