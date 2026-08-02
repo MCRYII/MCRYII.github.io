@@ -148,22 +148,331 @@ html[data-theme="dark"] .cat-card { background: var(--card-bg-dark); }
     {{ partial "sidebar-right.html" . }}
 </div>
 {{- else }}
-    {{- if .Title }}
-    <header class="page-header">
+<style>
+main.main { max-width: none !important; }
+[hidden] { display: none !important; }
+.tags-stage { max-width: 1120px; margin: 0 auto; padding: 12px 0 30px; }
+.tags-head { text-align: center; margin-bottom: 22px; }
+.tags-head h1 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 800;
+    background: linear-gradient(120deg, #b8860b, #8a6d1d 50%, #b8860b);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+html[data-theme="dark"] .tags-head h1 {
+    background: linear-gradient(120deg, #f4d97b, #d4af37 45%, #f9e7a0);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+.tags-sub { margin: 8px 0 0; font-size: 0.9rem; color: var(--secondary); }
+.tags-flyzone {
+    position: relative;
+    height: clamp(320px, 58vh, 540px);
+    border-radius: 24px;
+    overflow: hidden;
+    border: 1px solid rgba(212, 175, 55, 0.28);
+    background:
+        radial-gradient(1100px 480px at 12% 8%, rgba(212, 175, 55, 0.10), transparent 60%),
+        radial-gradient(900px 460px at 88% 92%, rgba(212, 175, 55, 0.08), transparent 60%),
+        var(--card-bg);
+    box-shadow: inset 0 0 70px rgba(0, 0, 0, 0.10);
+}
+html[data-theme="dark"] .tags-flyzone {
+    background:
+        radial-gradient(1100px 480px at 12% 8%, rgba(212, 175, 55, 0.15), transparent 60%),
+        radial-gradient(900px 460px at 88% 92%, rgba(212, 175, 55, 0.11), transparent 60%),
+        linear-gradient(165deg, #191925, #101018);
+}
+.tag-star {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #d4af37;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 0;
+    animation: starTwinkle 3s ease-in-out infinite;
+}
+@keyframes starTwinkle {
+    0%, 100% { opacity: 0.05; transform: scale(0.7); }
+    50% { opacity: 0.6; transform: scale(1.2); }
+}
+.tag-chip {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 1;
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    border-radius: 999px;
+    padding: 8px 18px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(212, 175, 55, 0.14));
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: var(--primary);
+    font-weight: 700;
+    font-size: calc(0.92rem + min(var(--count), 5) * 0.12rem);
+    line-height: 1.4;
+    white-space: nowrap;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(212, 175, 55, 0.15);
+    animation: tagFloat var(--fd, 8s) ease-in-out infinite alternate;
+    transition: box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+    will-change: transform;
+}
+@keyframes tagFloat {
+    from { transform: translate3d(0, 0, 0) rotate(var(--rot, 0deg)); }
+    to { transform: translate3d(var(--fx, 8px), var(--fy, 8px), 0) rotate(calc(0deg - var(--rot, 0deg))); }
+}
+.tag-chip:hover, .tag-chip.active {
+    z-index: 2;
+    border-color: #d4af37;
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.30), rgba(212, 175, 55, 0.18));
+    box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.16), 0 12px 30px rgba(212, 175, 55, 0.35);
+    animation-play-state: paused;
+}
+.tag-chip.active {
+    background: linear-gradient(135deg, #d4af37, #b8860b);
+    color: #fff;
+}
+.tag-chip sup {
+    margin-left: 6px;
+    font-size: 0.68em;
+    color: #d4af37;
+    font-weight: 800;
+}
+.tag-chip.active sup { color: rgba(255, 255, 255, 0.85); }
+.tags-result {
+    margin-top: 26px;
+    padding: 20px 22px 22px;
+    border-radius: 20px;
+    border: 1px solid rgba(212, 175, 55, 0.28);
+    background: var(--card-bg);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08);
+    animation: resultIn 0.35s ease;
+}
+html[data-theme="dark"] .tags-result { background: var(--card-bg-dark); }
+@keyframes resultIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.tags-result-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.tags-result-title { margin: 0; font-size: 1.25rem; font-weight: 800; color: #d4af37; }
+.tags-result-close {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    background: none;
+    color: #d4af37;
+    font-size: 0.85rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+.tags-result-close:hover { background: rgba(212, 175, 55, 0.16); transform: rotate(90deg); }
+.tags-result-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 14px;
+}
+.tag-post-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border: 1px solid rgba(212, 175, 55, 0.18);
+    border-radius: 14px;
+    background: rgba(212, 175, 55, 0.05);
+    color: var(--primary);
+    text-decoration: none;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.tag-post-card:hover {
+    transform: translateY(-3px);
+    border-color: #d4af37;
+    box-shadow: 0 8px 22px rgba(212, 175, 55, 0.18);
+}
+.tag-post-cover {
+    width: 74px;
+    height: 50px;
+    border-radius: 10px;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #2b2415, #4d3d16);
+}
+.tag-post-cover img { width: 100%; height: 100%; object-fit: cover; }
+.tag-post-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.tag-post-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tag-post-date { font-size: 0.74rem; color: #999; }
+@media (prefers-reduced-motion: reduce) {
+    .tag-chip, .tag-star { animation: none !important; }
+    .tags-result { animation: none; }
+}
+</style>
+<div class="tags-stage">
+    <header class="tags-head">
         <h1>{{ .Title }}</h1>
+        <p class="tags-sub">共 {{ len .Data.Terms }} 个标签 · 点击标签查看对应文章</p>
     </header>
-    {{- end }}
-    <ul class="terms-tags">
+    <div class="tags-flyzone" id="tags-flyzone">
         {{- $type := .Type }}
         {{- range $key, $value := .Data.Terms.Alphabetical }}
             {{- $name := .Name }}
             {{- $count := .Count }}
             {{- with site.GetPage (printf "/%s/%s" $type $name) }}
-            <li>
-                <a href="{{ .RelPermalink }}">{{ .LinkTitle }} <sup><strong><sup>{{ $count }}</sup></strong></sup> </a>
-            </li>
+            <button type="button" class="tag-chip" data-tag="{{ $name }}" data-count="{{ $count }}" style="--count: {{ $count }}" title="{{ .LinkTitle }} · {{ $count }} 篇">
+                {{ .LinkTitle }}<sup>{{ $count }}</sup>
+            </button>
             {{- end }}
         {{- end }}
-    </ul>
+    </div>
+    <section class="tags-result" id="tags-result" hidden>
+        <div class="tags-result-head">
+            <h2 class="tags-result-title"></h2>
+            <button type="button" class="tags-result-close" title="关闭结果区" aria-label="关闭结果区">✕</button>
+        </div>
+        <div class="tags-result-grid"></div>
+    </section>
+</div>
+{{- $tagData := dict }}
+{{- range .Data.Terms.Alphabetical }}
+    {{- $posts := slice }}
+    {{- range .Pages }}
+        {{- $posts = $posts | append (dict "title" .Title "date" (.Date.Format "2006-01-02") "cover" (or .Params.cover.image "/images/default-cover.png") "url" .RelPermalink) }}
+    {{- end }}
+    {{- $tagData = merge $tagData (dict .Name $posts) }}
+{{- end }}
+<script>
+(function () {
+    var zone = document.getElementById('tags-flyzone');
+    var result = document.getElementById('tags-result');
+    var grid = result.querySelector('.tags-result-grid');
+    var titleEl = result.querySelector('.tags-result-title');
+    var chips = Array.prototype.slice.call(zone.querySelectorAll('.tag-chip'));
+    var DATA = {{ $tagData | jsonify | safeJS }};
+    if (!zone || !chips.length) return;
+
+    // 星光点缀：纯 opacity 动画，开销极小
+    var starCount = Math.min(28, Math.floor(zone.clientWidth / 38));
+    for (var s = 0; s < starCount; s++) {
+        var dot = document.createElement('i');
+        dot.className = 'tag-star';
+        dot.style.left = (Math.random() * 100).toFixed(2) + '%';
+        dot.style.top = (Math.random() * 100).toFixed(2) + '%';
+        dot.style.animationDelay = (Math.random() * 4).toFixed(2) + 's';
+        dot.style.animationDuration = (2.5 + Math.random() * 3).toFixed(2) + 's';
+        zone.appendChild(dot);
+    }
+
+    // 网格随机散布，避免标签互相遮挡；每颗标签独立漂浮参数
+    function layout() {
+        var w = zone.clientWidth, h = zone.clientHeight;
+        var n = chips.length;
+        var cols = Math.max(1, Math.round(Math.sqrt(n * w / Math.max(h, 1))));
+        var rows = Math.ceil(n / cols);
+        var cw = w / cols, ch = h / rows;
+        var order = chips.map(function (_, i) { return i; });
+        for (var i = order.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var t = order[i]; order[i] = order[j]; order[j] = t;
+        }
+        chips.forEach(function (chip, k) {
+            var idx = order[k];
+            var x = (idx % cols) * cw + cw / 2 + (Math.random() - 0.5) * cw * 0.38;
+            var y = Math.floor(idx / cols) * ch + ch / 2 + (Math.random() - 0.5) * ch * 0.38;
+            var bw = chip.offsetWidth, bh = chip.offsetHeight;
+            chip.style.left = Math.max(4, Math.min(w - bw - 4, x - bw / 2)) + 'px';
+            chip.style.top = Math.max(4, Math.min(h - bh - 4, y - bh / 2)) + 'px';
+            var d = 6 + Math.random() * 6;
+            chip.style.setProperty('--fd', d.toFixed(2) + 's');
+            chip.style.setProperty('--fx', (6 + Math.random() * 12).toFixed(0) + 'px');
+            chip.style.setProperty('--fy', (5 + Math.random() * 12).toFixed(0) + 'px');
+            chip.style.setProperty('--rot', ((Math.random() * 8 - 4) | 0) + 'deg');
+        });
+    }
+    layout();
+    var resizeTimer = null;
+    window.addEventListener('resize', function () {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(layout, 150);
+    });
+
+    function render(tag) {
+        var posts = DATA[tag] || [];
+        titleEl.textContent = tag + ' · ' + posts.length + ' 篇';
+        grid.innerHTML = '';
+        posts.forEach(function (p) {
+            var a = document.createElement('a');
+            a.className = 'tag-post-card';
+            a.href = p.url;
+            a.setAttribute('data-nav-link', '');
+            var cover = document.createElement('span');
+            cover.className = 'tag-post-cover';
+            var img = document.createElement('img');
+            img.src = p.cover;
+            img.alt = '';
+            img.loading = 'lazy';
+            cover.appendChild(img);
+            var body = document.createElement('span');
+            body.className = 'tag-post-body';
+            var t = document.createElement('span');
+            t.className = 'tag-post-title';
+            t.textContent = p.title;
+            var d = document.createElement('time');
+            d.className = 'tag-post-date';
+            d.textContent = p.date;
+            body.appendChild(t);
+            body.appendChild(d);
+            a.appendChild(cover);
+            a.appendChild(body);
+            grid.appendChild(a);
+        });
+        result.removeAttribute('hidden');
+        setTimeout(function () { result.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
+        if (window.__syncNavActive) window.__syncNavActive();
+    }
+
+    function clearActive() {
+        chips.forEach(function (c) { c.classList.remove('active'); });
+        result.setAttribute('hidden', '');
+    }
+
+    chips.forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            if (chip.classList.contains('active')) {
+                clearActive();
+                zone.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                return;
+            }
+            chips.forEach(function (c) { c.classList.remove('active'); });
+            chip.classList.add('active');
+            render(chip.getAttribute('data-tag'));
+        });
+    });
+
+    result.querySelector('.tags-result-close').addEventListener('click', clearActive);
+})();
+</script>
 {{- end }}
 {{- end }}

@@ -7,6 +7,7 @@
 import base64
 import datetime
 import json
+import mimetypes
 import os
 import re
 import shutil
@@ -1391,9 +1392,63 @@ textarea#f-body { width:100%; height:44vh; font-family:Consolas,monospace; font-
 .btn.gold:hover { background:#e0bc4e; }
 .btn.danger { background:#3a2023; color:var(--red); border-color:#5a2c30; }
 .btn.sm { padding:4px 10px; font-size:.78rem; }
+.pv-img-err { display: block; color: var(--red); font-size: .78rem; padding: 6px 0; }
+.chipbox {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    background: var(--input);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 8px;
+}
+.chipbox:focus-within { border-color: var(--gold); }
+.chipbox input {
+    flex: 1;
+    min-width: 120px;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: .85rem;
+    outline: none;
+    padding: 4px;
+}
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #3a3522;
+    color: var(--gold);
+    border: 1px solid var(--gold-dark);
+    border-radius: 999px;
+    padding: 3px 8px 3px 10px;
+    font-size: .78rem;
+}
+.chip-x { cursor: pointer; color: var(--red); font-size: .82rem; line-height: 1; }
+.chip-x:hover { color: #ff7a80; }
+.chip-drop {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 20;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .4);
+}
+.chip-drop div { padding: 7px 12px; font-size: .82rem; cursor: pointer; color: var(--text); }
+.chip-drop div:hover { background: #3a3522; color: var(--gold); }
 #pv { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-top:12px; display:none; font-size:.88rem; line-height:1.7; }
 #pv h1,#pv h2,#pv h3 { color:var(--gold); }
-#pv img { max-width:100%; border-radius:8px; }
+#pv img { display:block; max-width:360px; max-height:240px; object-fit:contain; border-radius:8px; border:1px solid var(--border); }
+.pv-img-wrap { position:relative; display:inline-block; margin:6px 0; }
+.pv-img-x { display:none; position:absolute; top:-8px; right:-8px; width:20px; height:20px; line-height:20px; text-align:center; border-radius:50%; background:var(--red); color:#fff; cursor:pointer; font-size:.72rem; box-shadow:0 1px 4px rgba(0,0,0,.4); }
+.pv-img-wrap:hover .pv-img-x { display:block; }
 #pv a { color:#7fb3ff; }
 #pv code { background:#2a2a30; border-radius:4px; padding:1px 6px; }
 #pv pre { background:#2a2a30; padding:10px; border-radius:8px; overflow-x:auto; }
@@ -1420,31 +1475,84 @@ select:focus { outline:none; border-color:var(--gold); }
 .mom-del { margin-left:auto; }
 .small { font-size:.75rem; color:var(--muted); }
 .hidden-file { display:none; }
+.ic { width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; vertical-align:-2px; margin-right:5px; flex-shrink:0; }
+.ic-sm { width:12px; height:12px; margin:0 3px 0 0; vertical-align:-1px; }
+.list-bar { display:flex; align-items:center; justify-content:space-between; padding:10px 12px 4px; color:var(--muted); font-size:.85rem; font-weight:700; }
+#art-list-pane { position:relative; }
+#art-list-pane.collapsed { width:28px !important; overflow:visible; }
+#art-list-pane.collapsed .list-bar,
+#art-list-pane.collapsed #art-list { display:none; }
+#btn-expand {
+    display:none;
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%, -50%);
+    width:24px;
+    height:36px;
+    padding:0;
+    border-radius:8px;
+}
+#art-list-pane.collapsed #btn-expand { display:block; }
+#btn-expand .ic { margin:0; }
 </style>
 </head>
 <body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="ic-doc" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></symbol>
+  <symbol id="ic-chat" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></symbol>
+  <symbol id="ic-box" viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5Z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></symbol>
+  <symbol id="ic-pen" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+  <symbol id="ic-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></symbol>
+  <symbol id="ic-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></symbol>
+  <symbol id="ic-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></symbol>
+  <symbol id="ic-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></symbol>
+  <symbol id="ic-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></symbol>
+  <symbol id="ic-folder" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2Z"/></symbol>
+  <symbol id="ic-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></symbol>
+  <symbol id="ic-send" viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/></symbol>
+  <symbol id="ic-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="ic-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="ic-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+</svg>
 <header>
-  <h1>✒ 博客写作助手 · 网页版</h1>
+  <h1>博客写作助手 · 网页版</h1>
   <span id="status">就绪</span>
   <div class="tabs">
-    <button class="tab-btn active" id="tab-articles">📝 文章</button>
-    <button class="tab-btn" id="tab-moments">💬 动态</button>
-    <button class="tab-btn" id="tab-downloads">📦 下载</button>
+    <button class="tab-btn active" id="tab-articles"><svg class="ic"><use href="#ic-doc"/></svg>文章</button>
+    <button class="tab-btn" id="tab-moments"><svg class="ic"><use href="#ic-chat"/></svg>动态</button>
+    <button class="tab-btn" id="tab-downloads"><svg class="ic"><use href="#ic-box"/></svg>下载</button>
   </div>
 </header>
 <main>
   <section class="view active" id="view-articles">
-    <div id="art-list-pane"><ul id="art-list"></ul></div>
+    <div id="art-list-pane">
+      <div class="list-bar"><span>文章</span><button class="btn sm" id="btn-collapse" title="收起列表"><svg class="ic ic-sm"><use href="#ic-left"/></svg></button></div>
+      <ul id="art-list"></ul>
+      <button class="btn sm" id="btn-expand" title="展开列表"><svg class="ic"><use href="#ic-right"/></svg></button>
+    </div>
     <div id="art-form">
       <input type="hidden" id="f-file">
       <div class="row"><label>标题</label><input type="text" id="f-title" style="flex:1"></div>
       <div class="row"><label>日期</label><input type="text" id="f-date" placeholder="2026-08-01 或 2026-08-01T21:24:37+08:00" style="flex:1"></div>
-      <div class="row"><label>分类</label><input type="text" id="f-cats" placeholder="逗号分隔" style="flex:1"></div>
-      <div class="row"><label>标签</label><input type="text" id="f-tags" placeholder="逗号分隔" style="flex:1"></div>
+      <div class="row"><label>分类</label>
+        <div class="chipbox" id="cat-box">
+          <div class="chips" id="cat-chips"></div>
+          <input type="text" id="f-cats" placeholder="输入筛选或新建，回车确认" autocomplete="off">
+          <div class="chip-drop" id="cat-drop" style="display:none"></div>
+        </div>
+      </div>
+      <div class="row"><label>标签</label>
+        <div class="chipbox" id="tag-box">
+          <div class="chips" id="tag-chips"></div>
+          <input type="text" id="f-tags" placeholder="输入后回车添加" autocomplete="off">
+        </div>
+      </div>
       <div class="row">
         <label>封面</label><input type="text" id="f-cover" placeholder="/images/xxx.jpg" style="flex:1">
         <input type="file" id="f-cover-file" class="hidden-file" accept="image/*">
-        <button class="btn sm" id="btn-cover-up">上传封面</button>
+        <button class="btn sm" id="btn-cover-up"><svg class="ic ic-sm"><use href="#ic-upload"/></svg>上传封面</button>
         <label style="width:auto; display:flex; align-items:center; gap:6px; color:var(--muted); font-size:.85rem; cursor:pointer;"><input type="checkbox" id="f-draft"> 草稿</label>
       </div>
       <div class="row" style="align-items:flex-start;">
@@ -1452,12 +1560,12 @@ select:focus { outline:none; border-color:var(--gold); }
         <div style="flex:1">
           <textarea id="f-body" placeholder="Markdown 正文"></textarea>
           <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <button class="btn gold" id="btn-save">💾 保存</button>
-            <button class="btn" id="btn-new">＋ 新建</button>
-            <button class="btn danger" id="btn-del">🗑 删除</button>
+            <button class="btn gold" id="btn-save"><svg class="ic"><use href="#ic-save"/></svg>保存</button>
+            <button class="btn" id="btn-new"><svg class="ic"><use href="#ic-plus"/></svg>新建</button>
+            <button class="btn danger" id="btn-del"><svg class="ic"><use href="#ic-trash"/></svg>删除</button>
             <input type="file" id="f-img-file" class="hidden-file" accept="image/*">
-            <button class="btn" id="btn-img-up">🖼 插入图片</button>
-            <button class="btn" id="btn-pv">👁 预览</button>
+            <button class="btn" id="btn-img-up"><svg class="ic"><use href="#ic-image"/></svg>插入图片</button>
+            <button class="btn" id="btn-pv"><svg class="ic"><use href="#ic-eye"/></svg>预览</button>
           </div>
           <div id="pv"></div>
         </div>
@@ -1471,12 +1579,12 @@ select:focus { outline:none; border-color:var(--gold); }
         <textarea id="m-text" placeholder="随便写点什么…"></textarea>
         <div class="row" style="margin-top:10px">
           <input type="file" id="m-img-file" class="hidden-file" accept="image/*" multiple>
-          <button class="btn sm" id="btn-m-img">🖼 添加图片</button>
+          <button class="btn sm" id="btn-m-img"><svg class="ic ic-sm"><use href="#ic-image"/></svg>添加图片</button>
         </div>
         <ul id="mom-imgs"></ul>
         <div class="row"><label>链接（可选）</label><input type="text" id="m-link" placeholder="https://..." style="flex:1"></div>
         <div style="display:flex; gap:8px;">
-          <button class="btn gold" id="btn-m-save">📌 发布动态</button>
+        <button class="btn gold" id="btn-m-save"><svg class="ic"><use href="#ic-send"/></svg>发布动态</button>
           <button class="btn" id="btn-m-cancel" style="display:none">取消编辑</button>
         </div>
       </div>
@@ -1492,11 +1600,11 @@ select:focus { outline:none; border-color:var(--gold); }
         <div class="row">
           <label>分类</label>
           <select id="dl-cat" style="flex:1"></select>
-          <button class="btn sm" id="btn-dl-newcat">➕ 新建</button>
+          <button class="btn sm" id="btn-dl-newcat"><svg class="ic ic-sm"><use href="#ic-plus"/></svg>新建</button>
         </div>
         <div class="row">
           <input type="file" id="dl-file" class="hidden-file" multiple>
-          <button class="btn gold" id="btn-dl-upload">➕ 添加文件</button>
+          <button class="btn gold" id="btn-dl-upload"><svg class="ic"><use href="#ic-upload"/></svg>添加文件</button>
         </div>
         <div class="small">文件复制到 static/files/&lt;分类&gt;/，重新构建后出现在 /downloads/。大文件建议用桌面版。</div>
       </div>
@@ -1510,7 +1618,8 @@ select:focus { outline:none; border-color:var(--gold); }
 <script>
 (function () {
     var $ = function (id) { return document.getElementById(id); };
-    var state = { articles: [], curFile: null, moments: [], momImgs: [], editingId: null };
+    var state = { articles: [], curFile: null, moments: [], momImgs: [], editingId: null,
+                  catChips: [], tagChips: [], allCats: [] };
     var pendingMomentId = null;
 
     function api(path, opts) {
@@ -1520,7 +1629,48 @@ select:focus { outline:none; border-color:var(--gold); }
     }
     function setStatus(t) { $('status').textContent = t; }
     function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
-    function splitList(s) { return s.split(/[,，]/).map(function (x) { return x.trim(); }).filter(Boolean); }
+    function renderChips(boxId, chips) {
+        var list = $(boxId).querySelector('.chips');
+        list.innerHTML = '';
+        chips.forEach(function (c, i) {
+            var el = document.createElement('span');
+            el.className = 'chip';
+            el.innerHTML = '<span>' + esc(c) + '</span><span class="chip-x" title="删除"><svg class="ic ic-sm"><use href="#ic-x"/></svg></span>';
+            el.querySelector('.chip-x').addEventListener('click', function () {
+                chips.splice(i, 1);
+                renderChips(boxId, chips);
+            });
+            list.appendChild(el);
+        });
+    }
+    function addChip(chips, boxId, inputId) {
+        var v = $(inputId).value.trim();
+        if (v && chips.indexOf(v) < 0) chips.push(v);
+        $(inputId).value = '';
+        renderChips(boxId, chips);
+        $(inputId).focus();
+    }
+    function updateCatDrop() {
+        var q = $('f-cats').value.trim();
+        var list = state.allCats.filter(function (c) {
+            return state.catChips.indexOf(c) < 0 && (!q || c.indexOf(q) >= 0);
+        });
+        var drop = $('cat-drop');
+        if (!list.length) { drop.style.display = 'none'; return; }
+        drop.innerHTML = '';
+        list.forEach(function (c) {
+            var el = document.createElement('div');
+            el.textContent = c;
+            el.addEventListener('click', function () {
+                if (state.catChips.indexOf(c) < 0) state.catChips.push(c);
+                $('f-cats').value = '';
+                renderChips('cat-box', state.catChips);
+                updateCatDrop();
+            });
+            drop.appendChild(el);
+        });
+        drop.style.display = 'block';
+    }
 
     // ---- 页签 ----
     function showTab(name) {
@@ -1534,6 +1684,12 @@ select:focus { outline:none; border-color:var(--gold); }
     $('tab-articles').addEventListener('click', function () { showTab('articles'); });
     $('tab-moments').addEventListener('click', function () { showTab('moments'); });
     $('tab-downloads').addEventListener('click', function () { showTab('downloads'); });
+    $('btn-collapse').addEventListener('click', function () {
+        $('art-list-pane').classList.add('collapsed');
+    });
+    $('btn-expand').addEventListener('click', function () {
+        $('art-list-pane').classList.remove('collapsed');
+    });
 
     // ---- 文章 ----
     function renderArtList() {
@@ -1551,6 +1707,12 @@ select:focus { outline:none; border-color:var(--gold); }
     function loadArticles() {
         api('/api/articles').then(function (list) {
             state.articles = list;
+            state.allCats = [];
+            list.forEach(function (a) {
+                (a.categories || []).forEach(function (c) {
+                    if (state.allCats.indexOf(c) < 0) state.allCats.push(c);
+                });
+            });
             renderArtList();
             if (!state.curFile && list.length) loadArticle(list[0].file);
         });
@@ -1561,11 +1723,15 @@ select:focus { outline:none; border-color:var(--gold); }
             $('f-file').value = d.file || '';
             $('f-title').value = d.title || '';
             $('f-date').value = d.date || '';
-            $('f-cats').value = (d.categories || []).join(', ');
-            $('f-tags').value = (d.tags || []).join(', ');
+            state.catChips = (d.categories || []).slice();
+            state.tagChips = (d.tags || []).slice();
+            renderChips('cat-box', state.catChips);
+            renderChips('tag-box', state.tagChips);
             $('f-cover').value = d.cover || '';
             $('f-draft').checked = !!d.draft;
             $('f-body').value = d.body || '';
+            $('pv').style.display = 'none';
+            $('pv').innerHTML = '';
             renderArtList();
             setStatus('已打开：' + file);
         }).catch(function () { setStatus('打开失败'); });
@@ -1575,15 +1741,15 @@ select:focus { outline:none; border-color:var(--gold); }
             file: $('f-file').value || null,
             title: $('f-title').value,
             date: $('f-date').value,
-            categories: splitList($('f-cats').value),
-            tags: splitList($('f-tags').value),
+            categories: state.catChips,
+            tags: state.tagChips,
             draft: $('f-draft').checked,
             cover: $('f-cover').value,
             body: $('f-body').value.replace(/\\s+$/, '')
         };
         api('/api/article', { method: 'POST', body: JSON.stringify(payload) }).then(function (r) {
             if (r.error) { alert(r.error); return; }
-            setStatus('✅ 已保存：' + r.file);
+            setStatus('已保存：' + r.file);
             loadArticles();
         });
     }
@@ -1592,8 +1758,10 @@ select:focus { outline:none; border-color:var(--gold); }
         $('f-file').value = '';
         $('f-title').value = '';
         $('f-date').value = '';
-        $('f-cats').value = '';
-        $('f-tags').value = '';
+        state.catChips = [];
+        state.tagChips = [];
+        renderChips('cat-box', state.catChips);
+        renderChips('tag-box', state.tagChips);
         $('f-cover').value = '';
         $('f-draft').checked = false;
         $('f-body').value = '';
@@ -1640,7 +1808,76 @@ select:focus { outline:none; border-color:var(--gold); }
     $('btn-pv').addEventListener('click', function () {
         var pv = $('pv');
         pv.style.display = pv.style.display === 'none' ? 'block' : 'none';
+        if (pv.style.display === 'block') renderPreview();
+    });
+    function renderPreview() {
+        var pv = $('pv');
         pv.innerHTML = mdRender($('f-body').value);
+        var idx = 0;
+        pv.querySelectorAll('img').forEach(function (img) {
+            var wrap = document.createElement('span');
+            wrap.className = 'pv-img-wrap';
+            img.parentNode.insertBefore(wrap, img);
+            wrap.appendChild(img);
+            var x = document.createElement('span');
+            x.className = 'pv-img-x';
+            x.innerHTML = '<svg class="ic ic-sm"><use href="#ic-x"/></svg>';
+            x.title = '从正文删除这张图片';
+            x.addEventListener('click', (function (n) {
+                return function () {
+                    if (confirm('从正文中删除这张图片？')) removeImageLine(n);
+                };
+            })(idx));
+            wrap.appendChild(x);
+            idx++;
+        });
+    }
+    function removeImageLine(n) {
+        var ta = $('f-body');
+        var lines = ta.value.split('\\n');
+        var cnt = 0;
+        for (var i = 0; i < lines.length; i++) {
+            if (/!\\[[^\\]]*\\]\\([^)]+\\)/.test(lines[i])) {
+                if (cnt === n) {
+                    lines.splice(i, 1);
+                    ta.value = lines.join('\\n').replace(/\\n{3,}/g, '\\n\\n');
+                    renderPreview();
+                    return;
+                }
+                cnt++;
+            }
+        }
+    }
+    $('pv').addEventListener('error', function (e) {
+        var img = e.target;
+        if (img && img.tagName === 'IMG' && !img.dataset.err) {
+            img.dataset.err = '1';
+            var oldSrc = img.getAttribute('src') || img.src;
+            var tip = document.createElement('span');
+            tip.className = 'pv-img-err';
+            tip.textContent = '图片加载失败：' + oldSrc;
+            img.parentNode.insertBefore(tip, img);
+            img.style.display = 'none';
+        }
+    }, true);
+    $('f-cats').addEventListener('input', updateCatDrop);
+    $('f-cats').addEventListener('focus', updateCatDrop);
+    $('f-cats').addEventListener('blur', function () {
+        setTimeout(function () { $('cat-drop').style.display = 'none'; }, 150);
+    });
+    $('f-cats').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addChip(state.catChips, 'cat-box', 'f-cats');
+            updateCatDrop();
+        }
+        if (e.key === 'Escape') { $('cat-drop').style.display = 'none'; }
+    });
+    $('f-tags').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addChip(state.tagChips, 'tag-box', 'f-tags');
+        }
     });
 
     // ---- 动态 ----
@@ -1653,9 +1890,9 @@ select:focus { outline:none; border-color:var(--gold); }
                 var li = document.createElement('li');
                 if (state.editingId && m.id === state.editingId) li.className = 'hl';
                 li.innerHTML = '<div class="mom-meta"><span>' + esc((m.date || '').slice(0, 16).replace('T', ' ')) + '</span>' +
-                    (m.images && m.images.length ? '<span>🖼 ' + m.images.length + '</span>' : '') +
-                    '<button class="btn sm mom-edit">编辑</button>' +
-                    '<button class="btn sm danger mom-del">删除</button></div>' +
+                (m.images && m.images.length ? '<span><svg class="ic ic-sm"><use href="#ic-image"/></svg>' + m.images.length + '</span>' : '') +
+                '<button class="btn sm mom-edit"><svg class="ic ic-sm"><use href="#ic-pen"/></svg>编辑</button>' +
+                '<button class="btn sm danger mom-del"><svg class="ic ic-sm"><use href="#ic-trash"/></svg>删除</button></div>' +
                     '<div>' + esc(m.text) + '</div>';
                 li.querySelector('.mom-edit').addEventListener('click', function () { loadMomentToEdit(i); });
                 li.querySelector('.mom-del').addEventListener('click', function () { delMoment(m.id); });
@@ -1679,7 +1916,7 @@ select:focus { outline:none; border-color:var(--gold); }
         $('m-link').value = m.link || '';
         state.momImgs = (m.images || []).slice();
         renderMomImgs();
-        $('btn-m-save').textContent = '💾 保存修改';
+        $('btn-m-save').innerHTML = '<svg class="ic"><use href="#ic-save"/></svg>保存修改';
         $('btn-m-cancel').style.display = '';
         setStatus('正在编辑动态，发布时间保持不变');
         loadMoments();
@@ -1690,7 +1927,7 @@ select:focus { outline:none; border-color:var(--gold); }
         $('m-link').value = '';
         state.momImgs = [];
         renderMomImgs();
-        $('btn-m-save').textContent = '📌 发布动态';
+        $('btn-m-save').innerHTML = '<svg class="ic"><use href="#ic-send"/></svg>发布动态';
         $('btn-m-cancel').style.display = 'none';
     }
     function delMoment(id) {
@@ -1706,7 +1943,7 @@ select:focus { outline:none; border-color:var(--gold); }
         ul.innerHTML = '';
         state.momImgs.forEach(function (u, i) {
             var li = document.createElement('li');
-            li.innerHTML = esc(u) + ' <button class="btn sm danger">✕</button>';
+            li.innerHTML = esc(u) + ' <button class="btn sm danger"><svg class="ic ic-sm"><use href="#ic-x"/></svg></button>';
             li.querySelector('button').addEventListener('click', function () { state.momImgs.splice(i, 1); renderMomImgs(); });
             ul.appendChild(li);
         });
@@ -1734,7 +1971,7 @@ select:focus { outline:none; border-color:var(--gold); }
                 if (r.error) { alert(r.error); return; }
                 resetMomentForm();
                 loadMoments();
-                setStatus(isEdit ? '✅ 动态已更新' : '📌 动态已发布');
+            setStatus(isEdit ? '动态已更新' : '动态已发布');
             });
     });
     $('btn-m-cancel').addEventListener('click', function () {
@@ -1774,7 +2011,7 @@ select:focus { outline:none; border-color:var(--gold); }
         if (!c) return;
         c.files.forEach(function (f) {
             var li = document.createElement('li');
-            li.innerHTML = '<span class="dl-name">📄 ' + esc(f.name) + '</span>' +
+            li.innerHTML = '<span class="dl-name"><svg class="ic ic-sm"><use href="#ic-doc"/></svg>' + esc(f.name) + '</span>' +
                 '<span class="dl-size">' + esc(f.sizeText) + '</span>' +
                 '<button class="btn sm danger">删除</button>';
             li.querySelector('button').addEventListener('click', function () { delDlFile(cat, f.name); });
@@ -1842,7 +2079,7 @@ select:focus { outline:none; border-color:var(--gold); }
     function mdRender(src) {
         var out = [], code = false, block = [], buf = [];
         function flush() {
-            if (buf.length) { out.push('<p>' + buf.map(mdInline).join('<br>') + '</p>'); buf = []; }
+            if (buf.length) { out.push('<p>' + buf.join('<br>') + '</p>'); buf = []; }
         }
         src.split('\\n').forEach(function (line) {
             var s = line.trim();
@@ -1924,12 +2161,30 @@ class BlogWebHandler(BaseHTTPRequestHandler):
             rel = rel[len("content/"):]
         return _safe_join(os.path.join(BLOG_ROOT, "content"), rel)
 
+    def _serve_static(self, url_path):
+        """把 /images/、/files/ 等路径映射到博客 static/ 目录，供网页版预览显示图片"""
+        rel = url_path.lstrip("/")
+        full = _safe_join(os.path.join(BLOG_ROOT, "static"), rel)
+        if full and os.path.isfile(full):
+            ctype = mimetypes.guess_type(full)[0] or "application/octet-stream"
+            try:
+                with open(full, "rb") as f:
+                    data = f.read()
+            except OSError as e:
+                self._json({"error": str(e)}, 500)
+                return
+            self._reply(200, data, ctype)
+        else:
+            self._json({"error": "not found"}, 404)
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         qs = urllib.parse.parse_qs(parsed.query)
         try:
             if parsed.path == "/":
                 self._reply(200, WEB_UI_HTML, "text/html; charset=utf-8")
+            elif parsed.path.startswith(("/images/", "/files/")):
+                self._serve_static(parsed.path)
             elif parsed.path == "/api/ping":
                 self._json({"ok": True})
             elif parsed.path == "/api/articles":
@@ -1945,6 +2200,7 @@ class BlogWebHandler(BaseHTTPRequestHandler):
                         "title": data["title"] or os.path.splitext(os.path.basename(full))[0],
                         "date": (data["date"] or "")[:10],
                         "draft": data["draft"],
+                        "categories": data["categories"],
                     })
                 items.sort(key=lambda x: x["date"], reverse=True)
                 self._json(items)
