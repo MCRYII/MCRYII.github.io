@@ -67,7 +67,7 @@
                 <h1 class="post-title entry-hint-parent">
                     {{ .Title }}
                     {{- if .Draft }}
-                    <span class="entry-hint" title="Draft">📝</span>
+                    <span class="entry-hint" title="Draft"><svg class="site-icon"><use href="#ic-doc"></use></svg></span>
                     {{- end }}
                 </h1>
                 {{- if .Description }}
@@ -85,7 +85,7 @@
                 {{- end }}
                 {{- with .File }}
                 <a class="ps-tool-edit" id="ps-tool-edit"
-                   href="blogtool://edit?file=content/{{ replace .Path "\\" "/" }}" style="display:none">✏ 在写作工具中编辑</a>
+                   href="blogtool://edit?file=content/{{ replace .Path "\\" "/" }}" style="display:none"><svg class="site-icon"><use href="#ic-pen"></use></svg> 在写作工具中编辑</a>
                 {{- end }}
             </header>
             {{- if (.Param "ShowToc") }}

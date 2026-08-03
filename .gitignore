@@ -3,3 +3,6 @@ docs/
 resources/
 .hugo_build.lock
 static/bookmarks-local.json
+.claude/
+__pycache__/
+static/images/thumbs/

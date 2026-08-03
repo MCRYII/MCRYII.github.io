@@ -214,10 +214,10 @@ html[data-theme="dark"] .mom-post { background: var(--card-bg-dark); box-shadow:
 <div class="dyn-wrap">
     <header class="dyn-head">
         <h1 class="post-title">{{ .Title }}</h1>
-        <p class="dyn-sub">📌 公告板 · 随手记下的碎片，和文章剪报</p>
+        <p class="dyn-sub"><svg class="site-icon"><use href="#ic-pin"></use></svg> 公告板 · 随手记下的碎片，和文章剪报</p>
         <div>
             <a class="dyn-tool-btn dyn-tool-link" id="dyn-add-btn" style="display:none"
-               href="blogtool://edit?tab=moments">＋ 发动态</a>
+               href="blogtool://edit?tab=moments"><svg class="site-icon"><use href="#ic-plus"></use></svg> 发动态</a>
         </div>
     </header>
     <div class="dyn-board">
@@ -232,7 +232,7 @@ html[data-theme="dark"] .mom-post { background: var(--card-bg-dark); box-shadow:
                     {{- with $m.id }}
                     <a class="mom-edit dyn-tool-link" style="display:none"
                        href="blogtool://edit?tab=moments&amp;id={{ . }}"
-                       title="在写作工具中编辑/删除">✏ 编辑</a>
+                       title="在写作工具中编辑/删除"><svg class="site-icon"><use href="#ic-pen"></use></svg> 编辑</a>
                     {{- end }}
                     <div class="mom-date">{{ $m.date | dateFormat "2006-01-02 15:04" }}</div>
                     {{- with $m.text }}
@@ -252,7 +252,7 @@ html[data-theme="dark"] .mom-post { background: var(--card-bg-dark); box-shadow:
                         </div>
                     {{- end }}
                     {{- with $m.link }}
-                    <a class="mom-link" href="{{ . }}" target="_blank" rel="noopener">🔗 {{ . }}</a>
+                    <a class="mom-link" href="{{ . }}" target="_blank" rel="noopener"><svg class="site-icon"><use href="#ic-link"></use></svg> {{ . }}</a>
                     {{- end }}
                 </article>
             {{- else }}
@@ -271,9 +271,9 @@ html[data-theme="dark"] .mom-post { background: var(--card-bg-dark); box-shadow:
                         <h3 class="mom-post-title"><a href="{{ $p.RelPermalink }}">{{ $p.Title }}</a></h3>
                         <p class="mom-post-summary">{{ $p.Summary | plainify | htmlUnescape }}</p>
                         <div style="display:flex; gap:12px; align-items:center; margin-top:auto;">
-                            <a class="mom-post-more" href="{{ $p.RelPermalink }}">查看全文 →</a>
+                            <a class="mom-post-more" href="{{ $p.RelPermalink }}">查看全文 <svg class="site-icon"><use href="#ic-arrow-right"></use></svg></a>
                             <a class="mom-post-edit dyn-tool-link" style="display:none"
-                               href="blogtool://edit?file=content/{{ replace $p.File.Path "\\" "/" }}">✏ 编辑</a>
+                               href="blogtool://edit?file=content/{{ replace $p.File.Path "\\" "/" }}"><svg class="site-icon"><use href="#ic-pen"></use></svg> 编辑</a>
                         </div>
                     </div>
                 </article>
@@ -295,7 +295,7 @@ html[data-theme="dark"] .mom-post { background: var(--card-bg-dark); box-shadow:
     if (!links.length) return;
     var overlay = document.createElement('div');
     overlay.className = 'lb';
-    overlay.innerHTML = '<span class="lb-close">✕</span><img class="lb-img" src="" alt=""><div class="lb-nav"><button class="lb-prev">‹</button><button class="lb-next">›</button></div>';
+    overlay.innerHTML = '<span class="lb-close"><svg class="site-icon"><use href="#ic-close"></use></svg></span><img class="lb-img" src="" alt=""><div class="lb-nav"><button class="lb-prev"><svg class="site-icon"><use href="#ic-chevron-left"></use></svg></button><button class="lb-next"><svg class="site-icon"><use href="#ic-chevron-right"></use></svg></button></div>';
     document.body.appendChild(overlay);
     var imgEl = overlay.querySelector('.lb-img');
     var cur = 0;

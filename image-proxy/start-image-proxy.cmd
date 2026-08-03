@@ -1,0 +1,3 @@
+@echo off
+cd /d "%~dp0"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "if (Get-NetTCPConnection -LocalPort 15722 -State Listen -ErrorAction SilentlyContinue) { Write-Host 'Codex image proxy already running'; exit 0 }; $config = Join-Path $env:USERPROFILE '.codex\config.toml'; $text = [IO.File]::ReadAllText($config); $text = $text.Replace('http://127.0.0.1:15721/v1','http://127.0.0.1:15722/v1'); [IO.File]::WriteAllText($config, $text, (New-Object System.Text.UTF8Encoding $false)); $p = Start-Process -FilePath 'node' -ArgumentList 'proxy.js' -WorkingDirectory (Get-Location) -WindowStyle Hidden -PassThru; Write-Host ('Codex image proxy started: PID ' + $p.Id)"

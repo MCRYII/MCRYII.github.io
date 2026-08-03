@@ -214,26 +214,26 @@ html[data-theme="dark"] .post-row { background: #262216; }
         <a href="{{ .RelPermalink }}">
             <div class="hero-cover">
                 {{- with .Params.cover.image }}
-                <img src="{{ . }}" alt="{{ $page.Title }}" fetchpriority="high">
+                <img src="{{ partial "cover-thumb.html" . }}" alt="{{ $page.Title }}" fetchpriority="high">
                 {{- else }}
-                <img src="/images/default-cover.png" alt="{{ $page.Title }}" fetchpriority="high">
+                <img src="{{ partial "cover-thumb.html" "/images/default-cover.png" }}" alt="{{ $page.Title }}" fetchpriority="high">
                 {{- end }}
-                <span class="hero-badge">🔥 最新发布</span>
+                <span class="hero-badge"><svg class="site-icon"><use href="#ic-flame"></use></svg> 最新发布</span>
             </div>
             <div class="hero-body">
                 {{- with .Params.categories }}{{ range first 1 . }}<span class="hero-cat">{{ . }}</span>{{ end }}{{ end }}
                 <h2 class="hero-title">{{ .Title }}</h2>
                 <p class="hero-summary">{{ .Summary | plainify | htmlUnescape }}{{ if .Truncated }}...{{ end }}</p>
                 <div class="hero-meta">
-                    <span>🗓 {{ .Date.Format "2006-01-02" }}</span>
-                    <span>⏱ {{ .ReadingTime }} 分钟</span>
-                    <span class="read-more">阅读全文 →</span>
+                    <span><svg class="site-icon"><use href="#ic-calendar"></use></svg> {{ .Date.Format "2006-01-02" }}</span>
+                    <span><svg class="site-icon"><use href="#ic-clock"></use></svg> {{ .ReadingTime }} 分钟</span>
+                    <span class="read-more">阅读全文 <svg class="site-icon"><use href="#ic-arrow-right"></use></svg></span>
                 </div>
             </div>
         </a>
     </article>
 {{- end }}
-<div class="scroll-hint" id="scroll-hint"><span class="arrow">↓</span> 向下滚动查看更多文章</div>
+<div class="scroll-hint" id="scroll-hint"><span class="arrow"><svg class="site-icon"><use href="#ic-arrow-down"></use></svg></span> 向下滚动查看更多文章</div>
 <div class="three-col">
     {{ partial "posts-sidebar-left.html" . }}
     <div class="col-main">
@@ -245,9 +245,9 @@ html[data-theme="dark"] .post-row { background: #262216; }
         <a href="{{ .RelPermalink }}">
             <div class="row-cover">
                 {{- with .Params.cover.image }}
-                <img src="{{ . }}" alt="{{ $page.Title }}" loading="lazy">
+                <img src="{{ partial "cover-thumb.html" . }}" alt="{{ $page.Title }}" loading="lazy">
                 {{- else }}
-                <img src="/images/default-cover.png" alt="{{ $page.Title }}" loading="lazy">
+                <img src="{{ partial "cover-thumb.html" "/images/default-cover.png" }}" alt="{{ $page.Title }}" loading="lazy">
                 {{- end }}
             </div>
             <div class="row-body">
@@ -255,8 +255,8 @@ html[data-theme="dark"] .post-row { background: #262216; }
                 <h3 class="row-title">{{ .Title }}</h3>
                 <p class="row-summary">{{ .Summary | plainify | htmlUnescape }}{{ if .Truncated }}...{{ end }}</p>
                 <div class="row-meta">
-                    <span>🗓 {{ .Date.Format "2006-01-02" }}</span>
-                    <span>⏱ {{ .ReadingTime }} 分钟</span>
+                    <span><svg class="site-icon"><use href="#ic-calendar"></use></svg> {{ .Date.Format "2006-01-02" }}</span>
+                    <span><svg class="site-icon"><use href="#ic-clock"></use></svg> {{ .ReadingTime }} 分钟</span>
                 </div>
             </div>
         </a>
@@ -292,9 +292,9 @@ html[data-theme="dark"] .post-row { background: #262216; }
         <a href="{{ .RelPermalink }}">
             <div class="row-cover">
                 {{- with .Params.cover.image }}
-                <img src="{{ . }}" alt="{{ $page.Title }}" loading="lazy">
+                <img src="{{ partial "cover-thumb.html" . }}" alt="{{ $page.Title }}" loading="lazy">
                 {{- else }}
-                <img src="/images/default-cover.png" alt="{{ $page.Title }}" loading="lazy">
+                <img src="{{ partial "cover-thumb.html" "/images/default-cover.png" }}" alt="{{ $page.Title }}" loading="lazy">
                 {{- end }}
             </div>
             <div class="row-body">
@@ -302,8 +302,8 @@ html[data-theme="dark"] .post-row { background: #262216; }
                 <h3 class="row-title">{{ .Title }}</h3>
                 <p class="row-summary">{{ .Summary | plainify | htmlUnescape }}{{ if .Truncated }}...{{ end }}</p>
                 <div class="row-meta">
-                    <span>🗓 {{ .Date.Format "2006-01-02" }}</span>
-                    <span>⏱ {{ .ReadingTime }} 分钟</span>
+                    <span><svg class="site-icon"><use href="#ic-calendar"></use></svg> {{ .Date.Format "2006-01-02" }}</span>
+                    <span><svg class="site-icon"><use href="#ic-clock"></use></svg> {{ .ReadingTime }} 分钟</span>
                 </div>
             </div>
         </a>

@@ -3,6 +3,8 @@
 {{- $doing := where $goals "status" "进行中" -}}
 {{- $todo := where $goals "status" "待开始" -}}
 {{- $done := where $goals "status" "已完成" -}}
+{{- $donePct := 0 -}}
+{{- if gt (len $goals) 0 }}{{ $donePct = div (mul (len $done) 100) (len $goals) }}{{ end -}}
 <style>main.main { max-width: none !important; }</style>
 <style>
 .plan-head {
@@ -158,6 +160,9 @@ html[data-theme="dark"] .plan-card { background: var(--card-bg-dark); }
 .plan-card-foot .pct { color: #d4af37; font-weight: 700; }
 .plan-card.done .plan-card-foot .pct { color: #4caf50; }
 .start-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     border: none;
     border-radius: 999px;
     background: linear-gradient(135deg, #f4d35e 0%, #d4af37 60%, #b8860b 100%);
@@ -177,7 +182,7 @@ html[data-theme="dark"] .plan-card { background: var(--card-bg-dark); }
     {{ partial "sidebar-left.html" . }}
     <div class="col-main">
         <div class="plan-head">
-            <h1>🎯 规划</h1>
+            <h1><svg class="site-icon"><use href="#ic-target"></use></svg> 规划</h1>
             <span class="sub">{{ site.Data.planning.title }} · 共 {{ len $goals }} 个目标</span>
         </div>
 
@@ -187,11 +192,11 @@ html[data-theme="dark"] .plan-card { background: var(--card-bg-dark); }
             <div class="plan-stat todo" data-stat="todo"><b>{{ len $todo }}</b><span>待开始</span></div>
             <div class="plan-stat done" data-stat="done"><b>{{ len $done }}</b><span>已完成</span></div>
         </div>
-        <div class="plan-total-bar"><div class="fill" style="width:{{ div (mul (len $done) 100) (len $goals) }}%"></div></div>
+        <div class="plan-total-bar"><div class="fill" style="width:{{ $donePct }}%"></div></div>
 
         {{- if $doing }}
         <div class="plan-group" data-group="doing">
-            <h2 class="plan-group-title">⏳ 进行中<span class="g-count">{{ len $doing }}</span></h2>
+            <h2 class="plan-group-title"><svg class="site-icon"><use href="#ic-hourglass"></use></svg> 进行中<span class="g-count">{{ len $doing }}</span></h2>
             <div class="plan-cards">
                 {{- range $doing }}
                 <div class="plan-card doing">
@@ -203,7 +208,7 @@ html[data-theme="dark"] .plan-card { background: var(--card-bg-dark); }
                     {{- with .note }}<div class="plan-card-note">{{ . }}</div>{{ end }}
                     <div class="plan-progress"><div class="bar"><div class="fill" style="width:{{ .progress }}%"></div></div></div>
                     <div class="plan-card-foot">
-                        <span>📅 {{ .deadline }}</span>
+                        <span><svg class="site-icon"><use href="#ic-calendar"></use></svg> {{ .deadline }}</span>
                         <span class="pct">{{ .progress }}%</span>
                     </div>
                 </div>
@@ -214,7 +219,7 @@ html[data-theme="dark"] .plan-card { background: var(--card-bg-dark); }
 
         {{- if $todo }}
         <div class="plan-group" data-group="todo">
-            <h2 class="plan-group-title todo">🗓 待开始<span class="g-count">{{ len $todo }}</span></h2>
+            <h2 class="plan-group-title todo"><svg class="site-icon"><use href="#ic-calendar"></use></svg> 待开始<span class="g-count">{{ len $todo }}</span></h2>
             <div class="plan-cards">
                 {{- range $todo }}
                 <div class="plan-card todo" data-title="{{ .title }}">
@@ -226,10 +231,10 @@ html[data-theme="dark"] .plan-card { background: var(--card-bg-dark); }
                     {{- with .note }}<div class="plan-card-note">{{ . }}</div>{{ end }}
                     <div class="plan-progress"><div class="bar"><div class="fill" style="width:{{ .progress }}%"></div></div></div>
                     <div class="plan-card-foot">
-                        <span>📅 {{ .deadline }}</span>
+                        <span><svg class="site-icon"><use href="#ic-calendar"></use></svg> {{ .deadline }}</span>
                         <span style="display:flex;align-items:center;gap:8px;">
                             <span class="pct">{{ .progress }}%</span>
-                            <button type="button" class="start-btn">▶ 开始</button>
+                            <button type="button" class="start-btn"><svg class="site-icon site-icon-fill"><use href="#ic-play"></use></svg> 开始</button>
                         </span>
                     </div>
                 </div>
@@ -240,7 +245,7 @@ html[data-theme="dark"] .plan-card { background: var(--card-bg-dark); }
 
         {{- if $done }}
         <div class="plan-group" data-group="done">
-            <h2 class="plan-group-title done">✅ 已完成<span class="g-count">{{ len $done }}</span></h2>
+            <h2 class="plan-group-title done"><svg class="site-icon"><use href="#ic-check"></use></svg> 已完成<span class="g-count">{{ len $done }}</span></h2>
             <div class="plan-cards">
                 {{- range $done }}
                 <div class="plan-card done">
@@ -252,7 +257,7 @@ html[data-theme="dark"] .plan-card { background: var(--card-bg-dark); }
                     {{- with .note }}<div class="plan-card-note">{{ . }}</div>{{ end }}
                     <div class="plan-progress"><div class="bar"><div class="fill" style="width:{{ .progress }}%"></div></div></div>
                     <div class="plan-card-foot">
-                        <span>📅 {{ .deadline }}</span>
+                        <span><svg class="site-icon"><use href="#ic-calendar"></use></svg> {{ .deadline }}</span>
                         <span class="pct">{{ .progress }}%</span>
                     </div>
                 </div>

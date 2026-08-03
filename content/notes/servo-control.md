@@ -7,7 +7,7 @@ group: "ESP32"
 draft: false
 ---
 
-## 📖 逐行详细解释（原版ledc控制）
+## {{< icon "book" >}} 逐行详细解释（原版ledc控制）
 
 ```cpp
 /*
@@ -123,7 +123,7 @@ void loop() {
 ```
 `for` 循环，变量 `i` 从 0 开始，每次加 10，一直加到 180。也就是：0° → 10° → 20° → ... → 180°。
 
-## 📘 ESP32Servo完整代码解析
+## {{< icon "book" >}} ESP32Servo完整代码解析
 
 ```c++
 #include <ESP32Servo.h>
@@ -185,7 +185,7 @@ Servo my_servo;
 
 ---
 
-### 🛠️ setup() 函数
+### {{< icon "wrench" >}} setup() 函数
 
 ```cpp
 void setup() {
@@ -216,7 +216,7 @@ void setup() {
 
 ---
 
-### 🔁 loop() 函数
+### {{< icon "refresh" >}} loop() 函数
 
 ```cpp
 void loop() {
@@ -237,7 +237,7 @@ void loop() {
 
 ---
 
-### 🔍 深入理解关键点
+### {{< icon "search" >}} 深入理解关键点
 
 **1. 为什么需要 `allocateTimer(0)`？**
 
@@ -258,7 +258,7 @@ ESP32Servo 库底层用 LEDC 通道生成 PWM，而 LEDC 需要占用一个定�
 
 ---
 
-### ⚙️ 硬件连接要点
+### {{< icon "gear" >}} 硬件连接要点
 
 | 舵机线缆颜色 | 连接目标                                            |
 | :----------- | :-------------------------------------------------- |
@@ -271,7 +271,7 @@ ESP32Servo 库底层用 LEDC 通道生成 PWM，而 LEDC 需要占用一个定�
 
 ---
 
-### 💡 如果你想控制多个舵机
+### {{< icon "lightbulb" >}} 如果你想控制多个舵机
 
 ```cpp
 Servo servo1, servo2;
@@ -292,7 +292,7 @@ void loop() {
 
 ---
 
-### 🧪 调试技巧
+### {{< icon "flask" >}} 调试技巧
 
 - 如果舵机不动，检查供电和共地。
 - 如果舵机抖得厉害，可以尝试在舵机电源引脚并联一个 100~470µF 的电解电容，滤除电源噪声。
@@ -300,7 +300,7 @@ void loop() {
 
 ---
 
-### 📝 总结
+### {{< icon "pen" >}} 总结
 
 这段代码的核心操作：
 1. 分配硬件定时器，保证 PWM 信号稳定。
@@ -310,7 +310,7 @@ void loop() {
 
 
 
-## 📘 完整代码解析（PCA9685）
+## {{< icon "book" >}} 完整代码解析（PCA9685）
 
 ```c++
 #include <Wire.h>
@@ -359,7 +359,7 @@ Adafruit_PWMServoDriver pwm(0x40);
 
 ---
 
-### 🛠️ setup() 函数
+### {{< icon "wrench" >}} setup() 函数
 
 ```cpp
 void setup() {
@@ -368,7 +368,7 @@ void setup() {
 - **`Wire.begin(8, 9)`**：  
   启动 I2C 总线，并指定 **SDA = GPIO 8**，**SCL = GPIO 9**。  
   这意味着你的开发板必须将 PCA9685 的 SDA/SCL 物理连接到这两个引脚。  
-  **⚠️ 务必核对你的板子丝印**：如果 PCA9685 的连接引脚不是 8 和 9，请改成正确的引脚号（例如常见的是 SDA=21, SCL=22）。
+  {{< icon "alert" >}} **务必核对你的板子丝印**：如果 PCA9685 的连接引脚不是 8 和 9，请改成正确的引脚号（例如常见的是 SDA=21, SCL=22）。
 
 ```cpp
   pwm.begin();
@@ -387,7 +387,7 @@ void setup() {
 
 ---
 
-### 🔁 loop() 函数
+### {{< icon "refresh" >}} loop() 函数
 
 ```cpp
 void loop() {
@@ -440,7 +440,7 @@ void loop() {
   
   ---
   
-  ### 💡 把这两行连起来看（合体技）
+   ### {{< icon "lightbulb" >}} 把这两行连起来看（合体技）
   
   ```cpp
   pwm.setPWM(0, 0, map(90, 0, 180, SERVOMIN, SERVOMAX));
@@ -452,7 +452,7 @@ void loop() {
   
   ---
   
-  ### 🔧 结论：你想改动舵机，只需要动两个地方
+   ### {{< icon "wrench" >}} 结论：你想改动舵机，只需要动两个地方
   
   明白了原理，你以后改代码就只用盯着这两处：
   
@@ -468,7 +468,7 @@ void loop() {
 
 ---
 
-### 🔍 重点：setPWM 三个参数的真正含义
+### {{< icon "search" >}} 重点：setPWM 三个参数的真正含义
 
 很多初学者对 `setPWM(channel, on, off)` 感到困惑，我们用图示解释：
 
@@ -481,7 +481,7 @@ void loop() {
 
 ---
 
-### ⚠️ 硬件检查要点
+### {{< icon "alert" >}} 硬件检查要点
 
 1. **I2C 引脚**：  
    - 确保 PCA9685 的 SDA 接到 ESP32 的 **GPIO 8**，SCL 接到 **GPIO 9**。  
@@ -498,7 +498,7 @@ void loop() {
 
 ---
 
-### 🔧 如果舵机不动或抖动，可以调整的地方
+### {{< icon "wrench" >}} 如果舵机不动或抖动，可以调整的地方
 
 - **微调 SERVOMIN 和 SERVOMAX**：  
   增大 `SERVOMIN` 会使 0° 位向 180° 方向偏移；减小 `SERVOMAX` 会使 180° 向 0° 靠拢。  
@@ -510,7 +510,7 @@ void loop() {
 
 ---
 
-### 💡 扩展：如何控制多个舵机
+### {{< icon "lightbulb" >}} 扩展：如何控制多个舵机
 
 如果你想同时控制多个舵机，非常简单：
 
@@ -525,7 +525,7 @@ pwm.setPWM(2, 0, map(angle3, 0, 180, SERVOMIN, SERVOMAX));
 
 ---
 
-### 📝 总结
+### {{< icon "pen" >}} 总结
 
 这段代码的核心作用：
 1. 通过 I2C（GPIO 8/9）与板载 PCA9685 通信。

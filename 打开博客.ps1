@@ -16,6 +16,7 @@ function Test-Port($p) {
 
 # Always restart hugo to avoid stale template cache issues
 Get-Process hugo -ErrorAction SilentlyContinue | Stop-Process -Force
+& python scripts/gen_thumbs.py 2>$null
 for ($i = 0; $i -lt 20 -and (Test-Port $port); $i++) {
     Start-Sleep -Milliseconds 300
 }

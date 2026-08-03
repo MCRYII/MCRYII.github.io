@@ -6,6 +6,7 @@
 """
 import base64
 import datetime
+import io
 import json
 import mimetypes
 import os
@@ -15,8 +16,10 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 import tkinter as tk
 import urllib.parse
+import urllib.request
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from tkinter import filedialog, messagebox, scrolledtext, simpledialog, ttk
@@ -30,7 +33,19 @@ IMAGES_DIR = os.path.join(BLOG_ROOT, "static", "images")
 DEFAULT_COVER = os.path.join(IMAGES_DIR, "default-cover.png")
 MOMENTS_FILE = os.path.join(BLOG_ROOT, "data", "moments.json")
 MOMENTS_IMAGES_DIR = os.path.join(IMAGES_DIR, "moments")
+MUSIC_DIR = os.path.join(BLOG_ROOT, "static", "music")
+MUSIC_DATA_FILE = os.path.join(BLOG_ROOT, "data", "music.json")
+MUSIC_EXTS = (".mp3", ".m4a", ".ogg", ".flac", ".wav")
+WEB_UPLOAD_MAX_MB = 20  # 网页版上传上限（base64 会放大内存占用，大文件请用桌面版）
 FILES_DIR = os.path.join(BLOG_ROOT, "static", "files")
+COMFY_ROOT = r"D:\Downloads\Programs\ComfyUI-aki-v3\ComfyUI"
+COMFY_PYTHON = r"D:\Downloads\Programs\ComfyUI-aki-v3\python\python.exe"
+COMFY_OUTPUT_DIR = os.path.join(COMFY_ROOT, "output")
+COMFY_HOST = "127.0.0.1"
+COMFY_PORT = 8188
+COMFY_API_URL = "http://{}:{}".format(COMFY_HOST, COMFY_PORT)
+COMFY_IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
+AI_DEFAULT_NEGATIVE = "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry"
 
 # ==================== 配色（深色 + 金色，与博客一致） ====================
 COL_BG = "#16161a"
@@ -76,6 +91,68 @@ def save_moments(entries):
     with open(MOMENTS_FILE, "w", encoding="utf-8") as f:
         json.dump({"moments": entries}, f, ensure_ascii=False, indent=2)
         f.write("\n")
+
+
+def load_music_data():
+    """读取歌单配置；文件不存在或损坏时返回默认（仅"全部"歌单）"""
+    try:
+        with open(MUSIC_DATA_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        data = {}
+    if not isinstance(data, dict) or "playlists" not in data:
+        data = {"playlists": [{"name": "全部", "order": []}]}
+    if not any(p.get("name") == "全部" for p in data["playlists"]):
+        data["playlists"].insert(0, {"name": "全部", "order": []})
+    return data
+
+
+def save_music_data(data):
+    normalize_music_all(data)
+    os.makedirs(os.path.dirname(MUSIC_DATA_FILE), exist_ok=True)
+    with open(MUSIC_DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+
+
+def scan_music_files():
+    """扫描 static/music/ 下所有音频文件，按文件名排序"""
+    out = []
+    if os.path.isdir(MUSIC_DIR):
+        for f in sorted(os.listdir(MUSIC_DIR)):
+            if f.lower().endswith(MUSIC_EXTS):
+                out.append(f)
+    return out
+
+
+def normalize_music_all(data):
+    """让"全部"歌单的 order 与 static/music 实际文件同步（保留已有顺序）"""
+    files = scan_music_files()
+    if not isinstance(data, dict):
+        data = {}
+    if not isinstance(data.get("playlists"), list):
+        data["playlists"] = []
+    if not any(p.get("name") == "全部" for p in data["playlists"]):
+        data["playlists"].insert(0, {"name": "全部", "order": []})
+    pl = next(p for p in data["playlists"] if p.get("name") == "全部")
+    order = pl.setdefault("order", [])
+    if not isinstance(order, list):
+        order = pl["order"] = []
+    for stale in [n for n in order if n not in files]:
+        order.remove(stale)
+    for f in files:
+        if f not in order:
+            order.append(f)
+    return data
+
+
+def parse_music_name(fname):
+    """从 '作者 - 歌名.mp3' 解析作者和歌名"""
+    base = os.path.splitext(fname)[0]
+    if " - " in base:
+        artist, title = base.split(" - ", 1)
+        return artist.strip(), title.strip()
+    return "", base
 
 
 def scan_posts():
@@ -212,7 +289,7 @@ class TagInputWidget(tk.Frame):
             chip.pack(side=tk.LEFT, padx=3, pady=2)
             tk.Label(chip, text=tag, bg=COL_SELECT, fg=COL_GOLD,
                      font=(FONT, 9)).pack(side=tk.LEFT, padx=(8, 2), pady=3)
-            tk.Label(chip, text="✕", bg=COL_SELECT, fg=COL_RED, cursor="hand2",
+            tk.Label(chip, text="x", bg=COL_SELECT, fg=COL_RED, cursor="hand2",
                      font=(FONT, 9)).pack(side=tk.LEFT, padx=(2, 7))
             chip.winfo_children()[-1].bind("<Button-1>", lambda e, t=tag: self.remove_tag(t))
 
@@ -264,7 +341,7 @@ class CoverCropDialog(tk.Toplevel):
         bar.pack(fill=tk.X, padx=12, pady=(0, 12))
         tk.Label(bar, text="拖动框可移动 · 右下角金块可缩放 · 空白处拖动新建选区",
                  bg=COL_PANEL, fg=COL_MUTED, font=(FONT, 9)).pack(side=tk.LEFT)
-        btn_reset = tk.Button(bar, text="↺ 重置", command=self._reset,
+        btn_reset = tk.Button(bar, text="重置", command=self._reset,
                               bg=COL_PANEL2, fg=COL_TEXT, relief=tk.FLAT,
                               activebackground=COL_SELECT, activeforeground=COL_GOLD,
                               font=(FONT, 10), cursor="hand2", padx=12, pady=4)
@@ -274,7 +351,7 @@ class CoverCropDialog(tk.Toplevel):
                                activebackground="#4a262a", activeforeground="#ff7a80",
                                font=(FONT, 10), cursor="hand2", padx=12, pady=4)
         btn_cancel.pack(side=tk.RIGHT, padx=4)
-        btn_ok = tk.Button(bar, text="✓ 确认裁剪", command=self._confirm,
+        btn_ok = tk.Button(bar, text="确认裁剪", command=self._confirm,
                            bg=COL_GOLD, fg="#1b1405", relief=tk.FLAT,
                            activebackground="#e0bc4e", activeforeground="#1b1405",
                            font=(FONT, 10, "bold"), cursor="hand2", padx=16, pady=4)
@@ -443,18 +520,18 @@ class BlogTool:
         header = tk.Frame(self.root, bg=COL_PANEL, height=58)
         header.pack(fill=tk.X)
         header.pack_propagate(False)
-        tk.Label(header, text="✒ MCRYII 博客写作助手", bg=COL_PANEL, fg=COL_GOLD,
+        tk.Label(header, text="MCRYII 博客写作助手", bg=COL_PANEL, fg=COL_GOLD,
                  font=(FONT, 14, "bold")).pack(side=tk.LEFT, padx=18)
-        self.server_label = tk.Label(header, text="● 服务器检测中", bg=COL_PANEL,
+        self.server_label = tk.Label(header, text="服务器检测中", bg=COL_PANEL,
                                      fg=COL_MUTED, font=(FONT, 9))
         self.server_label.pack(side=tk.LEFT, padx=10)
         self.git_label = tk.Label(header, text="Git: -", bg=COL_PANEL, fg=COL_MUTED,
                                   font=(FONT, 9))
         self.git_label.pack(side=tk.LEFT, padx=10)
         for text, cmd, kind in (
-            ("🌐 预览网站", self.preview_site, "gold"),
-            ("🚀 推送到 GitHub", self.push_to_github, "ghost"),
-            ("🔄 Git 状态", self._update_git_status, "ghost"),
+            ("预览网站", self.preview_site, "gold"),
+            ("推送到 GitHub", self.push_to_github, "ghost"),
+            ("Git 状态", self._update_git_status, "ghost"),
         ):
             self._btn(header, text, cmd, kind).pack(side=tk.RIGHT, padx=6, pady=10)
 
@@ -468,7 +545,7 @@ class BlogTool:
         main.add(left, width=330, minsize=260)
         bar = tk.Frame(left, bg=COL_PANEL)
         bar.pack(fill=tk.X, padx=10, pady=(10, 6))
-        tk.Label(bar, text="📚 已有文章", bg=COL_PANEL, fg=COL_TEXT,
+        tk.Label(bar, text="已有文章", bg=COL_PANEL, fg=COL_TEXT,
                  font=(FONT, 11, "bold")).pack(side=tk.LEFT)
         self._btn(bar, "＋ 新建", self.new_article, "gold").pack(side=tk.RIGHT)
         self.tree = ttk.Treeview(left, columns=("date",), show="tree headings",
@@ -482,8 +559,8 @@ class BlogTool:
         self.tree.bind("<Return>", self.load_selected)
         bottom = tk.Frame(left, bg=COL_PANEL)
         bottom.pack(fill=tk.X, padx=10, pady=8)
-        self._btn(bottom, "🗑 删除", self.delete_article, "danger").pack(side=tk.LEFT)
-        self._btn(bottom, "🔄 刷新", self.refresh_article_list).pack(side=tk.RIGHT)
+        self._btn(bottom, "删除", self.delete_article, "danger").pack(side=tk.LEFT)
+        self._btn(bottom, "刷新", self.refresh_article_list).pack(side=tk.RIGHT)
 
         # 右侧：编辑 / 预览
         right = tk.Frame(main, bg=COL_PANEL)
@@ -492,13 +569,13 @@ class BlogTool:
         self.notebook.pack(fill=tk.BOTH, expand=True)
 
         edit_tab = tk.Frame(self.notebook, bg=COL_PANEL)
-        self.notebook.add(edit_tab, text="✏ 编辑")
+        self.notebook.add(edit_tab, text="编辑")
         preview_tab = tk.Frame(self.notebook, bg=COL_PANEL)
-        self.notebook.add(preview_tab, text="👁 预览")
+        self.notebook.add(preview_tab, text="预览")
         moments_tab = tk.Frame(self.notebook, bg=COL_PANEL)
-        self.notebook.add(moments_tab, text="💬 动态")
+        self.notebook.add(moments_tab, text="动态")
         downloads_tab = tk.Frame(self.notebook, bg=COL_PANEL)
-        self.notebook.add(downloads_tab, text="📦 下载")
+        self.notebook.add(downloads_tab, text="下载")
         self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
 
         self._build_edit_tab(edit_tab)
@@ -533,7 +610,7 @@ class BlogTool:
                  font=(FONT, 9)).grid(row=1, column=0, sticky="w", padx=(12, 8), pady=6)
         self.date_entry = self._entry(meta)
         self.date_entry.grid(row=1, column=1, sticky="ew", padx=(0, 6), pady=6)
-        self._btn(meta, "📅 现在", lambda: self.date_entry.delete(0, tk.END) or
+        self._btn(meta, "现在", lambda: self.date_entry.delete(0, tk.END) or
                   self.date_entry.insert(0, self._now_str()), "ghost").grid(
             row=1, column=2, padx=2, pady=6)
 
@@ -557,16 +634,16 @@ class BlogTool:
         self.cover_canvas = tk.Label(cover_row, text="无封面", bg=COL_INPUT, fg=COL_MUTED,
                                      width=16, height=3, relief=tk.FLAT)
         self.cover_canvas.pack(side=tk.LEFT, padx=8)
-        self._btn(cover_row, "✏ 编辑封面", self.edit_cover, "ghost").pack(side=tk.LEFT, padx=3)
-        self._btn(cover_row, "🖼 选择封面", self.choose_cover, "ghost").pack(side=tk.LEFT, padx=3)
-        self._btn(cover_row, "✕ 清除", self.clear_cover, "danger").pack(side=tk.LEFT, padx=3)
+        self._btn(cover_row, "编辑封面", self.edit_cover, "ghost").pack(side=tk.LEFT, padx=3)
+        self._btn(cover_row, "选择封面", self.choose_cover, "ghost").pack(side=tk.LEFT, padx=3)
+        self._btn(cover_row, "清除", self.clear_cover, "danger").pack(side=tk.LEFT, padx=3)
 
         # 工具栏
         tools = tk.Frame(parent, bg=COL_PANEL)
         tools.pack(fill=tk.X, padx=12, pady=6)
-        self._btn(tools, "💾 保存 (Ctrl+S)", self.save_article, "gold").pack(side=tk.LEFT)
-        self._btn(tools, "🖼 插入图片", self.insert_image).pack(side=tk.LEFT, padx=4)
-        self._btn(tools, "📋 清空编辑区", self._clear_editor).pack(side=tk.LEFT, padx=4)
+        self._btn(tools, "保存 (Ctrl+S)", self.save_article, "gold").pack(side=tk.LEFT)
+        self._btn(tools, "插入图片", self.insert_image).pack(side=tk.LEFT, padx=4)
+        self._btn(tools, "清空编辑区", self._clear_editor).pack(side=tk.LEFT, padx=4)
         tk.Label(tools, text="Ctrl+N 新建 · F5 刷新 · Ctrl+K 预览", bg=COL_PANEL,
                  fg="#5c5c66", font=(FONT, 9)).pack(side=tk.RIGHT)
 
@@ -770,7 +847,7 @@ class BlogTool:
         self.current_title = title
         self.dirty = False
         rel = os.path.relpath(filepath, POSTS_BASE)
-        self.status_var.set(f"✅ 已保存：{rel}")
+        self.status_var.set(f"已保存：{rel}")
         self.refresh_article_list()
         messagebox.showinfo("成功", f"文章已保存\n{filepath}")
 
@@ -808,8 +885,8 @@ class BlogTool:
 
         imgs_row = tk.Frame(parent, bg=COL_PANEL)
         imgs_row.pack(fill=tk.X, **pad)
-        self._btn(imgs_row, "🖼 添加图片", self._pick_moment_images, width=10).pack(side=tk.LEFT)
-        self._btn(imgs_row, "🗑 移除选中", self._remove_moment_images, "danger",
+        self._btn(imgs_row, "添加图片", self._pick_moment_images, width=10).pack(side=tk.LEFT)
+        self._btn(imgs_row, "移除选中", self._remove_moment_images, "danger",
                   width=10).pack(side=tk.LEFT, padx=8)
         self.moment_imgs_list = tk.Listbox(parent, height=3, bg=COL_INPUT, fg=COL_TEXT,
                                            relief=tk.FLAT, highlightthickness=1,
@@ -828,7 +905,7 @@ class BlogTool:
                                           highlightcolor=COL_GOLD, font=(FONT, 10))
         self.moment_link_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=4, padx=(8, 0))
 
-        self._btn(parent, "📌 发布动态", self.publish_moment, "gold").pack(anchor="w", **pad)
+        self._btn(parent, "发布动态", self.publish_moment, "gold").pack(anchor="w", **pad)
 
         tk.Label(parent, text="已有动态", anchor="w", bg=COL_PANEL, fg=COL_TEXT,
                  font=(FONT, 11, "bold")).pack(fill=tk.X, **pad)
@@ -841,8 +918,8 @@ class BlogTool:
         self.moment_tree.pack(fill=tk.BOTH, expand=True, **pad)
         tree_bottom = tk.Frame(parent, bg=COL_PANEL)
         tree_bottom.pack(fill=tk.X, **pad)
-        self._btn(tree_bottom, "🗑 删除选中", self.delete_moment, "danger").pack(side=tk.LEFT)
-        self._btn(tree_bottom, "🔄 刷新", self.refresh_moment_list).pack(side=tk.RIGHT)
+        self._btn(tree_bottom, "删除选中", self.delete_moment, "danger").pack(side=tk.LEFT)
+        self._btn(tree_bottom, "刷新", self.refresh_moment_list).pack(side=tk.RIGHT)
 
     def _pick_moment_images(self):
         paths = filedialog.askopenfilenames(
@@ -897,7 +974,7 @@ class BlogTool:
         self.moment_link_entry.delete(0, tk.END)
         self._refresh_moment_imgs()
         self.refresh_moment_list()
-        self.status_var.set("📌 动态已发布，重新构建后即可在 /dynamic/ 看到")
+        self.status_var.set("动态已发布，重新构建后即可在 /dynamic/ 看到")
         messagebox.showinfo("成功", "动态已发布\n重新构建网站后可在 /dynamic/ 查看")
 
     def refresh_moment_list(self):
@@ -941,10 +1018,12 @@ class BlogTool:
     def _build_downloads_tab(self, parent):
         bar = tk.Frame(parent, bg=COL_PANEL)
         bar.pack(fill=tk.X, padx=12, pady=(12, 6))
-        self._btn(bar, "➕ 添加文件", self._add_download_files, "gold").pack(side=tk.LEFT)
-        self._btn(bar, "➕ 新建分类", self._new_download_category).pack(side=tk.LEFT, padx=8)
-        self._btn(bar, "🗑 删除选中", self._delete_download_file, "danger").pack(side=tk.LEFT)
-        self._btn(bar, "🔄 刷新", self.refresh_download_list).pack(side=tk.RIGHT)
+        self._btn(bar, "添加文件", self._add_download_files, "gold").pack(side=tk.LEFT)
+        self._btn(bar, "新建分类", self._new_download_category).pack(side=tk.LEFT, padx=8)
+        self._btn(bar, "重命名", self._rename_download_category).pack(side=tk.LEFT, padx=8)
+        self._btn(bar, "外链", self._set_download_external).pack(side=tk.LEFT, padx=8)
+        self._btn(bar, "删除选中", self._delete_download_file, "danger").pack(side=tk.LEFT)
+        self._btn(bar, "刷新", self.refresh_download_list).pack(side=tk.RIGHT)
         tk.Label(parent, text="选择分类后点「添加文件」，文件会复制到 static/files/<分类>/，重新构建后出现在 /downloads/",
                  anchor="w", bg=COL_PANEL, fg=COL_MUTED, font=(FONT, 9)).pack(fill=tk.X, padx=12)
         self.download_tree = ttk.Treeview(parent, columns=("size",), show="tree headings",
@@ -966,12 +1045,12 @@ class BlogTool:
             if not os.path.isdir(cat_dir):
                 continue
             cat_iid = f"cat:{name}"
-            self.download_tree.insert("", tk.END, iid=cat_iid, text=f"  📁 {name}", open=True)
+            self.download_tree.insert("", tk.END, iid=cat_iid, text=f"  {name}", open=True)
             for fname in sorted(os.listdir(cat_dir)):
                 full = os.path.join(cat_dir, fname)
                 if os.path.isfile(full):
                     self.download_tree.insert(cat_iid, tk.END, iid=f"file:{name}:{fname}",
-                                              text=f"  📄 {fname}",
+                                              text=f"  {fname}",
                                               values=(fmt_size(os.path.getsize(full)),))
                     total += 1
         self.status_var.set(f"共 {len(self.download_tree.get_children())} 个分类、{total} 个文件")
@@ -1020,6 +1099,69 @@ class BlogTool:
         os.makedirs(os.path.join(FILES_DIR, name), exist_ok=True)
         self.refresh_download_list()
         self.status_var.set(f"已创建分类 {name}")
+
+    def _rename_download_category(self):
+        cat = self._selected_download_cat()
+        if not cat:
+            messagebox.showwarning("提示", "请先选择一个分类")
+            return
+        name = simpledialog.askstring("重命名分类", "新的分类名（字母/数字/-/_）：",
+                                      parent=self.root, initialvalue=cat)
+        if not name:
+            return
+        name = name.strip()
+        if not re.match(r"^[A-Za-z0-9_-]+$", name):
+            messagebox.showwarning("提示", "分类名只能包含字母、数字、- 和 _")
+            return
+        if name == cat:
+            return
+        old = os.path.join(FILES_DIR, cat)
+        new = os.path.join(FILES_DIR, name)
+        if os.path.exists(new):
+            messagebox.showwarning("提示", f"分类 {name} 已存在")
+            return
+        try:
+            os.rename(old, new)
+        except OSError as e:
+            messagebox.showerror("错误", str(e))
+            return
+        self.refresh_download_list()
+        self.status_var.set(f"已重命名 {cat} -> {name}")
+
+    def _set_download_external(self):
+        """给选中文件配置外链（网盘/对象存储直链），空值清除外链"""
+        sel = self.download_tree.selection()
+        if not sel:
+            return
+        iid = sel[0]
+        if not iid.startswith("file:"):
+            messagebox.showwarning("提示", "请先选择一个【文件】")
+            return
+        _, cat, fname = iid.split(":", 2)
+        key = f"{cat}/{fname}"
+        cfg_file = os.path.join(BLOG_ROOT, "data", "downloads.json")
+        cfg = {}
+        try:
+            with open(cfg_file, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+        except (OSError, ValueError):
+            cfg = {}
+        if not isinstance(cfg, dict) or not isinstance(cfg.get("files"), dict):
+            cfg = {"files": {}}
+        cur = cfg["files"].get(key, "")
+        url = simpledialog.askstring("设置外链", f"{key}\n输入网盘/对象存储直链（留空清除）：",
+                                     parent=self.root, initialvalue=cur)
+        if url is None:
+            return
+        url = url.strip()
+        if url:
+            cfg["files"][key] = url
+        else:
+            cfg["files"].pop(key, None)
+        os.makedirs(os.path.dirname(cfg_file), exist_ok=True)
+        with open(cfg_file, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, ensure_ascii=False, indent=2)
+        self.status_var.set(f"外链已更新：{key}")
 
     def _delete_download_file(self):
         sel = self.download_tree.selection()
@@ -1287,9 +1429,9 @@ class BlogTool:
 
     def _update_server_status(self):
         if self._server_running():
-            self.server_label.config(text="● 本地服务器运行中", fg=COL_GREEN)
+            self.server_label.config(text="本地服务器运行中", fg=COL_GREEN)
         else:
-            self.server_label.config(text="○ 本地服务器未启动", fg=COL_MUTED)
+            self.server_label.config(text="本地服务器未启动", fg=COL_MUTED)
         self.root.after(5000, self._update_server_status)
 
     def preview_site(self):
@@ -1344,7 +1486,7 @@ class BlogTool:
                         break
                     messagebox.showerror("推送失败", err[-500:])
                     return
-            self.status_var.set("✅ 推送成功，等待 GitHub Actions 构建")
+            self.status_var.set("推送成功，等待 GitHub Actions 构建")
             messagebox.showinfo("成功", "已推送到 GitHub，稍后网站自动更新")
             self._update_git_status()
         except Exception as e:
@@ -1475,6 +1617,24 @@ select:focus { outline:none; border-color:var(--gold); }
 .mom-del { margin-left:auto; }
 .small { font-size:.75rem; color:var(--muted); }
 .hidden-file { display:none; }
+#music-pane { flex:1; padding:16px 20px; overflow-y:auto; height:calc(100vh - 58px); display:flex; gap:20px; }
+#music-pls { width:220px; flex-shrink:0; }
+#music-pls-list { list-style:none; margin:8px 0; padding:0; }
+#music-pls-list li { display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:8px; cursor:pointer; font-size:.85rem; color:var(--text); }
+#music-pls-list li:hover { background:var(--panel2); }
+#music-pls-list li.sel { background:#3a3522; color:var(--gold); }
+#music-pls-list li .pl-del { margin-left:auto; }
+#music-files { flex:1; min-width:0; }
+#music-items { list-style:none; margin:8px 0 0; padding:0; }
+#music-items li { display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:8px 12px; margin-bottom:6px; font-size:.85rem; }
+#music-items .mu-idx { color:var(--muted); font-size:.75rem; width:22px; text-align:right; flex-shrink:0; }
+#music-items .mu-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#music-items .mu-size { color:var(--muted); font-size:.75rem; flex-shrink:0; }
+.mu-btn { flex-shrink:0; }
+.mu-grip { color:var(--muted); cursor:grab; flex-shrink:0; padding:2px 4px; user-select:none; }
+.mu-grip:active { cursor:grabbing; }
+#music-items li.mu-dragging { opacity:.45; }
+#music-items li.mu-drag-over { outline:1px dashed var(--gold); }
 .ic { width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; vertical-align:-2px; margin-right:5px; flex-shrink:0; }
 .ic-sm { width:12px; height:12px; margin:0 3px 0 0; vertical-align:-1px; }
 .list-bar { display:flex; align-items:center; justify-content:space-between; padding:10px 12px 4px; color:var(--muted); font-size:.85rem; font-weight:700; }
@@ -1495,6 +1655,50 @@ select:focus { outline:none; border-color:var(--gold); }
 }
 #art-list-pane.collapsed #btn-expand { display:block; }
 #btn-expand .ic { margin:0; }
+#art-filter { display:flex; align-items:center; gap:6px; padding:6px 10px 2px; }
+#art-filter input[type=text] {
+    flex:1; min-width:0; background:var(--input); color:var(--text);
+    border:1px solid var(--border); border-radius:8px; padding:6px 8px 6px 26px;
+    font-size:.8rem; outline:none; font-family:inherit;
+}
+#art-filter input[type=text]:focus { border-color:var(--gold); }
+#art-filter .search-wrap { position:relative; flex:1; min-width:0; }
+#art-filter .search-wrap .ic { position:absolute; left:7px; top:7px; margin:0; color:var(--muted); width:13px; height:13px; }
+#art-filter label { display:flex; align-items:center; gap:4px; color:var(--muted); font-size:.75rem; cursor:pointer; white-space:nowrap; }
+#art-filter input[type=checkbox] { accent-color:var(--gold); }
+.crop-overlay {
+    display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.7);
+    align-items:center; justify-content:center;
+}
+.crop-overlay.open { display:flex; }
+.crop-box { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px 20px; box-shadow:0 12px 40px rgba(0,0,0,.5); }
+.crop-box h3 { margin:0 0 10px; font-size:.95rem; color:var(--gold); }
+#crop-canvas { display:block; background:#000; border-radius:8px; cursor:move; }
+.crop-tools { display:flex; align-items:center; gap:8px; margin-top:12px; }
+.crop-tools .btn { padding:6px 12px; }
+#ai-pane { flex:1; padding:16px 20px; overflow-y:auto; height:calc(100vh - 58px); display:flex; gap:20px; }
+#ai-form { width:360px; flex-shrink:0; }
+#ai-form textarea { width:100%; height:100px; resize:vertical; }
+#ai-status-line { font-size:.88rem; color:var(--text); margin-bottom:8px; }
+#ai-grid { flex:1; min-width:0; }
+#ai-items { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; }
+#ai-items li { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:8px; }
+#ai-items img { width:100%; height:150px; object-fit:cover; border-radius:6px; background:#000; }
+#ai-items .ai-name { display:block; font-size:.72rem; color:var(--muted); margin-top:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ai-actions { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+.ai-progress { width:100%; height:6px; background:var(--input); border-radius:4px; overflow:hidden; margin-top:10px; }
+.ai-progress > div { height:100%; background:var(--gold); width:0; transition:width .2s; }
+.img-picker-overlay { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.75); align-items:center; justify-content:center; }
+.img-picker-overlay.open { display:flex; }
+.img-picker { width:min(760px,92vw); max-height:86vh; background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px 20px; overflow-y:auto; }
+.img-picker-tabs { display:flex; gap:6px; margin-bottom:10px; }
+#pick-ai-items { list-style:none; display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; margin:8px 0; padding:0; }
+#pick-ai-items li { cursor:pointer; border:2px solid transparent; border-radius:8px; overflow:hidden; background:var(--panel2); }
+#pick-ai-items li.sel { border-color:var(--gold); }
+#pick-ai-items img { width:100%; height:100px; object-fit:cover; display:block; }
+#pick-ai-items .pick-ai-name { display:block; font-size:.68rem; color:var(--muted); padding:4px 6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#pick-gen-prompt { width:100%; height:90px; resize:vertical; }
+#pick-gen-preview { display:none; max-width:100%; margin-top:8px; border-radius:8px; }
 </style>
 </head>
 <body>
@@ -1515,6 +1719,16 @@ select:focus { outline:none; border-color:var(--gold); }
   <symbol id="ic-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
   <symbol id="ic-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
   <symbol id="ic-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="ic-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+  <symbol id="ic-up" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></symbol>
+  <symbol id="ic-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="ic-grip" viewBox="0 0 24 24"><path d="M9 6h1M15 6h1M9 12h1M15 12h1M9 18h1M15 18h1"/></symbol>
+  <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="ic-crop" viewBox="0 0 24 24"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></symbol>
+  <symbol id="ic-zoomin" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/></symbol>
+  <symbol id="ic-zoomout" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6"/></symbol>
+  <symbol id="ic-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="ic-spark" viewBox="0 0 24 24"><path d="M12 2 14.2 8.8 21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2Z"/><path d="M19 3v4"/><path d="M21 5h-4"/></symbol>
 </svg>
 <header>
   <h1>博客写作助手 · 网页版</h1>
@@ -1522,6 +1736,8 @@ select:focus { outline:none; border-color:var(--gold); }
   <div class="tabs">
     <button class="tab-btn active" id="tab-articles"><svg class="ic"><use href="#ic-doc"/></svg>文章</button>
     <button class="tab-btn" id="tab-moments"><svg class="ic"><use href="#ic-chat"/></svg>动态</button>
+    <button class="tab-btn" id="tab-ai"><svg class="ic"><use href="#ic-spark"/></svg>AI 图库</button>
+    <button class="tab-btn" id="tab-music"><svg class="ic"><use href="#ic-music"/></svg>音乐</button>
     <button class="tab-btn" id="tab-downloads"><svg class="ic"><use href="#ic-box"/></svg>下载</button>
   </div>
 </header>
@@ -1594,14 +1810,45 @@ select:focus { outline:none; border-color:var(--gold); }
       </div>
     </div>
   </section>
+  <section class="view" id="view-ai">
+    <div id="ai-pane">
+      <div id="ai-form">
+        <div class="small" style="margin-bottom:8px">ComfyUI 状态</div>
+        <div id="ai-status-line">检测中...</div>
+        <div style="display:flex; gap:8px; margin-bottom:12px;">
+          <button class="btn sm" id="btn-ai-start"><svg class="ic ic-sm"><use href="#ic-spark"/></svg>启动</button>
+          <button class="btn sm" id="btn-ai-refresh"><svg class="ic ic-sm"><use href="#ic-upload"/></svg>刷新</button>
+        </div>
+        <div class="small" style="margin-bottom:6px">一句话生成</div>
+        <textarea id="ai-prompt" placeholder="例如：一只金色机械猫坐在电路板上，赛博朋克风格"></textarea>
+        <div class="row" style="margin-top:8px"><label style="width:56px">模型</label><select id="ai-model" style="flex:1"></select></div>
+        <div class="row"><label style="width:56px">尺寸</label><select id="ai-size" style="flex:1">
+          <option value="832x1216">竖版 832x1216</option>
+          <option value="1024x1024" selected>方图 1024x1024</option>
+          <option value="1216x832">横版 1216x832</option>
+        </select></div>
+        <button class="btn gold" id="btn-ai-gen"><svg class="ic"><use href="#ic-spark"/></svg>生成</button>
+        <div class="ai-progress" id="ai-progress"><div></div></div>
+        <div class="small" id="ai-gen-status"></div>
+      </div>
+      <div id="ai-grid">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <span class="small">ComfyUI 最近生成</span>
+          <button class="btn sm" id="btn-ai-grid-refresh"><svg class="ic ic-sm"><use href="#ic-upload"/></svg>刷新</button>
+        </div>
+        <ul id="ai-items"></ul>
+      </div>
+    </div>
+  </section>
   <section class="view" id="view-downloads">
     <div id="dl-pane">
       <div id="dl-form">
-        <div class="row">
-          <label>分类</label>
-          <select id="dl-cat" style="flex:1"></select>
-          <button class="btn sm" id="btn-dl-newcat"><svg class="ic ic-sm"><use href="#ic-plus"/></svg>新建</button>
-        </div>
+          <div class="row">
+            <label>分类</label>
+            <select id="dl-cat" style="flex:1"></select>
+            <button class="btn sm" id="btn-dl-rencat"><svg class="ic ic-sm"><use href="#ic-pen"/></svg>重命名</button>
+            <button class="btn sm" id="btn-dl-newcat"><svg class="ic ic-sm"><use href="#ic-plus"/></svg>新建</button>
+          </div>
         <div class="row">
           <input type="file" id="dl-file" class="hidden-file" multiple>
           <button class="btn gold" id="btn-dl-upload"><svg class="ic"><use href="#ic-upload"/></svg>添加文件</button>
@@ -1614,12 +1861,71 @@ select:focus { outline:none; border-color:var(--gold); }
       </div>
     </div>
   </section>
+  <section class="view" id="view-music">
+    <div id="music-pane">
+      <div id="music-pls">
+        <div class="small" style="margin-bottom:8px">歌单</div>
+        <ul id="music-pls-list"></ul>
+        <div style="display:flex; gap:6px; margin-top:10px;">
+          <input type="text" id="m-pls-name" placeholder="新歌单名" style="flex:1; min-width:0;">
+          <button class="btn sm" id="btn-pls-new"><svg class="ic ic-sm"><use href="#ic-plus"/></svg>新建</button>
+        </div>
+      </div>
+      <div id="music-files">
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap;">
+          <input type="file" id="m-music-file" class="hidden-file" accept="audio/*">
+          <button class="btn gold" id="btn-music-up"><svg class="ic"><use href="#ic-upload"/></svg>上传音乐</button>
+          <select id="m-pls-add" style="display:none; background:var(--input); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 8px; max-width:260px;"></select>
+          <button class="btn sm" id="btn-pls-add" style="display:none"><svg class="ic ic-sm"><use href="#ic-plus"/></svg>加入歌单</button>
+          <span class="small" id="m-music-tip" style="margin-left:auto">文件名用"作者 - 歌名.mp3"格式</span>
+        </div>
+        <ul id="music-items"></ul>
+      </div>
+    </div>
+  </section>
 </main>
+<div class="img-picker-overlay" id="img-picker">
+  <div class="img-picker">
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+      <span class="small" id="img-picker-title">选择图片</span>
+      <button class="btn sm" id="btn-picker-close" style="margin-left:auto"><svg class="ic ic-sm"><use href="#ic-x"/></svg></button>
+    </div>
+    <div class="img-picker-tabs">
+      <button class="tab-btn active" id="pick-tab-local">本地上传</button>
+      <button class="tab-btn" id="pick-tab-gallery">AI 图库</button>
+      <button class="tab-btn" id="pick-tab-gen">AI 生成</button>
+    </div>
+    <div id="pick-local">
+      <input type="file" id="pick-file" class="hidden-file" accept="image/*">
+      <button class="btn gold" id="btn-pick-file"><svg class="ic"><use href="#ic-upload"/></svg>选择本地图片</button>
+      <div class="small">选完会自动上传并插入</div>
+    </div>
+    <div id="pick-gallery" style="display:none">
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+        <button class="btn sm" id="btn-pick-ai-refresh"><svg class="ic ic-sm"><use href="#ic-upload"/></svg>刷新</button>
+        <span class="small" id="pick-ai-tip"></span>
+      </div>
+      <ul id="pick-ai-items"></ul>
+      <button class="btn gold" id="btn-pick-ai-use" disabled><svg class="ic"><use href="#ic-check"/></svg>使用此图</button>
+    </div>
+    <div id="pick-gen" style="display:none">
+      <textarea id="pick-gen-prompt" placeholder="一句话描述要生成的图片"></textarea>
+      <div class="row" style="margin-top:8px"><label style="width:56px">模型</label><select id="pick-gen-model" style="flex:1"></select></div>
+      <button class="btn gold" id="btn-pick-gen"><svg class="ic"><use href="#ic-spark"/></svg>生成</button>
+      <div class="ai-progress" id="pick-gen-progress"><div></div></div>
+      <div class="small" id="pick-gen-status"></div>
+      <img id="pick-gen-preview" alt="">
+      <button class="btn gold" id="btn-pick-gen-use" style="display:none"><svg class="ic"><use href="#ic-check"/></svg>使用此图</button>
+    </div>
+  </div>
+</div>
 <script>
 (function () {
     var $ = function (id) { return document.getElementById(id); };
     var state = { articles: [], curFile: null, moments: [], momImgs: [], editingId: null,
-                  catChips: [], tagChips: [], allCats: [] };
+                  catChips: [], tagChips: [], allCats: [], musicFiles: [], musicPls: [], musicCur: '全部',
+                  ai: { models: [], images: [], pickImages: [], taskId: null,
+                        picker: { context: null, cb: null, selected: null, genName: null, genTask: null } } };
     var pendingMomentId = null;
 
     function api(path, opts) {
@@ -1676,14 +1982,267 @@ select:focus { outline:none; border-color:var(--gold); }
     function showTab(name) {
         $('view-articles').classList.toggle('active', name === 'articles');
         $('view-moments').classList.toggle('active', name === 'moments');
+        $('view-ai').classList.toggle('active', name === 'ai');
         $('view-downloads').classList.toggle('active', name === 'downloads');
+        $('view-music').classList.toggle('active', name === 'music');
         $('tab-articles').classList.toggle('active', name === 'articles');
         $('tab-moments').classList.toggle('active', name === 'moments');
+        $('tab-ai').classList.toggle('active', name === 'ai');
         $('tab-downloads').classList.toggle('active', name === 'downloads');
+        $('tab-music').classList.toggle('active', name === 'music');
     }
     $('tab-articles').addEventListener('click', function () { showTab('articles'); });
     $('tab-moments').addEventListener('click', function () { showTab('moments'); });
+    $('tab-ai').addEventListener('click', function () { showTab('ai'); loadAiState(); });
     $('tab-downloads').addEventListener('click', function () { showTab('downloads'); });
+    $('tab-music').addEventListener('click', function () { showTab('music'); loadMusic(); });
+
+    // ---- AI 图库 / 图片来源 ----
+    function aiImgUrl(name, subfolder, thumb) {
+        return '/comfy-image?name=' + encodeURIComponent(name) +
+            (subfolder ? '&subfolder=' + encodeURIComponent(subfolder) : '') +
+            '&thumb=' + (thumb ? '1' : '0');
+    }
+    function loadAiState() {
+        api('/api/comfy/state').then(function (s) {
+            var running = !!s.running;
+            $('ai-status-line').textContent = running ? 'ComfyUI 已运行' : 'ComfyUI 未运行';
+            $('btn-ai-start').disabled = running;
+            state.ai.models = running ? (s.models || []) : [];
+            fillAiModels();
+            if (running) loadAiGallery();
+        });
+    }
+    function fillAiModels() {
+        var opts = state.ai.models.map(function (m) {
+            return '<option value="' + esc(m) + '">' + esc(m) + '</option>';
+        }).join('');
+        if (!opts) opts = '<option value="">无模型</option>';
+        $('ai-model').innerHTML = opts;
+        $('pick-gen-model').innerHTML = opts;
+    }
+    function startComfy() {
+        $('ai-status-line').textContent = '正在启动 ComfyUI...';
+        api('/api/comfy/start', { method: 'POST', body: '{}' }).then(function (r) {
+            if (r.error) { alert(r.error); $('ai-status-line').textContent = '启动失败'; return; }
+            pollComfyReady(0);
+        });
+    }
+    function pollComfyReady(n) {
+        if (n > 120) { $('ai-status-line').textContent = '启动超时，请检查 ComfyUI'; return; }
+        api('/api/comfy/state').then(function (s) {
+            if (s.running) { loadAiState(); $('ai-gen-status').textContent = 'ComfyUI 已就绪'; return; }
+            setTimeout(function () { pollComfyReady(n + 1); }, 1000);
+        });
+    }
+    function loadAiGallery() {
+        api('/api/comfy/images').then(function (d) {
+            state.ai.images = d.images || [];
+            renderAiGallery();
+        });
+    }
+    function renderAiGallery() {
+        var ul = $('ai-items');
+        ul.innerHTML = '';
+        if (!state.ai.images.length) {
+            ul.innerHTML = '<li class="small" style="border:none;background:none;">暂无 AI 图片</li>';
+            return;
+        }
+        state.ai.images.forEach(function (it) {
+            var li = document.createElement('li');
+            li.innerHTML = '<img src="' + aiImgUrl(it.name, '', 1) + '" loading="lazy" alt="">' +
+                '<span class="ai-name">' + esc(it.name) + '</span>' +
+                '<div class="ai-actions">' +
+                '<button class="btn sm" data-act="post">插入正文</button>' +
+                '<button class="btn sm" data-act="cover">封面</button>' +
+                '<button class="btn sm" data-act="moment">动态</button>' +
+                '</div>';
+            li.querySelectorAll('button').forEach(function (b) {
+                b.addEventListener('click', function () {
+                    useAiImage(it.name, b.getAttribute('data-act'));
+                });
+            });
+            ul.appendChild(li);
+        });
+    }
+    function useAiImage(name, action, cb) {
+        var target = action === 'moment' ? 'moment' : 'post';
+        api('/api/comfy/import', {
+            method: 'POST',
+            body: JSON.stringify({ name: name, target: target })
+        }).then(function (r) {
+            if (r.error) { alert(r.error); return; }
+            if (cb) { cb(r.url); return; }
+            applyAiUrl(r.url, action);
+        });
+    }
+    function applyAiUrl(url, action) {
+        if (action === 'cover') {
+            $('f-cover').value = url;
+            showTab('articles');
+        } else if (action === 'moment') {
+            state.momImgs.push(url);
+            renderMomImgs();
+            showTab('moments');
+        } else {
+            var ta = $('f-body');
+            var p = ta.selectionStart || ta.value.length;
+            ta.value = ta.value.slice(0, p) + '![](' + url + ')\\n\\n' + ta.value.slice(p);
+            showTab('articles');
+        }
+        setStatus('AI 图片已导入：' + url);
+    }
+    function openImagePicker(context, cb) {
+        state.ai.picker = { context: context, cb: cb, selected: null, genName: null, genTask: null };
+        $('btn-pick-ai-use').disabled = true;
+        $('img-picker').classList.add('open');
+        $('img-picker-title').textContent = context === 'moment' ? '添加动态图片' :
+            (context === 'cover' ? '设置封面' : '插入正文图片');
+        setPickerTab('local');
+        $('pick-file').value = '';
+        loadPickAiGallery();
+        resetPickGen();
+    }
+    function closePicker() {
+        $('img-picker').classList.remove('open');
+    }
+    function setPickerTab(name) {
+        $('pick-local').style.display = name === 'local' ? '' : 'none';
+        $('pick-gallery').style.display = name === 'gallery' ? '' : 'none';
+        $('pick-gen').style.display = name === 'gen' ? '' : 'none';
+        ['pick-tab-local', 'pick-tab-gallery', 'pick-tab-gen'].forEach(function (id) {
+            $(id).classList.toggle('active', id === 'pick-tab-' + name);
+        });
+    }
+    function loadPickAiGallery() {
+        api('/api/comfy/images').then(function (d) {
+            state.ai.pickImages = d.images || [];
+            renderPickAiGallery();
+        });
+    }
+    function renderPickAiGallery() {
+        var ul = $('pick-ai-items');
+        ul.innerHTML = '';
+        state.ai.pickImages.forEach(function (it) {
+            var li = document.createElement('li');
+            if (state.ai.picker.selected === it.name) li.className = 'sel';
+            li.innerHTML = '<img src="' + aiImgUrl(it.name, '', 1) + '" loading="lazy" alt="">' +
+                '<span class="pick-ai-name">' + esc(it.name) + '</span>';
+            li.addEventListener('click', function () {
+                state.ai.picker.selected = it.name;
+                renderPickAiGallery();
+                $('btn-pick-ai-use').disabled = false;
+            });
+            ul.appendChild(li);
+        });
+        if (!state.ai.pickImages.length) {
+            $('pick-ai-tip').textContent = '暂无 AI 图片';
+        } else {
+            $('pick-ai-tip').textContent = '点击选择图片';
+        }
+    }
+    function resetPickGen() {
+        $('pick-gen-prompt').value = '';
+        $('pick-gen-progress').firstElementChild.style.width = '0%';
+        $('pick-gen-status').textContent = '';
+        $('pick-gen-preview').style.display = 'none';
+        $('pick-gen-preview').removeAttribute('src');
+        $('btn-pick-gen-use').style.display = 'none';
+    }
+    function startGenerate(target) {
+        var promptEl = target === 'picker' ? $('pick-gen-prompt') : $('ai-prompt');
+        var modelEl = target === 'picker' ? $('pick-gen-model') : $('ai-model');
+        var prompt = promptEl.value.trim();
+        if (!prompt) { alert('请输入提示词'); return; }
+        if (!modelEl.value) { alert('请先启动 ComfyUI 并选择模型'); return; }
+        var size = ($('ai-size').value || '1024x1024').split('x');
+        var payload = {
+            prompt: prompt, model: modelEl.value,
+            width: size[0], height: size[1], steps: 20, cfg: 7
+        };
+        var statusEl = target === 'picker' ? $('pick-gen-status') : $('ai-gen-status');
+        var progressEl = target === 'picker' ?
+            $('pick-gen-progress').firstElementChild : $('ai-progress').firstElementChild;
+        statusEl.textContent = '提交中...';
+        progressEl.style.width = '0%';
+        api('/api/comfy/generate', { method: 'POST', body: JSON.stringify(payload) }).then(function (r) {
+            if (r.error) { alert(r.error); statusEl.textContent = '生成失败'; return; }
+            pollAiTask(r.prompt_id, statusEl, progressEl, function (img) {
+                if (target === 'picker') {
+                    state.ai.picker.genName = img.filename;
+                    $('pick-gen-preview').src = aiImgUrl(img.filename, img.subfolder || '', 0);
+                    $('pick-gen-preview').style.display = '';
+                    $('btn-pick-gen-use').style.display = '';
+                } else {
+                    setStatus('AI 图片已生成');
+                    loadAiGallery();
+                }
+            });
+        });
+    }
+    function pollAiTask(taskId, statusEl, progressEl, onDone) {
+        api('/api/comfy/task?prompt_id=' + encodeURIComponent(taskId)).then(function (t) {
+            var pct = 0, text = '';
+            if (t.status === 'queued') {
+                text = '排队中...';
+            } else if (t.status === 'running') {
+                if (t.max) pct = Math.min(99, Math.round((t.value || 0) / t.max * 100));
+                text = '生成中 ' + pct + '%';
+            } else if (t.status === 'done') {
+                pct = 100;
+                text = '生成完成';
+                progressEl.style.width = '100%';
+                statusEl.textContent = text;
+                if (onDone && t.images && t.images[0]) onDone(t.images[0]);
+                return;
+            } else if (t.status === 'error') {
+                text = '生成失败';
+                statusEl.textContent = text;
+                return;
+            } else {
+                text = '等待任务开始...';
+            }
+            progressEl.style.width = pct + '%';
+            statusEl.textContent = text;
+            setTimeout(function () { pollAiTask(taskId, statusEl, progressEl, onDone); }, 1000);
+        });
+    }
+    $('btn-ai-start').addEventListener('click', startComfy);
+    $('btn-ai-refresh').addEventListener('click', loadAiState);
+    $('btn-ai-grid-refresh').addEventListener('click', loadAiGallery);
+    $('btn-ai-gen').addEventListener('click', function () { startGenerate('tab'); });
+    $('btn-picker-close').addEventListener('click', closePicker);
+    $('btn-pick-file').addEventListener('click', function () { $('pick-file').click(); });
+    $('pick-file').addEventListener('change', function () {
+        var f = this.files && this.files[0];
+        if (!f) return;
+        uploadImg(this, state.ai.picker.context === 'moment' ? 'moment' : 'post', function (url) {
+            state.ai.picker.cb(url);
+            closePicker();
+        });
+    });
+    $('pick-tab-local').addEventListener('click', function () { setPickerTab('local'); });
+    $('pick-tab-gallery').addEventListener('click', function () { setPickerTab('gallery'); });
+    $('pick-tab-gen').addEventListener('click', function () { setPickerTab('gen'); });
+    $('btn-pick-ai-refresh').addEventListener('click', loadPickAiGallery);
+    $('btn-pick-ai-use').addEventListener('click', function () {
+        var name = state.ai.picker.selected;
+        if (!name) return;
+        useAiImage(name, state.ai.picker.context, function (url) {
+            state.ai.picker.cb(url);
+            closePicker();
+        });
+    });
+    $('btn-pick-gen').addEventListener('click', function () { startGenerate('picker'); });
+    $('btn-pick-gen-use').addEventListener('click', function () {
+        var name = state.ai.picker.genName;
+        if (!name) return;
+        useAiImage(name, state.ai.picker.context, function (url) {
+            state.ai.picker.cb(url);
+            closePicker();
+        });
+    });
+
     $('btn-collapse').addEventListener('click', function () {
         $('art-list-pane').classList.add('collapsed');
     });
@@ -1781,6 +2340,7 @@ select:focus { outline:none; border-color:var(--gold); }
     function uploadImg(input, target, done) {
         var f = input.files && input.files[0];
         if (!f) return;
+        if (f.size > 20 * 1024 * 1024) { alert('文件超过 20MB，请使用桌面版上传'); return; }
         var reader = new FileReader();
         reader.onload = function () {
             api('/api/upload', { method: 'POST', body: JSON.stringify({ name: f.name, data: reader.result, target: target }) })
@@ -1791,7 +2351,15 @@ select:focus { outline:none; border-color:var(--gold); }
     $('btn-save').addEventListener('click', saveArticle);
     $('btn-new').addEventListener('click', newArticle);
     $('btn-del').addEventListener('click', delArticle);
-    $('btn-img-up').addEventListener('click', function () { $('f-img-file').click(); });
+    $('btn-img-up').addEventListener('click', function () {
+        openImagePicker('post', function (url) {
+            var ta = $('f-body');
+            var p = ta.selectionStart || ta.value.length;
+            ta.value = ta.value.slice(0, p) + '![](' + url + ')\\n\\n' + ta.value.slice(p);
+            ta.focus();
+            ta.selectionStart = ta.selectionEnd = p + url.length + 5;
+        });
+    });
     $('f-img-file').addEventListener('change', function () {
         uploadImg(this, 'post', function (url) {
             var ta = $('f-body');
@@ -1801,7 +2369,9 @@ select:focus { outline:none; border-color:var(--gold); }
             ta.selectionStart = ta.selectionEnd = p + url.length + 5;
         });
     });
-    $('btn-cover-up').addEventListener('click', function () { $('f-cover-file').click(); });
+    $('btn-cover-up').addEventListener('click', function () {
+        openImagePicker('cover', function (url) { $('f-cover').value = url; });
+    });
     $('f-cover-file').addEventListener('change', function () {
         uploadImg(this, 'post', function (url) { $('f-cover').value = url; });
     });
@@ -1948,9 +2518,15 @@ select:focus { outline:none; border-color:var(--gold); }
             ul.appendChild(li);
         });
     }
-    $('btn-m-img').addEventListener('click', function () { $('m-img-file').click(); });
+    $('btn-m-img').addEventListener('click', function () {
+        openImagePicker('moment', function (url) {
+            state.momImgs.push(url);
+            renderMomImgs();
+        });
+    });
     $('m-img-file').addEventListener('change', function () {
         Array.prototype.forEach.call(this.files, function (f) {
+            if (f.size > 20 * 1024 * 1024) { alert('文件超过 20MB，请使用桌面版上传'); return; }
             var reader = new FileReader();
             reader.onload = function () {
                 api('/api/upload', { method: 'POST', body: JSON.stringify({ name: f.name, data: reader.result, target: 'moment' }) })
@@ -1978,6 +2554,218 @@ select:focus { outline:none; border-color:var(--gold); }
         resetMomentForm();
         loadMoments();
         setStatus('已取消编辑');
+    });
+
+    // ---- 音乐 ----
+    function loadMusic() {
+        api('/api/music').then(function (data) {
+            state.musicFiles = data.files || [];
+            state.musicPls = data.playlists || [];
+            if (!state.musicPls.some(function (x) { return x.name === state.musicCur; })) {
+                state.musicCur = '全部';
+            }
+            renderMusicPls();
+            renderMusicFiles();
+        });
+    }
+    function renderMusicPls() {
+        var ul = $('music-pls-list');
+        ul.innerHTML = '';
+        state.musicPls.forEach(function (pl) {
+            var li = document.createElement('li');
+            li.className = pl.name === state.musicCur ? 'sel' : '';
+            li.innerHTML = '<span>' + esc(pl.name) + ' (' + (pl.order || []).length + ')</span>';
+            if (pl.name !== '全部') {
+                var del = document.createElement('button');
+                del.className = 'btn sm danger pl-del';
+                del.innerHTML = '<svg class="ic ic-sm"><use href="#ic-trash"/></svg>';
+                del.title = '删除歌单';
+                del.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    if (confirm('删除歌单「' + pl.name + '」？歌曲文件不会删除。')) {
+                        api('/api/music', { method: 'POST', body: JSON.stringify({ action: 'playlist_delete', name: pl.name }) }).then(function (r) {
+                            if (r.error) { alert(r.error); return; }
+                            if (state.musicCur === pl.name) state.musicCur = '全部';
+                            loadMusic();
+                        });
+                    }
+                });
+                li.appendChild(del);
+            }
+            li.addEventListener('click', function () {
+                state.musicCur = pl.name;
+                renderMusicPls();
+                renderMusicFiles();
+            });
+            ul.appendChild(li);
+        });
+        var sel = $('m-pls-add');
+        var addBtn = $('btn-pls-add');
+        if (state.musicCur === '全部') {
+            sel.style.display = 'none';
+            addBtn.style.display = 'none';
+        } else {
+            sel.style.display = '';
+            addBtn.style.display = '';
+            var cur = state.musicPls.filter(function (x) { return x.name === state.musicCur; })[0];
+            var curOrder = (cur && cur.order) || [];
+            sel.innerHTML = '<option value="">选择歌曲…</option>';
+            state.musicFiles.forEach(function (f) {
+                if (curOrder.indexOf(f.name) < 0) {
+                    var o = document.createElement('option');
+                    o.value = f.name;
+                    o.textContent = f.name;
+                    sel.appendChild(o);
+                }
+            });
+        }
+    }
+    function fmtSize(n) {
+        if (!n) return '';
+        if (n > 1048576) return (n / 1048576).toFixed(1) + ' MB';
+        return Math.ceil(n / 1024) + ' KB';
+    }
+    function renderMusicFiles() {
+        var ul = $('music-items');
+        ul.innerHTML = '';
+        var pl = state.musicPls.filter(function (x) { return x.name === state.musicCur; })[0];
+        var order = (pl && pl.order) || [];
+        var isAll = state.musicCur === '全部';
+        var list = order.map(function (n) {
+            return state.musicFiles.filter(function (f) { return f.name === n; })[0];
+        }).filter(Boolean);
+        if (isAll && !list.length) list = state.musicFiles;
+        if (!list.length) {
+            var empty = document.createElement('li');
+            empty.className = 'small';
+            empty.style.cssText = 'border:none; background:none;';
+            empty.textContent = isAll ? '歌单为空，点上方「上传音乐」添加' : '歌单为空，切到「全部」选择歌曲加入';
+            ul.appendChild(empty);
+            return;
+        }
+        var dragSong = null;
+        list.forEach(function (f, i) {
+            var li = document.createElement('li');
+            li.innerHTML = '<span class="mu-grip" draggable="true" title="拖动排序"><svg class="ic ic-sm"><use href="#ic-grip"/></svg></span>' +
+                '<span class="mu-idx">' + (i + 1) + '</span>' +
+                '<span class="mu-name">' + esc((f.artist ? f.artist + ' - ' : '') + f.title) + '</span>' +
+                '<span class="mu-size">' + fmtSize(f.size) + '</span>';
+            var grip = li.querySelector('.mu-grip');
+            grip.addEventListener('dragstart', function (e) {
+                dragSong = f.name;
+                li.classList.add('mu-dragging');
+                if (e.dataTransfer) {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', f.name);
+                }
+            });
+            li.addEventListener('dragover', function (e) {
+                if (dragSong && dragSong !== f.name) {
+                    e.preventDefault();
+                    li.classList.add('mu-drag-over');
+                }
+            });
+            li.addEventListener('dragleave', function (e) {
+                if (!li.contains(e.relatedTarget)) {
+                    li.classList.remove('mu-drag-over');
+                }
+            });
+            li.addEventListener('drop', function (e) {
+                e.preventDefault();
+                li.classList.remove('mu-drag-over');
+                if (dragSong && dragSong !== f.name) {
+                    moveMusicTo(dragSong, i);
+                }
+            });
+            li.addEventListener('dragend', function () {
+                li.classList.remove('mu-dragging');
+                li.classList.remove('mu-drag-over');
+            });
+            var up = document.createElement('button');
+            up.className = 'btn sm mu-btn';
+            up.title = '上移';
+            up.innerHTML = '<svg class="ic ic-sm"><use href="#ic-up"/></svg>';
+            up.addEventListener('click', function () { moveMusic(f.name, 'up'); });
+            li.appendChild(up);
+            var down = document.createElement('button');
+            down.className = 'btn sm mu-btn';
+            down.title = '下移';
+            down.innerHTML = '<svg class="ic ic-sm"><use href="#ic-down"/></svg>';
+            down.addEventListener('click', function () { moveMusic(f.name, 'down'); });
+            li.appendChild(down);
+            if (isAll) {
+                var del = document.createElement('button');
+                del.className = 'btn sm danger mu-btn';
+                del.title = '删除文件';
+                del.innerHTML = '<svg class="ic ic-sm"><use href="#ic-trash"/></svg>';
+                del.addEventListener('click', function () {
+                    if (confirm('删除音乐文件「' + f.name + '」？会从所有歌单移除。')) {
+                        api('/api/music?name=' + encodeURIComponent(f.name), { method: 'DELETE' }).then(function (r) {
+                            if (r.error) { alert(r.error); return; }
+                            loadMusic();
+                        });
+                    }
+                });
+                li.appendChild(del);
+            } else {
+                var rm = document.createElement('button');
+                rm.className = 'btn sm danger mu-btn';
+                rm.title = '移出歌单';
+                rm.innerHTML = '<svg class="ic ic-sm"><use href="#ic-x"/></svg>';
+                rm.addEventListener('click', function () { musicPlsOp('playlist_remove', f.name); });
+                li.appendChild(rm);
+            }
+            ul.appendChild(li);
+        });
+    }
+    function moveMusic(song, dir) {
+        api('/api/music', { method: 'POST', body: JSON.stringify({ action: 'move', name: state.musicCur, song: song, dir: dir }) }).then(function (r) {
+            if (r.error) { alert(r.error); return; }
+            loadMusic();
+        });
+    }
+    function moveMusicTo(song, to) {
+        api('/api/music', { method: 'POST', body: JSON.stringify({ action: 'move_to', name: state.musicCur, song: song, to: to }) }).then(function (r) {
+            if (r.error) { alert(r.error); return; }
+            loadMusic();
+        });
+    }
+    function musicPlsOp(action, song) {
+        api('/api/music', { method: 'POST', body: JSON.stringify({ action: action, name: state.musicCur, song: song }) }).then(function (r) {
+            if (r.error) { alert(r.error); return; }
+            loadMusic();
+        });
+    }
+    $('btn-pls-new').addEventListener('click', function () {
+        var name = $('m-pls-name').value.trim();
+        if (!name) { alert('请输入歌单名'); return; }
+        api('/api/music', { method: 'POST', body: JSON.stringify({ action: 'playlist_create', name: name }) }).then(function (r) {
+            if (r.error) { alert(r.error); return; }
+            $('m-pls-name').value = '';
+            loadMusic();
+        });
+    });
+    $('btn-pls-add').addEventListener('click', function () {
+        var song = $('m-pls-add').value;
+        if (!song) { alert('请选择歌曲'); return; }
+        musicPlsOp('playlist_add', song);
+    });
+    $('btn-music-up').addEventListener('click', function () { $('m-music-file').click(); });
+    $('m-music-file').addEventListener('change', function () {
+        var f = this.files[0];
+        if (!f) return;
+        if (!/\\.(mp3|m4a|ogg|flac|wav)$/i.test(f.name)) { alert('只支持音频文件'); this.value = ''; return; }
+        if (f.size > 20 * 1024 * 1024) { alert('文件超过 20MB，请使用桌面版上传'); this.value = ''; return; }
+        var reader = new FileReader();
+        reader.onload = function () {
+            api('/api/music', { method: 'POST', body: JSON.stringify({ action: 'upload', name: f.name, data: reader.result }) }).then(function (r) {
+                if (r.error) { alert(r.error); return; }
+                loadMusic();
+                setStatus('已上传 ' + f.name + '，重新构建后出现在播放器');
+            });
+        };
+        reader.readAsDataURL(f);
+        this.value = '';
     });
 
     // ---- 下载文件 ----
@@ -2011,11 +2799,23 @@ select:focus { outline:none; border-color:var(--gold); }
         if (!c) return;
         c.files.forEach(function (f) {
             var li = document.createElement('li');
-            li.innerHTML = '<span class="dl-name"><svg class="ic ic-sm"><use href="#ic-doc"/></svg>' + esc(f.name) + '</span>' +
-                '<span class="dl-size">' + esc(f.sizeText) + '</span>' +
-                '<button class="btn sm danger">删除</button>';
-            li.querySelector('button').addEventListener('click', function () { delDlFile(cat, f.name); });
-            ul.appendChild(li);
+              li.innerHTML = '<span class="dl-name"><svg class="ic ic-sm"><use href="#ic-doc"/></svg>' + esc(f.name) + '</span>' +
+                  '<span class="dl-size">' + esc(f.sizeText) + '</span>' +
+                  '<button class="btn sm">外链</button>' +
+                  '<button class="btn sm danger">删除</button>';
+              li.querySelectorAll('button')[0].addEventListener('click', function () {
+                  var url = prompt('外链 URL（网盘/对象存储直链，留空清除）：');
+                  if (url === null) return;
+                  api('/api/files', { method: 'POST', body: JSON.stringify({
+                      action: 'external', cat: cat, name: f.name, url: url.trim()
+                  }) }).then(function (r) {
+                      if (r.error) { alert(r.error); return; }
+                      loadDownloads();
+                      setStatus('外链已更新：' + cat + '/' + f.name);
+                  });
+              });
+              li.querySelectorAll('button')[1].addEventListener('click', function () { delDlFile(cat, f.name); });
+              ul.appendChild(li);
         });
     }
     function delDlFile(cat, name) {
@@ -2036,6 +2836,7 @@ select:focus { outline:none; border-color:var(--gold); }
         var files = Array.prototype.slice.call(this.files);
         var done = 0;
         files.forEach(function (f) {
+            if (f.size > 20 * 1024 * 1024) { alert('文件超过 20MB，请使用桌面版上传'); return; }
             var reader = new FileReader();
             reader.onload = function () {
                 api('/api/files', { method: 'POST', body: JSON.stringify({
@@ -2062,6 +2863,18 @@ select:focus { outline:none; border-color:var(--gold); }
                 if (r.error) { alert(r.error); return; }
                 loadDownloads();
                 setStatus('已创建分类 ' + name.trim());
+            });
+    });
+    $('btn-dl-rencat').addEventListener('click', function () {
+        var cat = $('dl-cat').value;
+        if (!cat) { alert('请先选择分类'); return; }
+        var name = prompt('新的分类名（字母/数字/-/_）：', cat);
+        if (!name || name.trim() === cat) return;
+        api('/api/files', { method: 'POST', body: JSON.stringify({ action: 'rename', cat: cat, name: name.trim() }) })
+            .then(function (r) {
+                if (r.error) { alert(r.error); return; }
+                loadDownloads();
+                setStatus('已重命名 ' + cat + ' -> ' + name.trim());
             });
     });
 
@@ -2107,10 +2920,13 @@ select:focus { outline:none; border-color:var(--gold); }
     loadArticles();
     loadMoments();
     loadDownloads();
+    loadMusic();
+    loadAiState();
     var q = new URLSearchParams(location.search);
     if (q.get('new') === '1') { newArticle(); showTab('articles'); }
     else if (q.get('file')) { loadArticle(q.get('file')); showTab('articles'); }
-    else if (q.get('tab') === 'downloads') { showTab('downloads'); }
+    else if (q.get('tab') === 'ai') { showTab('ai'); }
+    else if (q.get('tab') === 'music') { showTab('music'); }
     else if (q.get('tab') === 'moments' || q.get('id')) { showTab('moments'); }
     else if (q.get('tab') === 'downloads') { showTab('downloads'); }
     if (q.get('id')) pendingMomentId = q.get('id');
@@ -2128,6 +2944,325 @@ def _safe_join(base, rel):
     if os.path.commonpath([base, full]) != base:
         return None
     return full
+
+
+_COMFY_PROCESS = None
+_COMFY_PROCESS_LOCK = threading.Lock()
+
+
+def _comfy_http_json(method, path, data=None, timeout=5):
+    body = json.dumps(data).encode("utf-8") if data is not None else None
+    req = urllib.request.Request(
+        COMFY_API_URL + path, data=body, method=method,
+        headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _comfy_running():
+    try:
+        with urllib.request.urlopen(COMFY_API_URL + "/system_stats", timeout=2) as r:
+            return r.status == 200
+    except Exception:
+        return False
+
+
+def _comfy_start():
+    global _COMFY_PROCESS
+    with _COMFY_PROCESS_LOCK:
+        if _comfy_running():
+            return {"started": False}
+        if _COMFY_PROCESS is not None and _COMFY_PROCESS.poll() is None:
+            return {"started": False}
+        if not os.path.isfile(COMFY_PYTHON) or not os.path.isfile(os.path.join(COMFY_ROOT, "main.py")):
+            raise OSError("ComfyUI 路径不存在，请检查配置")
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        _COMFY_PROCESS = subprocess.Popen(
+            [COMFY_PYTHON, "-s", "main.py", "--port", str(COMFY_PORT),
+             "--disable-auto-launch", "--dont-print-server"],
+            cwd=COMFY_ROOT, creationflags=flags,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return {"started": True}
+
+
+def _comfy_models():
+    try:
+        info = _comfy_http_json("GET", "/object_info/CheckpointLoaderSimple", timeout=5)
+        raw = info.get("CheckpointLoaderSimple", {}).get("input", {}).get("required", {}).get("ckpt_name")
+        if isinstance(raw, list) and raw and isinstance(raw[0], list):
+            return [str(x) for x in raw[0]]
+    except Exception:
+        pass
+    return []
+
+
+def _build_comfy_workflow(p):
+    model = (p.get("model") or "").strip()
+    prompt = (p.get("prompt") or "").strip()
+    negative = (p.get("negative") or "").strip() or AI_DEFAULT_NEGATIVE
+    if not model or not prompt:
+        raise ValueError("模型和提示词不能为空")
+    try:
+        width = max(256, min(2048, int(p.get("width") or 1024)))
+        height = max(256, min(2048, int(p.get("height") or 1024)))
+        width = max(64, round(width / 8) * 8)
+        height = max(64, round(height / 8) * 8)
+        steps = max(1, min(100, int(p.get("steps") or 20)))
+        cfg = max(1.0, min(30.0, float(p.get("cfg") or 7)))
+        seed = int(p.get("seed") or 0)
+    except (TypeError, ValueError):
+        raise ValueError("生成参数无效")
+    return {
+        "1": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": model}},
+        "2": {"class_type": "CLIPTextEncode", "inputs": {"text": prompt, "clip": ["1", 1]}},
+        "3": {"class_type": "CLIPTextEncode", "inputs": {"text": negative, "clip": ["1", 1]}},
+        "4": {"class_type": "EmptyLatentImage", "inputs": {
+            "width": width, "height": height, "batch_size": 1}},
+        "5": {"class_type": "KSampler", "inputs": {
+            "model": ["1", 0], "positive": ["2", 0], "negative": ["3", 0],
+            "latent_image": ["4", 0], "seed": seed, "steps": steps,
+            "cfg": cfg, "sampler_name": "euler", "scheduler": "normal", "denoise": 1}},
+        "6": {"class_type": "VAEDecode", "inputs": {"samples": ["5", 0], "vae": ["1", 2]}},
+        "7": {"class_type": "SaveImage", "inputs": {"images": ["6", 0], "filename_prefix": "blog_ai"}},
+    }
+
+
+def _comfy_generate(p):
+    if not _comfy_running():
+        raise OSError("ComfyUI 未运行，请先在 AI 图库页启动")
+    workflow = _build_comfy_workflow(p)
+    resp = _comfy_http_json("POST", "/prompt", {
+        "prompt": workflow, "client_id": "blog-tool"}, timeout=10)
+    pid = resp.get("prompt_id")
+    if not pid:
+        raise OSError(str(resp.get("error") or resp.get("node_errors") or resp)[:500])
+    return pid
+
+
+def _recv_exact(sock, n):
+    data = b""
+    while len(data) < n:
+        chunk = sock.recv(n - len(data))
+        if not chunk:
+            return None
+        data += chunk
+    return data
+
+
+def _comfy_ws_progress(prompt_id, timeout=1.0):
+    try:
+        s = socket.create_connection((COMFY_HOST, COMFY_PORT), timeout=timeout)
+    except OSError:
+        return None
+    try:
+        s.settimeout(timeout)
+        key = base64.b64encode(os.urandom(16)).decode()
+        req = (
+            "GET /ws?clientId=blog-tool HTTP/1.1\r\n"
+            "Host: {}:{}\r\n"
+            "Upgrade: websocket\r\n"
+            "Connection: Upgrade\r\n"
+            "Sec-WebSocket-Key: {}\r\n"
+            "Sec-WebSocket-Version: 13\r\n\r\n"
+        ).format(COMFY_HOST, COMFY_PORT, key)
+        s.sendall(req.encode("ascii"))
+        head = b""
+        while b"\r\n\r\n" not in head:
+            chunk = s.recv(4096)
+            if not chunk:
+                return None
+            head += chunk
+        if b" 101 " not in head.split(b"\r\n", 1)[0]:
+            return None
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            hdr = _recv_exact(s, 2)
+            if hdr is None:
+                return None
+            opcode = hdr[0] & 0x0f
+            length = hdr[1] & 0x7f
+            if length == 126:
+                ext = _recv_exact(s, 2)
+                if ext is None:
+                    return None
+                length = int.from_bytes(ext, "big")
+            elif length == 127:
+                ext = _recv_exact(s, 8)
+                if ext is None:
+                    return None
+                length = int.from_bytes(ext, "big")
+            if hdr[1] & 0x80:
+                mask = _recv_exact(s, 4)
+                if mask is None:
+                    return None
+            payload = b""
+            while len(payload) < length:
+                chunk = s.recv(min(65536, length - len(payload)))
+                if not chunk:
+                    return None
+                payload += chunk
+            if opcode == 1:
+                try:
+                    msg = json.loads(payload.decode("utf-8", "replace"))
+                except Exception:
+                    continue
+                if msg.get("type") == "progress":
+                    data = msg.get("data") or {}
+                    if data.get("prompt_id") == prompt_id:
+                        return (data.get("value") or 0, data.get("max") or 0)
+                elif msg.get("type") == "executing":
+                    data = msg.get("data") or {}
+                    if data.get("prompt_id") == prompt_id and data.get("node") is None:
+                        return None
+                elif msg.get("type") == "execution_error":
+                    data = msg.get("data") or {}
+                    if data.get("prompt_id") == prompt_id:
+                        return None
+            elif opcode == 8:
+                return None
+    finally:
+        s.close()
+    return None
+
+
+def _comfy_history_images(history):
+    out = []
+    for node_id, node_output in (history.get("outputs") or {}).items():
+        for im in (node_output.get("images") or []):
+            if im.get("filename"):
+                out.append({
+                    "filename": im["filename"],
+                    "subfolder": im.get("subfolder", ""),
+                    "type": im.get("type", "output"),
+                })
+    return out
+
+
+def _comfy_task_status(prompt_id):
+    try:
+        history = _comfy_http_json(
+            "GET", "/history/" + urllib.parse.quote(prompt_id, safe=""), timeout=5)
+        if prompt_id in history:
+            h = history[prompt_id]
+            status = h.get("status") or {}
+            images = _comfy_history_images(h)
+            if status.get("status_str") == "error":
+                return {"status": "error", "message": "ComfyUI 生成失败", "images": images}
+            if status.get("completed") or images:
+                return {"status": "done", "images": images}
+            return {"status": "running"}
+    except Exception:
+        pass
+    try:
+        queue = _comfy_http_json("GET", "/queue", timeout=5)
+    except Exception:
+        return {"status": "not_found"}
+    for item in queue.get("queue_pending", []):
+        if len(item) > 1 and item[1] == prompt_id:
+            return {"status": "queued"}
+    for item in queue.get("queue_running", []):
+        if len(item) > 1 and item[1] == prompt_id:
+            progress = _comfy_ws_progress(prompt_id, timeout=1.0)
+            return {
+                "status": "running",
+                "value": progress[0] if progress else 0,
+                "max": progress[1] if progress else 0,
+            }
+    return {"status": "not_found"}
+
+
+def _safe_comfy_path(name, subfolder=""):
+    name = os.path.basename(name or "")
+    if not name or ".." in name:
+        return None
+    subfolder = (subfolder or "").replace("\\", "/").strip("/")
+    if not subfolder:
+        base = COMFY_OUTPUT_DIR
+    elif ".." in subfolder.split("/") or os.path.isabs(subfolder):
+        return None
+    else:
+        base = os.path.join(COMFY_OUTPUT_DIR, subfolder)
+    base = os.path.normpath(base)
+    full = _safe_join(base, name)
+    if full and os.path.isfile(full) and os.path.splitext(name)[1].lower() in COMFY_IMAGE_EXTS:
+        return full
+    return None
+
+
+def _comfy_list_images(limit=100):
+    out = []
+    if not os.path.isdir(COMFY_OUTPUT_DIR):
+        return out
+    for name in sorted(os.listdir(COMFY_OUTPUT_DIR)):
+        full = os.path.join(COMFY_OUTPUT_DIR, name)
+        if not os.path.isfile(full) or os.path.splitext(name)[1].lower() not in COMFY_IMAGE_EXTS:
+            continue
+        st = os.stat(full)
+        out.append({"name": name, "size": st.st_size, "mtime": st.st_mtime})
+    out.sort(key=lambda x: x["mtime"], reverse=True)
+    return out[:limit]
+
+
+def _comfy_image_bytes(name, subfolder="", thumb=False):
+    full = _safe_comfy_path(name, subfolder)
+    if not full:
+        return None, None
+    if not thumb:
+        with open(full, "rb") as f:
+            return f.read(), mimetypes.guess_type(full)[0] or "image/png"
+    with Image.open(full) as img:
+        img.thumbnail((480, 480))
+        if img.mode not in ("RGB", "L"):
+            img = img.convert("RGB")
+        buf = io.BytesIO()
+        img.save(buf, "JPEG", quality=82, optimize=True)
+        return buf.getvalue(), "image/jpeg"
+
+
+def _unique_blog_path(dest_dir, stem, ext):
+    i = 0
+    while True:
+        name = stem + (("-" + str(i)) if i else "") + ext
+        full = os.path.join(dest_dir, name)
+        if not os.path.exists(full):
+            return full
+        i += 1
+
+
+def _optimize_blog_image(src):
+    with open(src, "rb") as f:
+        orig = f.read()
+    with Image.open(src) as img:
+        img.load()
+        has_alpha = img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info)
+        if has_alpha:
+            if img.mode != "RGBA":
+                img = img.convert("RGBA")
+            buf = io.BytesIO()
+            img.save(buf, "PNG", optimize=True)
+            data, ext = buf.getvalue(), ".png"
+        else:
+            rgb = img.convert("RGB")
+            buf = io.BytesIO()
+            rgb.save(buf, "JPEG", quality=85, optimize=True, progressive=True)
+            data, ext = buf.getvalue(), ".jpg"
+    if len(data) >= len(orig):
+        return orig, os.path.splitext(src)[1].lower() or ext
+    return data, ext
+
+
+def _import_comfy_image(name, target):
+    src = _safe_comfy_path(name)
+    if not src:
+        raise ValueError("ComfyUI 图片不存在")
+    dest_dir = MOMENTS_IMAGES_DIR if target == "moment" else IMAGES_DIR
+    os.makedirs(dest_dir, exist_ok=True)
+    data, ext = _optimize_blog_image(src)
+    stem = datetime.datetime.now().strftime("%Y%m%d%H%M%S") + "-" + os.path.splitext(os.path.basename(name))[0]
+    dest = _unique_blog_path(dest_dir, stem, ext)
+    with open(dest, "wb") as f:
+        f.write(data)
+    return "/images/" + os.path.relpath(dest, IMAGES_DIR).replace("\\", "/")
 
 
 class BlogWebHandler(BaseHTTPRequestHandler):
@@ -2177,6 +3312,36 @@ class BlogWebHandler(BaseHTTPRequestHandler):
         else:
             self._json({"error": "not found"}, 404)
 
+    def _get_comfy_image(self, qs):
+        name = qs.get("name", [""])[0]
+        sub = qs.get("subfolder", [""])[0]
+        thumb = qs.get("thumb", ["0"])[0] in ("1", "true", "True")
+        data, ctype = _comfy_image_bytes(name, sub, thumb)
+        if data is None:
+            self._json({"error": "not found"}, 404)
+            return
+        self._reply(200, data, ctype)
+
+    def _post_comfy_import(self, p):
+        target = p.get("target") or "post"
+        if target not in ("post", "moment"):
+            target = "post"
+        try:
+            url = _import_comfy_image(p.get("name") or "", target)
+        except Exception as e:
+            self._json({"error": str(e)}, 400)
+            return
+        self._json({"ok": True, "url": url})
+
+    def _post_comfy_generate(self, p):
+        try:
+            pid = _comfy_generate(p)
+        except Exception as e:
+            code = 503 if "未运行" in str(e) else 400
+            self._json({"error": str(e)}, code)
+            return
+        self._json({"ok": True, "prompt_id": pid})
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         qs = urllib.parse.parse_qs(parsed.query)
@@ -2185,8 +3350,26 @@ class BlogWebHandler(BaseHTTPRequestHandler):
                 self._reply(200, WEB_UI_HTML, "text/html; charset=utf-8")
             elif parsed.path.startswith(("/images/", "/files/")):
                 self._serve_static(parsed.path)
+            elif parsed.path == "/comfy-image":
+                self._get_comfy_image(qs)
             elif parsed.path == "/api/ping":
                 self._json({"ok": True})
+            elif parsed.path == "/api/comfy/state":
+                running = _comfy_running()
+                self._json({
+                    "running": running,
+                    "models": _comfy_models() if running else [],
+                })
+            elif parsed.path == "/api/comfy/models":
+                self._json({"models": _comfy_models()})
+            elif parsed.path == "/api/comfy/images":
+                self._json({"images": _comfy_list_images()})
+            elif parsed.path == "/api/comfy/task":
+                pid = qs.get("prompt_id", [""])[0]
+                if not pid:
+                    self._json({"error": "缺少 prompt_id"}, 400)
+                    return
+                self._json(_comfy_task_status(pid))
             elif parsed.path == "/api/articles":
                 items = []
                 for rel, full in scan_posts():
@@ -2220,6 +3403,19 @@ class BlogWebHandler(BaseHTTPRequestHandler):
                 self._json(sorted(load_moments(), key=lambda e: e.get("date", ""), reverse=True))
             elif parsed.path == "/api/files":
                 self._json(self._list_files())
+            elif parsed.path == "/api/music":
+                music_data = load_music_data()
+                normalize_music_all(music_data)
+                files = []
+                for f in scan_music_files():
+                    artist, title = parse_music_name(f)
+                    size = 0
+                    try:
+                        size = os.path.getsize(os.path.join(MUSIC_DIR, f))
+                    except OSError:
+                        pass
+                    files.append({"name": f, "artist": artist, "title": title or f, "size": size})
+                self._json({"files": files, "playlists": music_data["playlists"]})
             else:
                 self._json({"error": "not found"}, 404)
         except Exception as e:
@@ -2239,8 +3435,16 @@ class BlogWebHandler(BaseHTTPRequestHandler):
                 self._post_moment(payload)
             elif parsed.path == "/api/upload":
                 self._post_upload(payload)
+            elif parsed.path == "/api/comfy/start":
+                self._json(_comfy_start())
+            elif parsed.path == "/api/comfy/import":
+                self._post_comfy_import(payload)
+            elif parsed.path == "/api/comfy/generate":
+                self._post_comfy_generate(payload)
             elif parsed.path == "/api/files":
                 self._post_files(payload)
+            elif parsed.path == "/api/music":
+                self._post_music(payload)
             else:
                 self._json({"error": "not found"}, 404)
         except Exception as e:
@@ -2335,6 +3539,9 @@ class BlogWebHandler(BaseHTTPRequestHandler):
         if not blob:
             self._json({"error": "图片数据为空"}, 400)
             return
+        if len(blob) > WEB_UPLOAD_MAX_MB * 1024 * 1024:
+            self._json({"error": f"文件超过 {WEB_UPLOAD_MAX_MB}MB，请使用桌面版上传"}, 400)
+            return
         name = os.path.basename(p.get("name") or "upload.png")
         safe = re.sub(r"[^A-Za-z0-9._-]", "_", name)
         sub = "moments" if p.get("target") == "moment" else ""
@@ -2394,12 +3601,187 @@ class BlogWebHandler(BaseHTTPRequestHandler):
             if not blob:
                 self._json({"error": "文件数据为空"}, 400)
                 return
+            if len(blob) > WEB_UPLOAD_MAX_MB * 1024 * 1024:
+                self._json({"error": f"文件超过 {WEB_UPLOAD_MAX_MB}MB，请使用桌面版上传"}, 400)
+                return
             name = os.path.basename(p.get("name") or "file.bin")
             safe = re.sub(r"[^A-Za-z0-9._-]", "_", name)
             os.makedirs(cat_dir, exist_ok=True)
             with open(os.path.join(cat_dir, safe), "wb") as f:
                 f.write(blob)
             self._json({"ok": True, "name": safe})
+        elif action == "rename":
+            cat_dir = self._files_dir(p.get("cat"))
+            name = (p.get("name") or "").strip()
+            if not cat_dir or not re.match(r"^[A-Za-z0-9_-]+$", name):
+                self._json({"error": "非法分类名"}, 400)
+                return
+            new_dir = os.path.join(FILES_DIR, name)
+            if os.path.exists(new_dir):
+                self._json({"error": f"分类 {name} 已存在"}, 400)
+                return
+            try:
+                os.rename(cat_dir, new_dir)
+            except OSError as e:
+                self._json({"error": str(e)}, 500)
+                return
+            self._json({"ok": True, "name": name})
+        elif action == "external":
+            cat_dir = self._files_dir(p.get("cat"))
+            fname = os.path.basename(p.get("name") or "")
+            if not cat_dir or not fname or not os.path.isfile(os.path.join(cat_dir, fname)):
+                self._json({"error": "文件不存在"}, 404)
+                return
+            key = f"{p.get('cat')}/{fname}"
+            cfg_file = os.path.join(BLOG_ROOT, "data", "downloads.json")
+            cfg = {}
+            try:
+                with open(cfg_file, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+            except (OSError, ValueError):
+                cfg = {}
+            if not isinstance(cfg, dict) or not isinstance(cfg.get("files"), dict):
+                cfg = {"files": {}}
+            url = (p.get("url") or "").strip()
+            if url:
+                cfg["files"][key] = url
+            else:
+                cfg["files"].pop(key, None)
+            os.makedirs(os.path.dirname(cfg_file), exist_ok=True)
+            with open(cfg_file, "w", encoding="utf-8") as f:
+                json.dump(cfg, f, ensure_ascii=False, indent=2)
+            self._json({"ok": True})
+        else:
+            self._json({"error": "未知操作"}, 400)
+
+    def _post_music(self, p):
+        action = p.get("action")
+        if action == "upload":
+            name = os.path.basename((p.get("name") or "").strip())
+            if not name.lower().endswith(MUSIC_EXTS):
+                self._json({"error": "只支持 mp3 / m4a / ogg / flac / wav"}, 400)
+                return
+            if not re.match(r"^[^\\/:*?\"<>|]+$", name):
+                self._json({"error": "文件名包含非法字符"}, 400)
+                return
+            raw = p.get("data") or ""
+            try:
+                blob = base64.b64decode(raw.split(",", 1)[-1])
+            except Exception:
+                self._json({"error": "音频数据无效"}, 400)
+                return
+            if not blob:
+                self._json({"error": "音频数据为空"}, 400)
+                return
+            if len(blob) > WEB_UPLOAD_MAX_MB * 1024 * 1024:
+                self._json({"error": f"文件超过 {WEB_UPLOAD_MAX_MB}MB，请使用桌面版上传"}, 400)
+                return
+            os.makedirs(MUSIC_DIR, exist_ok=True)
+            dest = os.path.join(MUSIC_DIR, name)
+            if os.path.exists(dest):
+                self._json({"error": "同名文件已存在"}, 400)
+                return
+            with open(dest, "wb") as f:
+                f.write(blob)
+            data = load_music_data()
+            for pl in data["playlists"]:
+                if pl.get("name") == "全部":
+                    if name not in pl["order"]:
+                        pl["order"].append(name)
+                    break
+            save_music_data(data)
+            self._json({"ok": True})
+        elif action == "playlist_create":
+            name = (p.get("name") or "").strip()
+            if not name or name == "全部":
+                self._json({"error": "歌单名不能为空且不能叫\"全部\""}, 400)
+                return
+            data = load_music_data()
+            if any(pl.get("name") == name for pl in data["playlists"]):
+                self._json({"error": "歌单已存在"}, 400)
+                return
+            data["playlists"].append({"name": name, "order": []})
+            save_music_data(data)
+            self._json({"ok": True})
+        elif action == "playlist_delete":
+            name = (p.get("name") or "").strip()
+            data = load_music_data()
+            data["playlists"] = [pl for pl in data["playlists"] if pl.get("name") != name]
+            if not any(pl.get("name") == "全部" for pl in data["playlists"]):
+                data["playlists"].insert(0, {"name": "全部", "order": []})
+            save_music_data(data)
+            self._json({"ok": True})
+        elif action == "playlist_add":
+            name = (p.get("name") or "").strip()
+            song = (p.get("song") or "").strip()
+            data = load_music_data()
+            pl = next((x for x in data["playlists"] if x.get("name") == name), None)
+            if pl is None:
+                self._json({"error": "歌单不存在"}, 404)
+                return
+            if song and song not in pl["order"]:
+                pl["order"].append(song)
+            save_music_data(data)
+            self._json({"ok": True})
+        elif action == "playlist_remove":
+            name = (p.get("name") or "").strip()
+            song = (p.get("song") or "").strip()
+            data = load_music_data()
+            pl = next((x for x in data["playlists"] if x.get("name") == name), None)
+            if pl is None:
+                self._json({"error": "歌单不存在"}, 404)
+                return
+            if song in pl["order"]:
+                pl["order"].remove(song)
+            save_music_data(data)
+            self._json({"ok": True})
+        elif action == "move":
+            name = (p.get("name") or "").strip()
+            song = (p.get("song") or "").strip()
+            d = p.get("dir")
+            data = load_music_data()
+            pl = next((x for x in data["playlists"] if x.get("name") == name), None)
+            if pl is None:
+                self._json({"error": "歌单不存在"}, 404)
+                return
+            normalize_music_all(data)
+            order = pl["order"]
+            try:
+                i = order.index(song)
+            except ValueError:
+                self._json({"error": "歌曲不在歌单中"}, 400)
+                return
+            j = i - 1 if d == "up" else i + 1
+            if 0 <= j < len(order):
+                order[i], order[j] = order[j], order[i]
+            save_music_data(data)
+            self._json({"ok": True})
+        elif action == "move_to":
+            name = (p.get("name") or "").strip()
+            song = (p.get("song") or "").strip()
+            data = load_music_data()
+            pl = next((x for x in data["playlists"] if x.get("name") == name), None)
+            if pl is None:
+                self._json({"error": "歌单不存在"}, 404)
+                return
+            normalize_music_all(data)
+            order = pl["order"]
+            try:
+                i = order.index(song)
+            except ValueError:
+                self._json({"error": "歌曲不在歌单中"}, 400)
+                return
+            try:
+                to = int(p.get("to"))
+            except (TypeError, ValueError):
+                self._json({"error": "目标位置无效"}, 400)
+                return
+            if not 0 <= to < len(order):
+                self._json({"error": "目标位置无效"}, 400)
+                return
+            order.insert(to, order.pop(i))
+            save_music_data(data)
+            self._json({"ok": True})
         else:
             self._json({"error": "未知操作"}, 400)
 
@@ -2437,6 +3819,19 @@ class BlogWebHandler(BaseHTTPRequestHandler):
                     self._json({"error": "非法文件路径"}, 400)
                     return
                 os.remove(full)
+                self._json({"ok": True})
+            elif parsed.path == "/api/music":
+                name = os.path.basename(qs.get("name", [""])[0])
+                full = os.path.join(MUSIC_DIR, name)
+                if not name or not os.path.isfile(full):
+                    self._json({"error": "文件不存在"}, 404)
+                    return
+                os.remove(full)
+                data = load_music_data()
+                for pl in data["playlists"]:
+                    if name in pl.get("order", []):
+                        pl["order"].remove(name)
+                save_music_data(data)
                 self._json({"ok": True})
             else:
                 self._json({"error": "not found"}, 404)
@@ -2493,7 +3888,7 @@ def run_web_server(host="127.0.0.1", port=WEB_PORT, web_params=None):
     except OSError as e:
         _safe_print(f"启动失败：{e}")
         return
-    _safe_print(f"✒ 博客写作助手网页版已启动：{target}")
+    _safe_print(f"博客写作助手网页版已启动：{target}")
     _safe_print("按 Ctrl+C 停止服务。")
     webbrowser.open(target)
     try:

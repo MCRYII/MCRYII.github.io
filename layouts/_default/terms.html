@@ -116,7 +116,7 @@ html[data-theme="dark"] .cat-card { background: var(--card-bg-dark); }
                 {{- with site.GetPage (printf "/%s/%s" $type $name) }}
                 <a class="cat-card" href="{{ .RelPermalink }}">
                     <div class="cat-head">
-                        <span class="cat-icon">📁</span>
+                        <span class="cat-icon"><svg class="site-icon"><use href="#ic-folder"></use></svg></span>
                         <span class="cat-name">{{ .LinkTitle }}</span>
                         <span class="cat-count">{{ $count }} 篇</span>
                     </div>
@@ -124,9 +124,9 @@ html[data-theme="dark"] .cat-card { background: var(--card-bg-dark); }
                         {{- range first 4 .Pages }}
                         <span class="cat-thumb">
                             {{- with .Params.cover.image }}
-                            <img src="{{ . }}" alt="" loading="lazy">
+                            <img src="{{ partial "cover-thumb.html" . }}" alt="" loading="lazy">
                             {{- else }}
-                            <img src="/images/default-cover.png" alt="" loading="lazy">
+                            <img src="{{ partial "cover-thumb.html" "/images/default-cover.png" }}" alt="" loading="lazy">
                             {{- end }}
                         </span>
                         {{- end }}
@@ -139,7 +139,7 @@ html[data-theme="dark"] .cat-card { background: var(--card-bg-dark); }
                         </li>
                         {{- end }}
                     </ul>
-                    <div class="cat-more">查看全部 {{ $count }} 篇 →</div>
+                    <div class="cat-more">查看全部 {{ $count }} 篇 <svg class="site-icon"><use href="#ic-arrow-right"></use></svg></div>
                 </a>
                 {{- end }}
             {{- end }}
@@ -350,7 +350,7 @@ html[data-theme="dark"] .tags-result { background: var(--card-bg-dark); }
     <section class="tags-result" id="tags-result" hidden>
         <div class="tags-result-head">
             <h2 class="tags-result-title"></h2>
-            <button type="button" class="tags-result-close" title="关闭结果区" aria-label="关闭结果区">✕</button>
+            <button type="button" class="tags-result-close" title="关闭结果区" aria-label="关闭结果区"><svg class="site-icon"><use href="#ic-close"></use></svg></button>
         </div>
         <div class="tags-result-grid"></div>
     </section>
@@ -359,7 +359,8 @@ html[data-theme="dark"] .tags-result { background: var(--card-bg-dark); }
 {{- range .Data.Terms.Alphabetical }}
     {{- $posts := slice }}
     {{- range .Pages }}
-        {{- $posts = $posts | append (dict "title" .Title "date" (.Date.Format "2006-01-02") "cover" (or .Params.cover.image "/images/default-cover.png") "url" .RelPermalink) }}
+        {{- $cover := or .Params.cover.image "/images/default-cover.png" }}
+        {{- $posts = $posts | append (dict "title" .Title "date" (.Date.Format "2006-01-02") "cover" (partial "cover-thumb.html" $cover) "url" .RelPermalink) }}
     {{- end }}
     {{- $tagData = merge $tagData (dict .Name $posts) }}
 {{- end }}

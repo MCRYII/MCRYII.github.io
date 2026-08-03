@@ -20,7 +20,7 @@
 <article class="post-single">
   <header class="post-header">
     <h1 class="post-title">{{ .Title }}</h1>
-    <a class="dl-tool-btn" id="dl-tool-btn" href="blogtool://edit?tab=downloads" style="display:none">📦 管理下载文件</a>
+    <a class="dl-tool-btn" id="dl-tool-btn" href="blogtool://edit?tab=downloads" style="display:none"><svg class="site-icon"><use href="#ic-box"></use></svg> 管理下载文件</a>
   </header>
   <div class="post-content">
     {{ .Content }}
@@ -99,19 +99,34 @@
         overflow: hidden;
     }
     .dl-size { font-size: 0.72rem; color: var(--secondary); }
-    .dl-btn {
-        font-size: 0.75rem;
+.dl-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
         font-weight: 700;
         color: #d4af37;
         border: 1px solid rgba(212, 175, 55, 0.45);
         border-radius: 999px;
         padding: 3px 14px;
+        text-decoration: none;
         transition: all 0.2s;
     }
     .dl-card:hover .dl-btn {
         background: linear-gradient(135deg, #f4d35e 0%, #d4af37 60%, #b8860b 100%);
         color: #241a02;
     }
+    .dl-btn-local {
+        font-size: 0.7rem;
+        color: var(--secondary);
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        border-radius: 999px;
+        padding: 3px 10px;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    .dl-btn-local:hover { border-color: #d4af37; color: #d4af37; }
+    html[data-theme="dark"] .dl-btn-local { border-color: rgba(255, 255, 255, 0.18); }
     @media (max-width: 720px) {
         .dl-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
         .download-cat { padding: 14px; }
@@ -126,26 +141,26 @@
         {{ range $files }}{{ if not .IsDir }}{{ $count = add $count 1 }}{{ end }}{{ end }}
         <section class="download-cat" data-cat="{{ $dir }}">
           <h2 class="download-cat-title" title="点击收起/展开">
-            <span class="dl-folder-icon">📁</span>
+            <span class="dl-folder-icon"><svg class="site-icon"><use href="#ic-folder"></use></svg></span>
             <span>{{ $dir }}</span>
             <span class="dl-cat-count">{{ $count }} 个文件</span>
-            <span class="dl-toggle">▾</span>
+            <span class="dl-toggle"><svg class="site-icon"><use href="#ic-chevron-down"></use></svg></span>
           </h2>
           <div class="dl-grid">
             {{ range $files }}
               {{ if not .IsDir }}
                 {{ $ext := (path.Ext .Name | lower) }}
-                {{ $icon := "📄" }}
-                {{ if in (slice ".zip" ".rar" ".7z" ".tar" ".gz" ".bz2") $ext }}{{ $icon = "📦" }}
-                {{ else if in (slice ".png" ".jpg" ".jpeg" ".gif" ".webp" ".bmp" ".svg" ".ico") $ext }}{{ $icon = "🖼️" }}
-                {{ else if in (slice ".exe" ".msi" ".bat" ".cmd" ".apk") $ext }}{{ $icon = "🚀" }}
-                {{ else if in (slice ".pdf") $ext }}{{ $icon = "📕" }}
-                {{ else if in (slice ".mp3" ".wav" ".flac" ".ogg" ".aac") $ext }}{{ $icon = "🎵" }}
-                {{ else if in (slice ".mp4" ".mkv" ".avi" ".mov" ".webm") $ext }}{{ $icon = "🎬" }}
-                {{ else if in (slice ".doc" ".docx" ".txt" ".md" ".odt") $ext }}{{ $icon = "📝" }}
-                {{ else if in (slice ".xls" ".xlsx" ".csv") $ext }}{{ $icon = "📊" }}
-                {{ else if in (slice ".ppt" ".pptx") $ext }}{{ $icon = "📽️" }}
-                {{ else if in (slice ".py" ".js" ".html" ".css" ".go" ".c" ".cpp" ".java" ".sh") $ext }}{{ $icon = "💻" }}
+                {{ $icon := "<svg class=\"site-icon\"><use href=\"#ic-doc\"></use></svg>" }}
+                {{ if in (slice ".zip" ".rar" ".7z" ".tar" ".gz" ".bz2") $ext }}{{ $icon = "<svg class=\"site-icon\"><use href=\"#ic-box\"></use></svg>" }}
+                {{ else if in (slice ".png" ".jpg" ".jpeg" ".gif" ".webp" ".bmp" ".svg" ".ico") $ext }}{{ $icon = "<svg class=\"site-icon\"><use href=\"#ic-image\"></use></svg>" }}
+                {{ else if in (slice ".exe" ".msi" ".bat" ".cmd" ".apk") $ext }}{{ $icon = "<svg class=\"site-icon\"><use href=\"#ic-rocket\"></use></svg>" }}
+                {{ else if in (slice ".pdf") $ext }}{{ $icon = "<svg class=\"site-icon\"><use href=\"#ic-book\"></use></svg>" }}
+                {{ else if in (slice ".mp3" ".wav" ".flac" ".ogg" ".aac") $ext }}{{ $icon = "<svg class=\"site-icon\"><use href=\"#ic-music\"></use></svg>" }}
+                {{ else if in (slice ".mp4" ".mkv" ".avi" ".mov" ".webm") $ext }}{{ $icon = "<svg class=\"site-icon\"><use href=\"#ic-video\"></use></svg>" }}
+                {{ else if in (slice ".doc" ".docx" ".txt" ".md" ".odt") $ext }}{{ $icon = "<svg class=\"site-icon\"><use href=\"#ic-doc\"></use></svg>" }}
+                {{ else if in (slice ".xls" ".xlsx" ".csv") $ext }}{{ $icon = "<svg class=\"site-icon\"><use href=\"#ic-chart\"></use></svg>" }}
+                {{ else if in (slice ".ppt" ".pptx") $ext }}{{ $icon = "<svg class=\"site-icon\"><use href=\"#ic-presentation\"></use></svg>" }}
+                {{ else if in (slice ".py" ".js" ".html" ".css" ".go" ".c" ".cpp" ".java" ".sh") $ext }}{{ $icon = "<svg class=\"site-icon\"><use href=\"#ic-code\"></use></svg>" }}
                 {{ end }}
                 {{ $size := .Size }}
                 {{ $sizeText := printf "%d B" $size }}
@@ -153,12 +168,19 @@
                 {{ else if ge $size 1048576 }}{{ $sizeText = printf "%.1f MB" (div $size 1048576.0) }}
                 {{ else if ge $size 1024 }}{{ $sizeText = printf "%.0f KB" (div $size 1024.0) }}
                 {{ end }}
-                <a class="dl-card" href="{{ $.Site.BaseURL }}files/{{ $dir }}/{{ .Name }}" target="_blank" title="点击下载 {{ .Name }}">
+                {{ $localURL := printf "%sfiles/%s/%s" $.Site.BaseURL $dir .Name }}
+                {{ $cdnURL := printf "https://cdn.jsdelivr.net/gh/MCRYII/MCRYII.github.io@master/static/files/%s/%s" $dir (.Name | urlquery) }}
+                {{ $extURL := "" }}
+                {{ with site.Data.downloads }}{{ with index .files (printf "%s/%s" $dir .Name) }}{{ $extURL = . }}{{ end }}{{ end }}
+                {{ $mainURL := $cdnURL }}
+                {{ if $extURL }}{{ $mainURL = $extURL }}{{ end }}
+                <div class="dl-card">
                   <span class="dl-file-icon">{{ $icon }}</span>
                   <span class="dl-name">{{ .Name }}</span>
                   <span class="dl-size">{{ $sizeText }}</span>
-                  <span class="dl-btn">下载 ↓</span>
-                </a>
+                  <a class="dl-btn" href="{{ $mainURL }}" target="_blank" rel="noopener" title="下载 {{ .Name }}">{{ if $extURL }}网盘 <svg class="site-icon"><use href="#ic-download"></use></svg>{{ else }}<svg class="site-icon"><use href="#ic-bolt"></use></svg> CDN 下载 <svg class="site-icon"><use href="#ic-arrow-down"></use></svg>{{ end }}</a>
+                  <a class="dl-btn-local" href="{{ $localURL }}" target="_blank" rel="noopener" title="本地直链 {{ .Name }}">本地</a>
+                </div>
               {{ end }}
             {{ end }}
           </div>
@@ -178,12 +200,14 @@
             if (!title || !grid || !toggle) return;
             if (state[sec.dataset.cat]) {
                 grid.style.display = 'none';
-                toggle.textContent = '▸';
+                toggle.innerHTML = '<svg class="site-icon"><use href="#ic-chevron-right"></use></svg>';
             }
             title.addEventListener('click', function () {
                 var collapsed = grid.style.display === 'none';
                 grid.style.display = collapsed ? '' : 'none';
-                toggle.textContent = collapsed ? '▾' : '▸';
+                toggle.innerHTML = collapsed
+                    ? '<svg class="site-icon"><use href="#ic-chevron-down"></use></svg>'
+                    : '<svg class="site-icon"><use href="#ic-chevron-right"></use></svg>';
                 state[sec.dataset.cat] = !collapsed;
                 try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
             });

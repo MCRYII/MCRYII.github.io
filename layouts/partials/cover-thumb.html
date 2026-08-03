@@ -1,0 +1,12 @@
+{{- $cover := . -}}
+{{- $thumb := "" }}
+{{- if strings.HasPrefix $cover "/images/" }}
+  {{- $base := strings.TrimPrefix "/images/" $cover }}
+  {{- $thumb = printf "/images/thumbs/%s.jpg" (strings.TrimSuffix (path.Ext $base) $base) }}
+  {{- if not (fileExists (printf "static%s" $thumb)) }}
+    {{- $thumb = $cover }}
+  {{- end }}
+{{- else }}
+  {{- $thumb = $cover }}
+{{- end }}
+{{- $thumb -}}

@@ -143,7 +143,7 @@ html[data-theme="dark"] .bm-card { background: #262216; border-color: rgba(212, 
     color: #6fbf73;
 }
 .bm-cat--nsfw .bm-cat-title::after {
-    content: '🔞 隐藏内容';
+    content: '隐藏内容';
     font-size: 0.66rem;
     font-weight: 700;
     color: #e5484d;
@@ -338,7 +338,9 @@ html[data-theme="dark"] #lock-cancel { background: rgba(255, 255, 255, 0.08); }
                         else visibleLinks++;
                     });
                 });
-                var lockText = unlocked ? '🔓' : '🔒';
+                var lockText = unlocked
+                    ? '<svg class="site-icon"><use href="#ic-unlock"></use></svg>'
+                    : '<svg class="site-icon"><use href="#ic-lock"></use></svg>';
                 var lockCls = unlocked ? 'lock-btn unlocked' : 'lock-btn';
                 var countText = unlocked
                     ? (total + ' 个链接 · ' + cats.length + ' 个分类')
@@ -347,7 +349,7 @@ html[data-theme="dark"] #lock-cancel { background: rgba(255, 255, 255, 0.08); }
                     ? '<button type="button" class="' + lockCls + '" id="lock-btn">' + lockText + '</button>'
                     : '';
                 var html = '<div class="bm-toolbar">' +
-                    '<input type="text" id="bm-search" placeholder="🔍 搜索收藏夹（标题 / 网址）..." autocomplete="off">' +
+                    '<input type="text" id="bm-search" placeholder="搜索收藏夹（标题 / 网址）..." autocomplete="off">' +
                     '<span class="bm-count">' + countText + '</span>' + lockHtml + '</div>';
                 cats.forEach(function (cat) {
                     var catHidden = cat.links.some(function (l) { return isHidden(cat.name, l); });
@@ -358,7 +360,7 @@ html[data-theme="dark"] #lock-cancel { background: rgba(255, 255, 255, 0.08); }
                         if (links.length === 0) return;
                     }
                     html += '<section class="bm-cat" data-cat="' + esc(cat.name) + '">' +
-                        '<h2 class="bm-cat-title">📁 ' + esc(cat.name) +
+                        '<h2 class="bm-cat-title"><svg class="site-icon"><use href="#ic-folder"></use></svg> ' + esc(cat.name) +
                         ' <span class="bm-cat-count">' + links.length + '</span></h2><div class="bm-grid">';
                     links.forEach(function (link) {
                         var host = '';

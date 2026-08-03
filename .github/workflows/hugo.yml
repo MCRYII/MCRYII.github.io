@@ -28,6 +28,10 @@ jobs:
         with:
           hugo-version: '0.162.1'
           extended: true
+      - name: Generate thumbnails
+        run: |
+          pip install --quiet pillow
+          python scripts/gen_thumbs.py
       - name: Build
         run: hugo --minify
       - name: Upload artifact

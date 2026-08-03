@@ -310,6 +310,37 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
     padding-bottom: 12px; border-bottom: 1px solid rgba(212, 175, 55, 0.2);
     color: #d4af37; font-weight: 700; font-size: 0.95rem;
 }
+.ms-pls-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 12px 0; }
+.ms-pls-tabs .ms-pl-tab {
+    background: rgba(255, 255, 255, 0.06);
+    color: #aaa;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.ms-pls-tabs .ms-pl-tab:hover { background: rgba(255, 255, 255, 0.12); }
+.ms-pls-tabs .ms-pl-tab.active { background: rgba(212, 175, 55, 0.22); color: #ffd75e; border-color: rgba(212, 175, 55, 0.45); }
+#ms-tool-btn {
+    position: fixed;
+    top: 70px;
+    right: 18px;
+    z-index: 100;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: rgba(24, 21, 38, 0.8);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    color: #e6d9ae;
+    text-decoration: none;
+    font-size: 0.8rem;
+    backdrop-filter: blur(8px);
+}
+#ms-tool-btn:hover { color: #ffd75e; }
 .ms-drawer-close { margin-left: auto; background: none; border: none; color: #aaa; font-size: 17px; cursor: pointer; transition: color 0.2s; }
 .ms-drawer-close:hover { color: #ffd75e; }
 .ms-drawer-list { margin-top: 10px; overflow-y: auto; flex: 1; padding-right: 4px; }
@@ -416,11 +447,13 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
     <div class="ms-mask" id="ms-mask"></div>
     <aside class="ms-drawer" id="ms-drawer" aria-label="歌单">
         <div class="ms-drawer-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>歌单<span id="ms-count"></span>
-            <button type="button" class="ms-drawer-close" id="ms-drawer-close" title="关闭">✕</button>
+            <button type="button" class="ms-drawer-close" id="ms-drawer-close" title="关闭"><svg class="site-icon"><use href="#ic-close"></use></svg></button>
         </div>
+        <div class="ms-pls-tabs" id="ms-pls-tabs"></div>
         <div class="ms-drawer-list" id="ms-drawer-list"></div>
     </aside>
 </div>
+<a id="ms-tool-btn" href="blogtool://edit?tab=music" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:14px;height:14px;"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>管理音乐</a>
 
 <script>
 (function () {
@@ -505,13 +538,14 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
 
     var lrcCache = {};
     function loadLyrics(tr) {
-        var url = tr.src.replace(/\.[^./?#]+(\?.*)?$/, '.lrc');
+        var base = tr.localSrc || tr.src;
+        var url = base.replace(/\.[^./?#]+(\?.*)?$/, '.lrc');
         function apply(lines) {
             if (lastTrackSrc !== tr.src) return;
             lyrics = lines && lines.length ? lines : null;
             lyricIndex = -1;
             renderLyrics();
-            badgeText.textContent = lyrics ? '♪ 歌词' : '纯音乐';
+            badgeText.innerHTML = lyrics ? '<svg class="site-icon"><use href="#ic-music"></use></svg> 歌词' : '纯音乐';
         }
         if (Object.prototype.hasOwnProperty.call(lrcCache, url)) return apply(lrcCache[url]);
         apply(null);
@@ -906,11 +940,35 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
 
     document.addEventListener('pointerdown', onGesture);
     document.addEventListener('keydown', onGesture);
+    var plsTabs = $('ms-pls-tabs');
+    function renderPlsTabs() {
+        var p = getPlayer();
+        if (!plsTabs || !p || !p.getPlaylists) return;
+        var names = p.getPlaylists();
+        var cur = p.getPlaylistName ? p.getPlaylistName() : '';
+        plsTabs.innerHTML = '';
+        names.forEach(function (name) {
+            var b = document.createElement('button');
+            b.className = 'ms-pl-tab' + (name === cur ? ' active' : '');
+            b.textContent = name;
+            b.addEventListener('click', function () {
+                if (p.switchPlaylist) p.switchPlaylist(name);
+            });
+            plsTabs.appendChild(b);
+        });
+    }
     window.addEventListener('mcryii:player', function () {
         if (!ready()) return;
         syncUI();
         syncList();
+        renderPlsTabs();
     });
+    (function () {
+        var btn = document.getElementById('ms-tool-btn');
+        if (btn && ['localhost', '127.0.0.1'].includes(location.hostname)) {
+            btn.style.display = 'inline-flex';
+        }
+    })();
 
     /* ================= 启动 ================= */
     function boot() {
@@ -919,6 +977,7 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
         syncModeBtn();
         onTrackChange();
         renderList();
+        renderPlsTabs();
         syncUI();
         sizeParticles();
         if (vizCanvas) vizSize = vizCanvas.clientWidth;

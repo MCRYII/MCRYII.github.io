@@ -93,8 +93,8 @@
         {{- range .Site.Taxonomies.categories.Alphabetical }}
         <div class="ps-cat">
             <button type="button" class="ps-cat-toggle" title="点击展开/收起">
-                <span class="ps-cat-caret">▸</span>
-                <span>📁 {{ .Page.Title }}</span>
+                <span class="ps-cat-caret"><svg class="site-icon"><use href="#ic-chevron-right"></use></svg></span>
+                <span><svg class="site-icon"><use href="#ic-folder"></use></svg> {{ .Page.Title }}</span>
                 <span class="ps-cat-count">{{ .Count }}</span>
             </button>
             <ul class="ps-cat-list">
@@ -110,7 +110,7 @@
     <div class="side-card">
         <div class="side-card-title">编辑</div>
         <a class="ps-write-btn ps-tool-link" href="blogtool://new" style="display:none">
-            <span class="ps-plus">＋</span> 写新文章 <span class="ps-new">New</span>
+            <span class="ps-plus"><svg class="site-icon"><use href="#ic-plus"></use></svg></span> 写新文章 <span class="ps-new">New</span>
         </a>
     </div>
 
@@ -125,9 +125,9 @@
             </div>
         </div>
         <div class="side-music-controls">
-            <button type="button" class="side-mctl" id="side-prev" title="上一曲">⏮</button>
-            <button type="button" class="side-mctl side-mplay" id="side-play" title="播放/暂停">▶</button>
-            <button type="button" class="side-mctl" id="side-next" title="下一曲">⏭</button>
+            <button type="button" class="side-mctl" id="side-prev" title="上一曲"><svg class="site-icon"><use href="#ic-prev"></use></svg></button>
+            <button type="button" class="side-mctl side-mplay" id="side-play" title="播放/暂停"><svg class="site-icon site-icon-fill"><use href="#ic-play"></use></svg></button>
+            <button type="button" class="side-mctl" id="side-next" title="下一曲"><svg class="site-icon"><use href="#ic-next"></use></svg></button>
         </div>
     </div>
 </aside>
@@ -166,7 +166,9 @@
             artist.textContent = s.track.artist;
             if (s.track.cover) cover.src = s.track.cover;
         }
-        playBtn.textContent = s.playing ? '⏸' : '▶';
+        playBtn.innerHTML = s.playing
+            ? '<svg class="site-icon site-icon-fill"><use href="#ic-pause"></use></svg>'
+            : '<svg class="site-icon site-icon-fill"><use href="#ic-play"></use></svg>';
     }
     playBtn.addEventListener('click', function () {
         if (window.__mcryiiPlayer) window.__mcryiiPlayer.togglePlay();

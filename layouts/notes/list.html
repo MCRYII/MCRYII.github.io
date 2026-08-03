@@ -166,7 +166,7 @@ html[data-theme="dark"] .note-card { background: var(--card-bg-dark); }
     {{ partial "sidebar-left.html" . }}
     <div class="col-main">
         <div class="notes-header">
-            <h1>📓 笔记本</h1>
+            <h1><svg class="site-icon"><use href="#ic-book"></use></svg> 笔记本</h1>
             <span class="sub">ESP32 学习笔记 · 共 {{ len .Pages }} 篇</span>
         </div>
 
@@ -194,8 +194,8 @@ html[data-theme="dark"] .note-card { background: var(--card-bg-dark); }
         {{- range $catOrder }}
         <div class="note-section" data-section="{{ . }}">
             <h2 class="note-section-title">
-                📁 {{ . }}<span class="sec-count">{{ len (index $catGroups .) }} 篇</span>
-                <span class="sec-caret">▾</span>
+                <svg class="site-icon"><use href="#ic-folder"></use></svg> {{ . }}<span class="sec-count">{{ len (index $catGroups .) }} 篇</span>
+                <span class="sec-caret"><svg class="site-icon"><use href="#ic-chevron-down"></use></svg></span>
             </h2>
             <div class="note-cards">
                 {{- range index $catGroups . }}
@@ -212,7 +212,7 @@ html[data-theme="dark"] .note-card { background: var(--card-bg-dark); }
                             <span>{{ .Params.group }}</span>
                         </div>
                     </div>
-                    <div class="note-arrow">→</div>
+                    <div class="note-arrow"><svg class="site-icon"><use href="#ic-arrow-right"></use></svg></div>
                 </a>
                 {{- end }}
             </div>

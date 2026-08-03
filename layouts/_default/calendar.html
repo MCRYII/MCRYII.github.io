@@ -204,8 +204,8 @@ main.main { max-width: none !important; }
                     <span class="cal-big-title" id="cal-big-title"></span>
                     <div class="cal-big-nav">
                         <button type="button" id="cal-big-today" class="cal-today-btn" title="回到今天">今天</button>
-                        <button type="button" id="cal-big-prev" title="上个月">‹</button>
-                        <button type="button" id="cal-big-next" title="下个月">›</button>
+                        <button type="button" id="cal-big-prev" title="上个月"><svg class="site-icon"><use href="#ic-chevron-left"></use></svg></button>
+                        <button type="button" id="cal-big-next" title="下个月"><svg class="site-icon"><use href="#ic-chevron-right"></use></svg></button>
                     </div>
                 </div>
                 <div class="cal-big-week">
@@ -304,6 +304,10 @@ window.__calEvents = {{ $events | jsonify | safeJS }};
             return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
         });
     }
+    function festIcon(e) {
+        var key = e.icon || 'sparkles';
+        return '<svg class="site-icon"><use href="#ic-' + key + '"></use></svg>';
+    }
 
     function render() {
         title.textContent = year + '年' + (month + 1) + '月';
@@ -330,7 +334,7 @@ window.__calEvents = {{ $events | jsonify | safeJS }};
             if (f && f.length) {
                 var badge = document.createElement('span');
                 badge.className = 'cal-badge';
-                badge.textContent = f[0].emoji;
+                badge.innerHTML = festIcon(f[0]);
                 badge.title = f.map(function (e) { return e.name; }).join(' / ');
                 cell.appendChild(badge);
             }
@@ -358,7 +362,7 @@ window.__calEvents = {{ $events | jsonify | safeJS }};
                 var del = document.createElement('button');
                 del.type = 'button';
                 del.className = 'cal-del';
-                del.textContent = '✕';
+                del.innerHTML = '<svg class="site-icon"><use href="#ic-close"></use></svg>';
                 del.title = '删除该日程';
                 del.addEventListener('click', function () {
                     saveSchedules(loadSchedules().filter(function (x) { return x.id !== s.id; }));
@@ -399,19 +403,19 @@ window.__calEvents = {{ $events | jsonify | safeJS }};
         fests.forEach(function (e) {
             var div = document.createElement('div');
             div.className = 'cal-big-fest';
-            div.textContent = e.emoji + ' ' + e.name + (e.type === 'memorial' ? '（纪念日）' : '');
+            div.innerHTML = festIcon(e) + ' ' + esc(e.name) + (e.type === 'memorial' ? '（纪念日）' : '');
             list.appendChild(div);
         });
         scheds.forEach(function (s) {
             var div = document.createElement('div');
             div.className = 'cal-big-sched';
-            div.textContent = '⏰ ' + (s.time || '全天') + ' ' + esc(s.title);
+            div.innerHTML = '<svg class="site-icon"><use href="#ic-clock"></use></svg> ' + esc(s.time || '全天') + ' ' + esc(s.title);
             list.appendChild(div);
         });
         items.forEach(function (it) {
             var a = document.createElement('a');
             a.href = it.url;
-            a.textContent = '📄 ' + it.title;
+            a.innerHTML = '<svg class="site-icon"><use href="#ic-doc"></use></svg> ' + esc(it.title);
             list.appendChild(a);
         });
         festEl.innerHTML = '';
@@ -421,7 +425,7 @@ window.__calEvents = {{ $events | jsonify | safeJS }};
             fests.forEach(function (e) {
                 var div = document.createElement('div');
                 div.className = 'cal-fest-item';
-                div.textContent = e.emoji + ' ' + e.name;
+                div.innerHTML = festIcon(e) + ' ' + esc(e.name);
                 festEl.appendChild(div);
             });
         }
@@ -475,7 +479,7 @@ window.__calEvents = {{ $events | jsonify | safeJS }};
         var bar = document.createElement('div');
         bar.className = 'cal-remind-bar';
         var head = document.createElement('b');
-        head.textContent = '📅 日程提醒';
+        head.innerHTML = '<svg class="site-icon"><use href="#ic-calendar"></use></svg> 日程提醒';
         bar.appendChild(head);
         due.forEach(function (s) {
             var div = document.createElement('div');
@@ -496,7 +500,7 @@ window.__calEvents = {{ $events | jsonify | safeJS }};
         if (window.Notification && Notification.permission === 'granted') {
             due.forEach(function (s) {
                 try {
-                    new Notification('📅 ' + s.title, { body: s.date + (s.time ? ' ' + s.time : '') });
+                    new Notification('日程提醒: ' + s.title, { body: s.date + (s.time ? ' ' + s.time : '') });
                 } catch (e) {}
             });
         }
