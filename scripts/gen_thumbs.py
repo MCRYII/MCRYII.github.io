@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""为 static/images 下的图片生成 640px 宽缩略图到 static/images/thumbs/（统一转 JPG）。
+"""为 static/images 下的图片递归生成 640px 宽缩略图到 static/images/thumbs/（统一转 JPG）。
 构建前运行一次即可；已存在且比原图新的缩略图会跳过。"""
 import os
 import sys
@@ -20,35 +20,40 @@ def main():
         return
     os.makedirs(THUMBS_DIR, exist_ok=True)
     made = skipped = failed = 0
-    for name in sorted(os.listdir(IMAGES_DIR)):
-        src = os.path.join(IMAGES_DIR, name)
-        if not os.path.isfile(src):
+    for root, dirs, names in os.walk(IMAGES_DIR):
+        if os.path.abspath(root) == os.path.abspath(THUMBS_DIR):
+            dirs[:] = []
             continue
-        ext = os.path.splitext(name)[1].lower()
-        if ext not in EXTS:
-            continue
-        stem = os.path.splitext(name)[0]
-        dst = os.path.join(THUMBS_DIR, stem + ".jpg")
-        if os.path.isfile(dst) and os.path.getmtime(dst) >= os.path.getmtime(src):
-            skipped += 1
-            continue
-        try:
-            img = Image.open(src)
-            img.load()
-        except Exception as e:
-            print(f"跳过无法读取的图片 {name}: {e}")
-            failed += 1
-            continue
-        try:
-            if img.width > WIDTH:
-                img = img.resize((WIDTH, round(img.height * WIDTH / img.width)), Image.LANCZOS)
-            if img.mode not in ("RGB", "L"):
-                img = img.convert("RGB")
-            img.save(dst, "JPEG", quality=QUALITY, optimize=True, progressive=True)
-            made += 1
-        except Exception as e:
-            print(f"缩略图生成失败 {name}: {e}")
-            failed += 1
+        rel_root = os.path.relpath(root, IMAGES_DIR)
+        out_root = THUMBS_DIR if rel_root == "." else os.path.join(THUMBS_DIR, rel_root)
+        os.makedirs(out_root, exist_ok=True)
+        for name in sorted(names):
+            src = os.path.join(root, name)
+            ext = os.path.splitext(name)[1].lower()
+            if ext not in EXTS:
+                continue
+            stem = os.path.splitext(name)[0]
+            dst = os.path.join(out_root, stem + ".jpg")
+            if os.path.isfile(dst) and os.path.getmtime(dst) >= os.path.getmtime(src):
+                skipped += 1
+                continue
+            try:
+                img = Image.open(src)
+                img.load()
+            except Exception as e:
+                print(f"跳过无法读取的图片 {name}: {e}")
+                failed += 1
+                continue
+            try:
+                if img.width > WIDTH:
+                    img = img.resize((WIDTH, round(img.height * WIDTH / img.width)), Image.LANCZOS)
+                if img.mode not in ("RGB", "L"):
+                    img = img.convert("RGB")
+                img.save(dst, "JPEG", quality=QUALITY, optimize=True, progressive=True)
+                made += 1
+            except Exception as e:
+                print(f"缩略图生成失败 {name}: {e}")
+                failed += 1
     print(f"缩略图：新增 {made} 张，跳过 {skipped} 张，失败 {failed} 张")
     return 1 if failed else 0
 

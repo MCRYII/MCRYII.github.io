@@ -1,0 +1,27 @@
+{{- $index := slice -}}
+{{- range where site.RegularPages "Params.searchHidden" "!=" true -}}
+  {{- $type := "页面" -}}
+  {{- if eq .Section "posts" }}{{ $type = "文章" }}{{ else if eq .Section "notes" }}{{ $type = "笔记" }}{{ end -}}
+  {{- $summary := .Summary | plainify | htmlUnescape | chomp -}}
+  {{- $index = $index | append (dict
+    "title" .Title
+    "permalink" .Permalink
+    "summary" (truncate 200 $summary)
+    "categories" (.Params.categories | default slice)
+    "tags" (.Params.tags | default slice)
+    "type" $type
+  ) -}}
+{{- end -}}
+{{- with hugo.Data.moments -}}
+  {{- range .moments -}}
+    {{- $index = $index | append (dict
+      "title" (printf "%s 动态" (dateFormat "2006-01-02" (time .date)))
+      "permalink" "/dynamic/"
+      "summary" (truncate 200 (or .text ""))
+      "categories" slice
+      "tags" slice
+      "type" "动态"
+    ) -}}
+  {{- end -}}
+{{- end -}}
+{{- $index | jsonify -}}

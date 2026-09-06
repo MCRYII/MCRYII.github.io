@@ -11,7 +11,7 @@
 <aside class="side-col side-col-left">
     <!-- 博主信息卡 -->
     <div class="side-card profile-card">
-        <img class="profile-avatar" src="/images/mcryii-avatar.jpg" alt="头像">
+        <img class="profile-avatar" src="/images/mcryii-avatar.jpg" alt="头像" width="72" height="72" decoding="async">
         <div class="profile-name">MCRYII的博客</div>
         <div class="profile-sig">这里记录我的学习、思考和见闻。</div>
         <div class="profile-stats">
@@ -31,7 +31,7 @@
     <div class="side-card">
         <div class="side-card-title">音乐</div>
         <div class="side-music">
-            <img class="side-music-cover" id="side-cover" src="/images/player-cover.jpg" alt="封面">
+            <img class="side-music-cover" id="side-cover" src="/images/player-cover.jpg" alt="封面" width="52" height="52" decoding="async">
             <div class="side-music-info">
                 <div class="side-song-title" id="side-title">加载中...</div>
                 <div class="side-song-artist" id="side-artist"></div>
@@ -100,6 +100,11 @@
     sync();
     window.addEventListener('mcryii:player', sync);
     window.__sideMusicTimer = setInterval(sync, 3000);
+    // PJAX 换页清理：离开带侧栏的页面时移除全局监听与轮询，避免累积
+    (window.MCRYII_PageUnsubscribers = window.MCRYII_PageUnsubscribers || []).push(function () {
+        window.removeEventListener('mcryii:player', sync);
+        if (window.__sideMusicTimer) { clearInterval(window.__sideMusicTimer); window.__sideMusicTimer = null; }
+    });
 })();
 
 // 运行天数

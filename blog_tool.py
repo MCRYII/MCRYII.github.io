@@ -1682,9 +1682,11 @@ select:focus { outline:none; border-color:var(--gold); }
 #ai-status-line { font-size:.88rem; color:var(--text); margin-bottom:8px; }
 #ai-grid { flex:1; min-width:0; }
 #ai-items { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; }
-#ai-items li { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:8px; }
+#ai-items li { position:relative; background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:8px; }
 #ai-items img { width:100%; height:150px; object-fit:cover; border-radius:6px; background:#000; }
 #ai-items .ai-name { display:block; font-size:.72rem; color:var(--muted); margin-top:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ai-sel { position:absolute; top:12px; left:12px; z-index:2; background:rgba(0,0,0,.45); border-radius:6px; padding:2px 3px; cursor:pointer; }
+.ai-sel input { accent-color:var(--gold); width:16px; height:16px; cursor:pointer; }
 .ai-actions { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
 .ai-progress { width:100%; height:6px; background:var(--input); border-radius:4px; overflow:hidden; margin-top:10px; }
 .ai-progress > div { height:100%; background:var(--gold); width:0; transition:width .2s; }
@@ -1693,12 +1695,19 @@ select:focus { outline:none; border-color:var(--gold); }
 .img-picker { width:min(760px,92vw); max-height:86vh; background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px 20px; overflow-y:auto; }
 .img-picker-tabs { display:flex; gap:6px; margin-bottom:10px; }
 #pick-ai-items { list-style:none; display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; margin:8px 0; padding:0; }
-#pick-ai-items li { cursor:pointer; border:2px solid transparent; border-radius:8px; overflow:hidden; background:var(--panel2); }
+#pick-ai-items li { cursor:pointer; border:2px solid transparent; border-radius:8px; overflow:hidden; background:var(--panel2); position:relative; }
 #pick-ai-items li.sel { border-color:var(--gold); }
 #pick-ai-items img { width:100%; height:100px; object-fit:cover; display:block; }
 #pick-ai-items .pick-ai-name { display:block; font-size:.68rem; color:var(--muted); padding:4px 6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pick-ai-del { position:absolute; top:4px; right:4px; padding:2px 5px; }
 #pick-gen-prompt { width:100%; height:90px; resize:vertical; }
 #pick-gen-preview { display:none; max-width:100%; margin-top:8px; border-radius:8px; }
+.ai-lightbox { display:none; position:fixed; inset:0; z-index:10000; background:rgba(0,0,0,.88); align-items:center; justify-content:center; }
+.ai-lightbox.open { display:flex; }
+.ai-lightbox-box { position:relative; max-width:92vw; max-height:90vh; }
+.ai-lightbox-box img { display:block; max-width:92vw; max-height:76vh; object-fit:contain; border-radius:8px; background:#000; }
+.ai-lightbox-close { position:absolute; top:-40px; right:0; }
+.ai-lightbox-meta { max-width:92vw; margin-top:10px; color:var(--muted); font-size:.78rem; line-height:1.6; max-height:18vh; overflow-y:auto; white-space:pre-wrap; word-break:break-word; }
 </style>
 </head>
 <body>
@@ -1818,6 +1827,7 @@ select:focus { outline:none; border-color:var(--gold); }
         <div style="display:flex; gap:8px; margin-bottom:12px;">
           <button class="btn sm" id="btn-ai-start"><svg class="ic ic-sm"><use href="#ic-spark"/></svg>启动</button>
           <button class="btn sm" id="btn-ai-refresh"><svg class="ic ic-sm"><use href="#ic-upload"/></svg>刷新</button>
+          <button class="btn sm danger" id="btn-ai-stop" disabled><svg class="ic ic-sm"><use href="#ic-x"/></svg>结束</button>
         </div>
         <div class="small" style="margin-bottom:6px">一句话生成</div>
         <textarea id="ai-prompt" placeholder="例如：一只金色机械猫坐在电路板上，赛博朋克风格"></textarea>
@@ -1835,6 +1845,10 @@ select:focus { outline:none; border-color:var(--gold); }
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
           <span class="small">ComfyUI 最近生成</span>
           <button class="btn sm" id="btn-ai-grid-refresh"><svg class="ic ic-sm"><use href="#ic-upload"/></svg>刷新</button>
+          <button class="btn sm" id="btn-ai-select-all">全选</button>
+          <button class="btn sm" id="btn-ai-clear-sel">取消选择</button>
+          <button class="btn sm danger" id="btn-ai-delete-sel" disabled><svg class="ic ic-sm"><use href="#ic-trash"/></svg>删除选中</button>
+          <span class="small" id="ai-sel-count"></span>
         </div>
         <ul id="ai-items"></ul>
       </div>
@@ -1919,12 +1933,19 @@ select:focus { outline:none; border-color:var(--gold); }
     </div>
   </div>
 </div>
+<div class="ai-lightbox" id="ai-lightbox">
+  <div class="ai-lightbox-box">
+    <button class="btn sm danger ai-lightbox-close" id="ai-lightbox-close"><svg class="ic ic-sm"><use href="#ic-x"/></svg>关闭</button>
+    <img id="ai-lightbox-img" alt="">
+    <div class="ai-lightbox-meta" id="ai-lightbox-meta"></div>
+  </div>
+</div>
 <script>
 (function () {
     var $ = function (id) { return document.getElementById(id); };
     var state = { articles: [], curFile: null, moments: [], momImgs: [], editingId: null,
                   catChips: [], tagChips: [], allCats: [], musicFiles: [], musicPls: [], musicCur: '全部',
-                  ai: { models: [], images: [], pickImages: [], taskId: null,
+                  ai: { models: [], images: [], selected: [], pickImages: [], taskId: null,
                         picker: { context: null, cb: null, selected: null, genName: null, genTask: null } } };
     var pendingMomentId = null;
 
@@ -2008,6 +2029,7 @@ select:focus { outline:none; border-color:var(--gold); }
             var running = !!s.running;
             $('ai-status-line').textContent = running ? 'ComfyUI 已运行' : 'ComfyUI 未运行';
             $('btn-ai-start').disabled = running;
+            $('btn-ai-stop').disabled = !running;
             state.ai.models = running ? (s.models || []) : [];
             fillAiModels();
             if (running) loadAiGallery();
@@ -2046,24 +2068,130 @@ select:focus { outline:none; border-color:var(--gold); }
         ul.innerHTML = '';
         if (!state.ai.images.length) {
             ul.innerHTML = '<li class="small" style="border:none;background:none;">暂无 AI 图片</li>';
+            updateAiSelUI();
             return;
         }
         state.ai.images.forEach(function (it) {
             var li = document.createElement('li');
-            li.innerHTML = '<img src="' + aiImgUrl(it.name, '', 1) + '" loading="lazy" alt="">' +
+            li.innerHTML = '<label class="ai-sel"><input type="checkbox" data-name="' + esc(it.name) + '"></label>' +
+                '<img src="' + aiImgUrl(it.name, '', 1) + '" loading="lazy" alt="">' +
                 '<span class="ai-name">' + esc(it.name) + '</span>' +
                 '<div class="ai-actions">' +
                 '<button class="btn sm" data-act="post">插入正文</button>' +
                 '<button class="btn sm" data-act="cover">封面</button>' +
                 '<button class="btn sm" data-act="moment">动态</button>' +
+                '<button class="btn sm danger" data-act="del">删除</button>' +
                 '</div>';
+            li.querySelector('img').addEventListener('click', function () {
+                openAiLightbox(it.name, '', it.name);
+            });
+            var cb = li.querySelector('input[type=checkbox]');
+            cb.checked = state.ai.selected.indexOf(it.name) >= 0;
+            cb.addEventListener('change', function () {
+                toggleAiSelected(it.name, cb.checked);
+            });
             li.querySelectorAll('button').forEach(function (b) {
                 b.addEventListener('click', function () {
-                    useAiImage(it.name, b.getAttribute('data-act'));
+                    var act = b.getAttribute('data-act');
+                    if (act === 'del') deleteAiImage(it.name);
+                    else useAiImage(it.name, act);
                 });
             });
             ul.appendChild(li);
         });
+        updateAiSelUI();
+    }
+    function deleteAiImage(name) {
+        if (!confirm('确定删除 ComfyUI 图片？\\n' + name + '\\n删除后不可恢复。')) return;
+        api('/api/comfy/image?name=' + encodeURIComponent(name), { method: 'DELETE' }).then(function (r) {
+            if (r.error) { alert(r.error); return; }
+            var idx = state.ai.selected.indexOf(name);
+            if (idx >= 0) state.ai.selected.splice(idx, 1);
+            if (state.ai.picker && state.ai.picker.selected === name) {
+                state.ai.picker.selected = null;
+                $('btn-pick-ai-use').disabled = true;
+            }
+            loadAiGallery();
+            loadPickAiGallery();
+            updateAiSelUI();
+            setStatus('已删除 AI 图片：' + name);
+        });
+    }
+    function toggleAiSelected(name, checked) {
+        var idx = state.ai.selected.indexOf(name);
+        if (checked && idx < 0) state.ai.selected.push(name);
+        if (!checked && idx >= 0) state.ai.selected.splice(idx, 1);
+        updateAiSelUI();
+    }
+    function updateAiSelUI() {
+        var n = state.ai.selected.length;
+        $('ai-sel-count').textContent = n ? '已选 ' + n + ' 张' : '';
+        $('btn-ai-delete-sel').disabled = !n;
+    }
+    function deleteAiImages(names) {
+        if (!names || !names.length) return;
+        if (!confirm('确定删除选中的 ' + names.length + ' 张图片？\\n删除后不可恢复。')) return;
+        api('/api/comfy/delete', {
+            method: 'POST',
+            body: JSON.stringify({ names: names })
+        }).then(function (r) {
+            if (r.error) { alert(r.error); return; }
+            state.ai.selected = [];
+            if (state.ai.picker && state.ai.picker.selected &&
+                    names.indexOf(state.ai.picker.selected) >= 0) {
+                state.ai.picker.selected = null;
+                $('btn-pick-ai-use').disabled = true;
+            }
+            loadAiGallery();
+            loadPickAiGallery();
+            updateAiSelUI();
+            setStatus('已删除 ' + (r.deleted || []).length + ' 张图片');
+        });
+    }
+    function stopComfy() {
+        if (!confirm('确定结束 ComfyUI？当前生成任务会被终止。')) return;
+        $('ai-status-line').textContent = '正在结束 ComfyUI...';
+        api('/api/comfy/stop', { method: 'POST', body: '{}' }).then(function (r) {
+            if (r.error) { alert(r.error); $('ai-status-line').textContent = '结束失败'; return; }
+            pollComfyStopped(0);
+        });
+    }
+    function pollComfyStopped(n) {
+        if (n > 30) { $('ai-status-line').textContent = '结束超时，请检查 ComfyUI'; return; }
+        api('/api/comfy/state').then(function (s) {
+            if (!s.running) {
+                loadAiState();
+                $('ai-gen-status').textContent = 'ComfyUI 已结束';
+                return;
+            }
+            setTimeout(function () { pollComfyStopped(n + 1); }, 1000);
+        });
+    }
+    function openAiLightbox(name, subfolder, filename) {
+        $('ai-lightbox-img').src = aiImgUrl(name, subfolder || '', 0);
+        $('ai-lightbox-meta').textContent = filename || name;
+        $('ai-lightbox').classList.add('open');
+        api('/api/comfy/image/meta?name=' + encodeURIComponent(name) +
+            (subfolder ? '&subfolder=' + encodeURIComponent(subfolder) : '')).then(function (r) {
+            var m = r.meta || {};
+            var parts = [];
+            if (m.model) parts.push('模型：' + m.model);
+            if (m.width && m.height) parts.push('尺寸：' + m.width + ' x ' + m.height);
+            if (m.steps) parts.push('步数：' + m.steps);
+            if (m.cfg) parts.push('CFG：' + m.cfg);
+            if (m.seed) parts.push('Seed：' + m.seed);
+            if (m.sampler) parts.push('采样器：' + m.sampler);
+            if (m.scheduler) parts.push('调度器：' + m.scheduler);
+            var text = filename || name;
+            if (parts.length) text += '\\n' + parts.join('\\n');
+            if (m.prompt) text += '\\n\\n提示词：\\n' + m.prompt;
+            if (m.negative) text += '\\n\\n负面提示词：\\n' + m.negative;
+            $('ai-lightbox-meta').textContent = text;
+        });
+    }
+    function closeAiLightbox() {
+        $('ai-lightbox').classList.remove('open');
+        $('ai-lightbox-img').removeAttribute('src');
     }
     function useAiImage(name, action, cb) {
         var target = action === 'moment' ? 'moment' : 'post';
@@ -2128,11 +2256,24 @@ select:focus { outline:none; border-color:var(--gold); }
             if (state.ai.picker.selected === it.name) li.className = 'sel';
             li.innerHTML = '<img src="' + aiImgUrl(it.name, '', 1) + '" loading="lazy" alt="">' +
                 '<span class="pick-ai-name">' + esc(it.name) + '</span>';
+            li.querySelector('img').addEventListener('click', function (e) {
+                e.stopPropagation();
+                openAiLightbox(it.name, '', it.name);
+            });
             li.addEventListener('click', function () {
                 state.ai.picker.selected = it.name;
                 renderPickAiGallery();
                 $('btn-pick-ai-use').disabled = false;
             });
+            var del = document.createElement('button');
+            del.className = 'btn sm danger pick-ai-del';
+            del.title = '删除图片';
+            del.innerHTML = '<svg class="ic ic-sm"><use href="#ic-trash"/></svg>';
+            del.addEventListener('click', function (e) {
+                e.stopPropagation();
+                deleteAiImage(it.name);
+            });
+            li.appendChild(del);
             ul.appendChild(li);
         });
         if (!state.ai.pickImages.length) {
@@ -2180,7 +2321,8 @@ select:focus { outline:none; border-color:var(--gold); }
             });
         });
     }
-    function pollAiTask(taskId, statusEl, progressEl, onDone) {
+    function pollAiTask(taskId, statusEl, progressEl, onDone, attempt) {
+        attempt = attempt || 0;
         api('/api/comfy/task?prompt_id=' + encodeURIComponent(taskId)).then(function (t) {
             var pct = 0, text = '';
             if (t.status === 'queued') {
@@ -2200,16 +2342,48 @@ select:focus { outline:none; border-color:var(--gold); }
                 statusEl.textContent = text;
                 return;
             } else {
+                if (attempt > 5) {
+                    text = '任务已终止或未找到';
+                    statusEl.textContent = text;
+                    return;
+                }
                 text = '等待任务开始...';
             }
             progressEl.style.width = pct + '%';
             statusEl.textContent = text;
-            setTimeout(function () { pollAiTask(taskId, statusEl, progressEl, onDone); }, 1000);
+            setTimeout(function () {
+                pollAiTask(taskId, statusEl, progressEl, onDone, attempt + 1);
+            }, 1000);
         });
     }
     $('btn-ai-start').addEventListener('click', startComfy);
     $('btn-ai-refresh').addEventListener('click', loadAiState);
+    $('btn-ai-stop').addEventListener('click', stopComfy);
     $('btn-ai-grid-refresh').addEventListener('click', loadAiGallery);
+    $('btn-ai-select-all').addEventListener('click', function () {
+        var all = state.ai.images.map(function (x) { return x.name; });
+        var hasAll = all.length && all.every(function (n) {
+            return state.ai.selected.indexOf(n) >= 0;
+        });
+        state.ai.selected = hasAll ? [] : all.slice();
+        renderAiGallery();
+    });
+    $('btn-ai-clear-sel').addEventListener('click', function () {
+        state.ai.selected = [];
+        renderAiGallery();
+    });
+    $('btn-ai-delete-sel').addEventListener('click', function () {
+        deleteAiImages(state.ai.selected.slice());
+    });
+    $('ai-lightbox-close').addEventListener('click', closeAiLightbox);
+    $('ai-lightbox').addEventListener('click', function (e) {
+        if (e.target === this) closeAiLightbox();
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && $('ai-lightbox').classList.contains('open')) {
+            closeAiLightbox();
+        }
+    });
     $('btn-ai-gen').addEventListener('click', function () { startGenerate('tab'); });
     $('btn-picker-close').addEventListener('click', closePicker);
     $('btn-pick-file').addEventListener('click', function () { $('pick-file').click(); });
@@ -3265,6 +3439,143 @@ def _import_comfy_image(name, target):
     return "/images/" + os.path.relpath(dest, IMAGES_DIR).replace("\\", "/")
 
 
+def _delete_comfy_image(name):
+    full = _safe_comfy_path(name)
+    if not full:
+        raise ValueError("ComfyUI 图片不存在或路径非法")
+    os.remove(full)
+    return True
+
+
+def _delete_comfy_images(names):
+    names = list(dict.fromkeys(os.path.basename(n or "") for n in (names or [])))
+    if not names:
+        raise ValueError("没有选择图片")
+    fulls = []
+    for name in names:
+        full = _safe_comfy_path(name)
+        if not full:
+            raise ValueError("ComfyUI 图片不存在或路径非法：{}".format(name))
+        fulls.append(full)
+    for full in fulls:
+        os.remove(full)
+    return names
+
+
+def _comfy_port_pid():
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    try:
+        p = subprocess.run(
+            ["netstat", "-ano"], capture_output=True, text=True,
+            encoding="utf-8", errors="replace", timeout=10, creationflags=flags)
+        out = p.stdout or ""
+    except Exception:
+        return None
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) >= 5 and parts[0].lower().startswith("tcp") and \
+                parts[1].endswith(":{}".format(COMFY_PORT)) and parts[3].upper() == "LISTENING":
+            try:
+                return int(parts[4])
+            except ValueError:
+                continue
+    return None
+
+
+def _comfy_process_is_comfy(pid):
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    try:
+        p = subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             "(Get-Process -Id {} -ErrorAction Stop).Path".format(pid)],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=10, creationflags=flags)
+        return "ComfyUI-aki-v3" in (p.stdout or "")
+    except Exception:
+        return False
+
+
+def _comfy_stop():
+    global _COMFY_PROCESS
+    with _COMFY_PROCESS_LOCK:
+        stopped_tracked = False
+        if _COMFY_PROCESS is not None:
+            proc = _COMFY_PROCESS
+            _COMFY_PROCESS = None
+            if proc.poll() is None:
+                try:
+                    proc.terminate()
+                    proc.wait(timeout=5)
+                    stopped_tracked = True
+                except Exception:
+                    try:
+                        proc.kill()
+                        stopped_tracked = True
+                    except Exception:
+                        pass
+        if stopped_tracked:
+            return {"stopped": True}
+        pid = _comfy_port_pid()
+        if pid is None:
+            return {"stopped": False}
+        if not _comfy_process_is_comfy(pid):
+            raise OSError("8188 端口被非 ComfyUI 进程占用，已取消结束")
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        p = subprocess.run(["taskkill", "/PID", str(pid), "/F"],
+                           capture_output=True, text=True, timeout=10, creationflags=flags)
+        if p.returncode != 0:
+            raise OSError("结束 ComfyUI 失败：{}".format(
+                (p.stderr or p.stdout or "").strip()[-300:]))
+        return {"stopped": True}
+
+
+def _comfy_image_meta(name, subfolder=""):
+    full = _safe_comfy_path(name, subfolder)
+    if not full:
+        return {}
+    meta = {}
+    try:
+        with Image.open(full) as img:
+            info = dict(img.info)
+    except Exception:
+        return meta
+    raw = info.get("prompt") or info.get("workflow")
+    if not raw:
+        return meta
+    try:
+        nodes = json.loads(raw)
+    except Exception:
+        return meta
+    if not isinstance(nodes, dict):
+        return meta
+    texts = []
+    for node in nodes.values():
+        if not isinstance(node, dict):
+            continue
+        cls = node.get("class_type")
+        inputs = node.get("inputs") or {}
+        if cls == "CheckpointLoaderSimple":
+            meta.setdefault("model", inputs.get("ckpt_name"))
+        elif cls == "EmptyLatentImage":
+            meta.setdefault("width", inputs.get("width"))
+            meta.setdefault("height", inputs.get("height"))
+        elif cls == "KSampler":
+            meta.setdefault("steps", inputs.get("steps"))
+            meta.setdefault("cfg", inputs.get("cfg"))
+            meta.setdefault("seed", inputs.get("seed"))
+            meta.setdefault("sampler", inputs.get("sampler_name"))
+            meta.setdefault("scheduler", inputs.get("scheduler"))
+        elif cls == "CLIPTextEncode":
+            text = str(inputs.get("text") or "").strip()
+            if text and text == AI_DEFAULT_NEGATIVE:
+                meta.setdefault("negative", text)
+            elif text:
+                texts.append(text)
+    if texts:
+        meta["prompt"] = texts[0]
+    return meta
+
+
 class BlogWebHandler(BaseHTTPRequestHandler):
     server_version = "BlogToolWeb/1.0"
 
@@ -3342,6 +3653,14 @@ class BlogWebHandler(BaseHTTPRequestHandler):
             return
         self._json({"ok": True, "prompt_id": pid})
 
+    def _post_comfy_delete(self, p):
+        try:
+            deleted = _delete_comfy_images(p.get("names"))
+        except Exception as e:
+            self._json({"error": str(e)}, 400)
+            return
+        self._json({"ok": True, "deleted": deleted})
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         qs = urllib.parse.parse_qs(parsed.query)
@@ -3370,6 +3689,9 @@ class BlogWebHandler(BaseHTTPRequestHandler):
                     self._json({"error": "缺少 prompt_id"}, 400)
                     return
                 self._json(_comfy_task_status(pid))
+            elif parsed.path == "/api/comfy/image/meta":
+                self._json({"meta": _comfy_image_meta(
+                    qs.get("name", [""])[0], qs.get("subfolder", [""])[0])})
             elif parsed.path == "/api/articles":
                 items = []
                 for rel, full in scan_posts():
@@ -3437,10 +3759,14 @@ class BlogWebHandler(BaseHTTPRequestHandler):
                 self._post_upload(payload)
             elif parsed.path == "/api/comfy/start":
                 self._json(_comfy_start())
+            elif parsed.path == "/api/comfy/stop":
+                self._json(_comfy_stop())
             elif parsed.path == "/api/comfy/import":
                 self._post_comfy_import(payload)
             elif parsed.path == "/api/comfy/generate":
                 self._post_comfy_generate(payload)
+            elif parsed.path == "/api/comfy/delete":
+                self._post_comfy_delete(payload)
             elif parsed.path == "/api/files":
                 self._post_files(payload)
             elif parsed.path == "/api/music":
@@ -3832,6 +4158,13 @@ class BlogWebHandler(BaseHTTPRequestHandler):
                     if name in pl.get("order", []):
                         pl["order"].remove(name)
                 save_music_data(data)
+                self._json({"ok": True})
+            elif parsed.path == "/api/comfy/image":
+                try:
+                    _delete_comfy_image(qs.get("name", [""])[0])
+                except Exception as e:
+                    self._json({"error": str(e)}, 400)
+                    return
                 self._json({"ok": True})
             else:
                 self._json({"error": "not found"}, 404)

@@ -11,21 +11,21 @@
     margin-top: 10px;
     padding: 6px 16px;
     border-radius: 999px;
-    background: rgba(212, 175, 55, 0.12);
-    border: 1px solid rgba(212, 175, 55, 0.5);
-    color: #d4af37;
+    background: rgba(var(--accent-rgb), 0.12);
+    border: 1px solid rgba(var(--accent-rgb), 0.5);
+    color: var(--accent);
     text-decoration: none;
     font-size: 0.82rem;
     font-weight: 700;
     transition: all 0.2s;
 }
-.dyn-tool-btn:hover { background: rgba(212, 175, 55, 0.25); }
+.dyn-tool-btn:hover { background: rgba(var(--accent-rgb), 0.25); }
 .dyn-board {
     position: relative;
-    border: 1px dashed rgba(212, 175, 55, .4);
+    border: 1px dashed rgba(var(--accent-rgb), .4);
     border-radius: var(--radius-lg);
-    background-color: rgba(212, 175, 55, .045);
-    background-image: radial-gradient(rgba(212, 175, 55, .16) 1.2px, transparent 1.6px);
+    background-color: rgba(var(--accent-rgb), .045);
+    background-image: radial-gradient(rgba(var(--accent-rgb), .16) 1.2px, transparent 1.6px);
     background-size: 22px 22px;
     padding: 32px 14px 26px;
 }
@@ -40,13 +40,13 @@ html[data-theme="dark"] .dyn-board { background-color: rgba(0, 0, 0, .18); }
     border-radius: 6px;
     background: linear-gradient(180deg, #fffdf4, #fff6dd);
     color: #3b3321;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, .28), inset 0 0 0 1px rgba(212, 175, 55, .45);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .28), inset 0 0 0 1px rgba(var(--accent-rgb), .45);
     transform: rotate(var(--rot, 0deg));
 }
 html[data-theme="dark"] .mom-note {
-    background: linear-gradient(180deg, #2c2618, #262216);
+    background: linear-gradient(180deg, #2c2618, var(--card-bg-dark));
     color: #f0e6c8;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, .5), inset 0 0 0 1px rgba(212, 175, 55, .4);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .5), inset 0 0 0 1px rgba(var(--accent-rgb), .4);
 }
 .mom-pin {
     position: absolute;
@@ -56,7 +56,7 @@ html[data-theme="dark"] .mom-note {
     height: 18px;
     margin-left: -9px;
     border-radius: 50%;
-    background: radial-gradient(circle at 35% 32%, #ffe08a, #d4af37 62%, #8a6d1f);
+    background: radial-gradient(circle at 35% 32%, #ffe08a, var(--accent) 62%, #8a6d1f);
     box-shadow: 0 2px 5px rgba(0, 0, 0, .45);
     z-index: 1;
 }
@@ -72,7 +72,7 @@ html[data-theme="dark"] .mom-date { color: #c2a96a; }
     text-decoration: none;
     opacity: .75;
 }
-.mom-edit:hover { opacity: 1; color: #d4af37; }
+.mom-edit:hover { opacity: 1; color: var(--accent); }
 
 /* 图片网格 */
 .mom-imgs { display: grid; gap: 8px; margin-top: 12px; }
@@ -107,8 +107,8 @@ html[data-theme="dark"] .mom-date { color: #c2a96a; }
     padding: 4px 12px;
     font-size: .8rem;
     color: #8a6d1f;
-    background: rgba(212, 175, 55, .15);
-    border: 1px solid rgba(212, 175, 55, .5);
+    background: rgba(var(--accent-rgb), .15);
+    border: 1px solid rgba(var(--accent-rgb), .5);
     border-radius: 999px;
     text-decoration: none;
     overflow: hidden;
@@ -117,7 +117,7 @@ html[data-theme="dark"] .mom-date { color: #c2a96a; }
     vertical-align: middle;
 }
 html[data-theme="dark"] .mom-link { color: #e5c56e; }
-.mom-link:hover { background: rgba(212, 175, 55, .28); }
+.mom-link:hover { background: rgba(var(--accent-rgb), .28); }
 
 /* 文章剪报 */
 .mom-post {
@@ -126,8 +126,8 @@ html[data-theme="dark"] .mom-link { color: #e5c56e; }
     margin: 22px 10px 28px;
     padding: 14px;
     background: var(--card-bg);
-    border: 1px solid rgba(212, 175, 55, .28);
-    border-left: 4px solid #d4af37;
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
     border-radius: var(--radius-md);
     box-shadow: 0 6px 16px rgba(0, 0, 0, .12);
 }
@@ -138,20 +138,20 @@ html[data-theme="dark"] .mom-post { background: var(--card-bg-dark); box-shadow:
     align-self: flex-start;
     border-radius: 10px;
     overflow: hidden;
-    border: 1px solid rgba(212, 175, 55, .3);
+    border: 1px solid var(--line);
 }
 .mom-post-cover img { display: block; width: 100%; height: 100%; object-fit: cover; aspect-ratio: 5 / 3; }
 .mom-post-body { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .mom-post-meta { display: flex; align-items: center; gap: 10px; font-size: .74rem; color: #999; }
 .mom-post-cat {
-    background: rgba(212, 175, 55, .14);
+    background: rgba(var(--accent-rgb), .14);
     color: #c8a53f;
     padding: 2px 8px;
     border-radius: 999px;
 }
 .mom-post-title { margin: 0; font-size: 1rem; font-weight: 800; line-height: 1.4; }
 .mom-post-title a { color: var(--primary); text-decoration: none; }
-.mom-post-title a:hover { color: #d4af37; }
+.mom-post-title a:hover { color: var(--accent); }
 .mom-post-summary {
     margin: 0;
     font-size: .82rem;
@@ -162,10 +162,10 @@ html[data-theme="dark"] .mom-post { background: var(--card-bg-dark); box-shadow:
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
-.mom-post-more { margin-top: auto; font-size: .78rem; color: #d4af37; text-decoration: none; font-weight: 700; }
+.mom-post-more { margin-top: auto; font-size: .78rem; color: var(--accent); text-decoration: none; font-weight: 700; }
 .mom-post-more:hover { text-decoration: underline; }
 .mom-post-edit { font-size: .72rem; color: #a08b4f; text-decoration: none; align-self: flex-start; }
-.mom-post-edit:hover { color: #d4af37; }
+.mom-post-edit:hover { color: var(--accent); }
 
 /* 灯箱 */
 .lb { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0, 0, 0, .82); align-items: center; justify-content: center; }
@@ -244,7 +244,7 @@ html[data-theme="dark"] .mom-post { background: var(--card-bg-dark); box-shadow:
                         {{- if gt (len $imgs) 4 }}{{ $more = sub (len $imgs) 4 }}{{ $imgs = first 4 $imgs }}{{ end }}
                         <div class="mom-imgs imgs-{{ len $imgs }}">
                             {{- range $imgs }}
-                            <a class="mom-img" href="{{ . }}" data-lb><img src="{{ . }}" alt="" loading="lazy"></a>
+                            <a class="mom-img" href="{{ . }}" data-lb><img src="{{ partial "cover-thumb.html" . }}" alt="" loading="lazy"></a>
                             {{- end }}
                             {{- if gt $more 0 }}
                             <div class="mom-img-more">+{{ $more }}</div>
@@ -312,11 +312,16 @@ html[data-theme="dark"] .mom-post { background: var(--card-bg-dark); box-shadow:
     overlay.querySelector('.lb-close').addEventListener('click', close);
     overlay.querySelector('.lb-prev').addEventListener('click', function (e) { e.stopPropagation(); show(cur - 1); });
     overlay.querySelector('.lb-next').addEventListener('click', function (e) { e.stopPropagation(); show(cur + 1); });
-    document.addEventListener('keydown', function (e) {
+    var lbKeyHandler = function (e) {
         if (!overlay.classList.contains('open')) return;
         if (e.key === 'Escape') close();
         if (e.key === 'ArrowLeft') show(cur - 1);
         if (e.key === 'ArrowRight') show(cur + 1);
+    };
+    document.addEventListener('keydown', lbKeyHandler);
+    // PJAX 换页清理：灯箱层由 global-nav.js 移除，这里补移除键盘监听
+    (window.MCRYII_PageUnsubscribers = window.MCRYII_PageUnsubscribers || []).push(function () {
+        document.removeEventListener('keydown', lbKeyHandler);
     });
 })();
 </script>

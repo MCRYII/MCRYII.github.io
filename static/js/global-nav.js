@@ -76,6 +76,14 @@
         var curMain = document.querySelector('main.main');
         if (!newMain || !curMain) throw new Error('main container not found');
 
+        // 清理上一页注册的滚动/尺寸监听，避免 PJAX 多次切换后监听器累积
+        if (window.MCRYII_CleanupPageEffects) window.MCRYII_CleanupPageEffects();
+
+        // 清理页面级残留弹层，避免 PJAX 换页后带到新页面
+        document.querySelectorAll('.lb').forEach(function (el) {
+            el.remove();
+        });
+
         if (doc.title) document.title = doc.title;
         document.body.className = doc.body.className;
 

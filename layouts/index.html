@@ -1,5 +1,156 @@
 {{- define "main" }}
+{{- $oldest := now }}
+{{- range site.RegularPages }}{{ if and (gt .Date.Unix 0) (lt .Date.Unix $oldest.Unix) }}{{ $oldest = .Date }}{{ end }}{{ end }}
+{{- $days := div (sub now.Unix $oldest.Unix) 86400 }}
+<style>
+/* 首页全屏 Hero 背景：专用固定层，PJAX 离开主页时随 <main> 一起销毁 */
+.home-hero-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background-color: #111;
+    background-image: url('/images/home-hero.jpg');
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+}
+.home-hero-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(12, 10, 8, 0.22) 0%, rgba(12, 10, 8, 0.34) 55%, rgba(12, 10, 8, 0.66) 100%);
+}
+html[data-theme="dark"] .home-hero-bg { background-color: #0d0c0a; }
+html[data-theme="dark"] .home-hero-bg::after {
+    background: linear-gradient(to bottom, rgba(10, 9, 8, 0.36) 0%, rgba(10, 9, 8, 0.48) 55%, rgba(10, 9, 8, 0.76) 100%);
+}
+@media (max-width: 720px) {
+    .home-hero-bg { background-position: 62% center; }
+}
+
+/* 下滑航程：数据卡 + 云 + 跑道（飞行猫逻辑在 /js/dino-game.js） */
+.home-descent {
+    position: relative;
+    min-height: 150vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+}
+.home-clouds i {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(var(--accent-rgb), 0.10);
+    box-shadow: 18px 8px 0 -4px rgba(var(--accent-rgb), 0.10), -20px 10px 0 -6px rgba(var(--accent-rgb), 0.08);
+    animation: home-cloud-drift 9s ease-in-out infinite alternate;
+}
+.home-clouds i:nth-child(1) { width: 90px; height: 26px; top: 18vh; left: 12%; }
+.home-clouds i:nth-child(2) { width: 60px; height: 20px; top: 45vh; right: 14%; animation-delay: -3s; }
+.home-clouds i:nth-child(3) { width: 74px; height: 22px; top: 68vh; left: 20%; animation-delay: -6s; }
+@keyframes home-cloud-drift {
+    from { transform: translateX(0); }
+    to { transform: translateX(34px); }
+}
+.home-stats {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 24vh;
+}
+.home-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 14px 26px;
+    border-radius: var(--radius-md);
+    background: rgba(17, 15, 12, 0.55);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(var(--accent-rgb), 0.4);
+    color: #f3efe4;
+}
+.home-stat b {
+    font-size: 1.6rem;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+}
+.home-stat span { font-size: 0.85rem; opacity: 0.9; }
+.home-stat em {
+    font-style: normal;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    opacity: 0.65;
+}
+.home-runway {
+    align-self: stretch;
+    height: 64px;
+    background:
+        repeating-linear-gradient(90deg, rgba(255, 252, 245, 0.5) 0 26px, transparent 26px 52px) center / 100% 4px no-repeat,
+        linear-gradient(to bottom, #14120f, #1d1a15);
+    border-top: 2px solid rgba(var(--accent-rgb), 0.55);
+    box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35), 0 -6px 18px rgba(0, 0, 0, 0.3);
+}
+/* 飞行猫画布：贴右侧随滚动滑翔 */
+#dino-fly {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 150px;
+    height: 100vh;
+    z-index: 5;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s var(--ease-out);
+}
+#dino-fly.on { opacity: 1; }
+</style>
+<div class="home-hero-bg" aria-hidden="true"></div>
 {{- if site.Params.homeInfoParams }}
 {{- partial "home_info.html" . }}
 {{- end }}
+
+<!-- 下滑航程：陪 ω 猫一起滑翔降落，数据卡点缀沿途 -->
+<div class="home-descent">
+    <div class="home-clouds" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="home-stats">
+        <div class="home-stat"><b>{{ $days }}</b><span>天</span><em>建站航程</em></div>
+        <div class="home-stat"><b>{{ len site.RegularPages }}</b><span>篇</span><em>文章</em></div>
+        <div class="home-stat"><b>{{ len site.Taxonomies.tags }}</b><span>个</span><em>标签</em></div>
+    </div>
+    <div class="home-runway" aria-hidden="true"></div>
+</div>
+
+<!-- 彩蛋：下滑进入小恐龙游戏（手势/游戏逻辑在 /js/dino-game.js） -->
+<canvas id="dino-fly" aria-hidden="true"></canvas>
+<div id="dino-hint" aria-hidden="true">
+    <svg class="site-icon"><use href="#ic-chevron-down"></use></svg>
+    <span>继续下滑，起飞进入游戏！</span>
+</div>
+<div class="dino-layer" id="dino-layer" hidden>
+    <canvas id="dino-canvas"></canvas>
+    <button id="dino-theme" aria-label="切换主题" title="切换主题 (游戏内换色)">
+        <svg class="moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+        <svg class="sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+    </button>
+    <button id="dino-close" aria-label="退出游戏" title="退出 (Esc)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+        </svg>
+    </button>
+</div>
 {{- end }}

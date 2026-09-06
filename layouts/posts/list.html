@@ -4,18 +4,18 @@ main.main {
     max-width: 1480px !important;
 }
 .hero-post {
-    border-radius: 22px;
+    border-radius: var(--radius-lg);
     background: #ffffff;
-    border: 2px solid rgba(212, 175, 55, 0.55);
-    box-shadow: 0 8px 30px rgba(212, 175, 55, 0.18);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow-rest);
     overflow: hidden;
-    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    transition: transform 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out), border-color 0.3s var(--ease-out);
 }
-html[data-theme="dark"] .hero-post { background: #262216; }
+html[data-theme="dark"] .hero-post { background: var(--card-bg-dark); }
 .hero-post:hover {
-    transform: translateY(-4px);
-    border-color: #d4af37;
-    box-shadow: 0 18px 46px rgba(212, 175, 55, 0.3);
+    transform: translateY(-3px);
+    border-color: rgba(var(--accent-rgb), 0.5);
+    box-shadow: var(--shadow-pop);
 }
 .hero-post a { display: block; text-decoration: none; color: var(--primary); }
 .hero-cover {
@@ -43,38 +43,27 @@ html[data-theme="dark"] .hero-post { background: #262216; }
     gap: 6px;
     padding: 7px 16px;
     border-radius: 999px;
-    background: linear-gradient(135deg, #f4d35e 0%, #d4af37 55%, #b8860b 100%);
-    color: #241a02;
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.72) 0%, var(--accent) 100%);
+    color: var(--accent-contrast);
     font-size: 0.82rem;
     font-weight: 800;
     letter-spacing: 0.06em;
-    box-shadow: 0 0 18px rgba(212, 175, 55, 0.55);
-    animation: badge-pulse 1.8s ease-in-out infinite;
-}
-@keyframes badge-pulse {
-    0%, 100% {
-        transform: scale(1);
-        box-shadow: 0 0 14px rgba(212, 175, 55, 0.45);
-    }
-    50% {
-        transform: scale(1.06);
-        box-shadow: 0 0 26px rgba(212, 175, 55, 0.85);
-    }
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
 }
 .hero-post:hover .hero-cover img { transform: scale(1.05); }
 .hero-fallback {
     font-size: 4rem;
-    color: rgba(212, 175, 55, 0.85);
-    text-shadow: 0 0 30px rgba(212, 175, 55, 0.45);
+    color: rgba(var(--accent-rgb), 0.85);
+    text-shadow: 0 0 30px rgba(var(--accent-rgb), 0.45);
 }
 .hero-body { padding: 24px 28px 26px; }
 .hero-cat {
     display: inline-block;
     font-size: 0.72rem;
     font-weight: 700;
-    color: #d4af37;
-    background: rgba(212, 175, 55, 0.12);
-    border: 1px solid rgba(212, 175, 55, 0.35);
+    color: var(--gold);
+    background: var(--gold-soft);
+    border: 1px solid var(--gold-border);
     border-radius: 999px;
     padding: 3px 12px;
     margin-bottom: 10px;
@@ -102,10 +91,10 @@ html[data-theme="dark"] .hero-post { background: #262216; }
     font-size: 0.8rem;
     color: #999;
 }
-.hero-meta .read-more { margin-left: auto; color: #d4af37; font-weight: 700; }
+.hero-meta .read-more { margin-left: auto; color: var(--accent); font-weight: 700; }
 .scroll-hint {
     text-align: center;
-    color: #d4af37;
+    color: var(--accent);
     font-size: 0.85rem;
     padding: 22px 0 8px;
     cursor: pointer;
@@ -124,22 +113,22 @@ html[data-theme="dark"] .hero-post { background: #262216; }
 .post-row {
     opacity: 0;
     transform: translateY(30px);
-    transition: opacity 0.65s ease, transform 0.65s ease, border-color 0.25s ease, box-shadow 0.25s ease;
-    border-radius: 18px;
+    transition: opacity 0.65s var(--ease-out), transform 0.65s var(--ease-out), border-color 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out);
+    border-radius: var(--radius-lg);
     background: #ffffff;
-    border: 1px solid rgba(212, 175, 55, 0.2);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow-rest);
     margin-bottom: 16px;
     overflow: hidden;
 }
-html[data-theme="dark"] .post-row { background: #262216; }
+html[data-theme="dark"] .post-row { background: var(--card-bg-dark); }
 .post-row.in-view {
     opacity: 1;
     transform: none;
 }
 .post-row:hover {
-    border-color: rgba(212, 175, 55, 0.75);
-    box-shadow: 0 10px 26px rgba(212, 175, 55, 0.16);
+    border-color: rgba(var(--accent-rgb), 0.5);
+    box-shadow: var(--shadow-pop);
 }
 .post-row a {
     display: flex;
@@ -165,7 +154,7 @@ html[data-theme="dark"] .post-row { background: #262216; }
     transition: transform 0.35s ease;
 }
 .post-row:hover .row-cover img { transform: scale(1.06); }
-.row-fallback { font-size: 2rem; color: rgba(212, 175, 55, 0.85); }
+.row-fallback { font-size: 2rem; color: rgba(var(--accent-rgb), 0.85); }
 .row-body { flex: 1; min-width: 0; padding: 16px 20px; }
 .row-title {
     font-size: 1.05rem;
@@ -214,9 +203,9 @@ html[data-theme="dark"] .post-row { background: #262216; }
         <a href="{{ .RelPermalink }}">
             <div class="hero-cover">
                 {{- with .Params.cover.image }}
-                <img src="{{ partial "cover-thumb.html" . }}" alt="{{ $page.Title }}" fetchpriority="high">
+                <img src="{{ partial "cover-thumb.html" . }}" alt="{{ $page.Title }}" width="960" height="540" decoding="async" fetchpriority="high">
                 {{- else }}
-                <img src="{{ partial "cover-thumb.html" "/images/default-cover.png" }}" alt="{{ $page.Title }}" fetchpriority="high">
+                <img src="{{ partial "cover-thumb.html" "/images/default-cover.png" }}" alt="{{ $page.Title }}" width="960" height="540" decoding="async" fetchpriority="high">
                 {{- end }}
                 <span class="hero-badge"><svg class="site-icon"><use href="#ic-flame"></use></svg> 最新发布</span>
             </div>
@@ -245,9 +234,9 @@ html[data-theme="dark"] .post-row { background: #262216; }
         <a href="{{ .RelPermalink }}">
             <div class="row-cover">
                 {{- with .Params.cover.image }}
-                <img src="{{ partial "cover-thumb.html" . }}" alt="{{ $page.Title }}" loading="lazy">
+                <img src="{{ partial "cover-thumb.html" . }}" alt="{{ $page.Title }}" width="400" height="240" decoding="async" loading="lazy">
                 {{- else }}
-                <img src="{{ partial "cover-thumb.html" "/images/default-cover.png" }}" alt="{{ $page.Title }}" loading="lazy">
+                <img src="{{ partial "cover-thumb.html" "/images/default-cover.png" }}" alt="{{ $page.Title }}" width="400" height="240" decoding="async" loading="lazy">
                 {{- end }}
             </div>
             <div class="row-body">
@@ -292,9 +281,9 @@ html[data-theme="dark"] .post-row { background: #262216; }
         <a href="{{ .RelPermalink }}">
             <div class="row-cover">
                 {{- with .Params.cover.image }}
-                <img src="{{ partial "cover-thumb.html" . }}" alt="{{ $page.Title }}" loading="lazy">
+                <img src="{{ partial "cover-thumb.html" . }}" alt="{{ $page.Title }}" width="400" height="240" decoding="async" loading="lazy">
                 {{- else }}
-                <img src="{{ partial "cover-thumb.html" "/images/default-cover.png" }}" alt="{{ $page.Title }}" loading="lazy">
+                <img src="{{ partial "cover-thumb.html" "/images/default-cover.png" }}" alt="{{ $page.Title }}" width="400" height="240" decoding="async" loading="lazy">
                 {{- end }}
             </div>
             <div class="row-body">
@@ -354,6 +343,10 @@ html[data-theme="dark"] .post-row { background: #262216; }
     rows.forEach(function (r, i) {
         r.style.transitionDelay = Math.min(i * 80, 600) + 'ms';
         io.observe(r);
+    });
+    // PJAX 换页清理：解除观察，避免残留对已卸载行的引用
+    (window.MCRYII_PageUnsubscribers = window.MCRYII_PageUnsubscribers || []).push(function () {
+        io.disconnect();
     });
 })();
 </script>

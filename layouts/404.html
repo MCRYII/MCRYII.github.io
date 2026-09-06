@@ -1,0 +1,199 @@
+{{ define "main" }}
+<style>
+.nf-wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 40px 20px 56px;
+    text-align: center;
+}
+.nf-code {
+    font-size: clamp(4.2rem, 12vw, 7rem);
+    font-weight: 900;
+    line-height: 1;
+    color: var(--accent);
+    text-shadow: 0 0 34px rgba(var(--accent-rgb), 0.35);
+    margin: 0;
+}
+.nf-title {
+    margin: 14px 0 8px;
+    font-size: 1.35rem;
+    font-weight: 800;
+}
+.nf-sub {
+    margin: 0 auto;
+    max-width: 520px;
+    color: var(--secondary);
+    font-size: 0.92rem;
+    line-height: 1.7;
+}
+.nf-actions {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 24px 0 8px;
+}
+.nf-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-width: 128px;
+    padding: 10px 20px;
+    border-radius: 999px;
+    border: 1px solid rgba(var(--accent-rgb), 0.55);
+    background: rgba(var(--accent-rgb), 0.12);
+    color: var(--accent);
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.2s, transform 0.2s;
+}
+.nf-btn:hover {
+    background: rgba(var(--accent-rgb), 0.24);
+    transform: translateY(-2px);
+}
+.nf-btn-primary {
+    background: linear-gradient(135deg, #f4d35e 0%, var(--accent) 60%, #b8860b 100%);
+    color: #241a02;
+}
+.nf-links {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 18px 0 30px;
+}
+.nf-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 13px;
+    border: 1px solid rgba(var(--accent-rgb), 0.28);
+    border-radius: 999px;
+    color: var(--secondary);
+    font-size: 0.78rem;
+    text-decoration: none;
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.nf-link:hover {
+    color: var(--accent);
+    border-color: rgba(var(--accent-rgb), 0.65);
+    background: rgba(var(--accent-rgb), 0.1);
+}
+.nf-recent {
+    text-align: left;
+    padding: 18px;
+    border: 1px solid rgba(var(--accent-rgb), 0.22);
+    border-radius: 18px;
+    background: rgba(var(--accent-rgb), 0.05);
+}
+.nf-recent-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 12px;
+    padding-bottom: 9px;
+    border-bottom: 1px dashed rgba(var(--accent-rgb), 0.3);
+    color: var(--accent);
+    font-size: 0.95rem;
+    font-weight: 800;
+}
+.nf-recent-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.nf-recent-list li + li {
+    margin-top: 8px;
+}
+.nf-recent-list a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 10px;
+    border-radius: 10px;
+    color: var(--primary);
+    font-size: 0.83rem;
+    text-decoration: none;
+    transition: background 0.18s, color 0.18s;
+}
+.nf-recent-list a:hover {
+    background: rgba(var(--accent-rgb), 0.1);
+    color: var(--accent);
+}
+.nf-recent-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 650;
+}
+.nf-recent-date {
+    flex-shrink: 0;
+    color: var(--secondary);
+    font-size: 0.7rem;
+}
+@media (max-width: 520px) {
+    .nf-btn {
+        width: 100%;
+    }
+    .nf-recent-list a {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 3px;
+    }
+}
+</style>
+
+{{- $recent := first 3 (sort (where site.RegularPages "Section" "posts") "Date" "desc") -}}
+<div class="nf-wrap">
+    <p class="nf-code">404</p>
+    <h1 class="nf-title">这一页迷路了</h1>
+    <p class="nf-sub">链接可能已失效，或者页面已经搬家。可以先搜索关键词，也可以从下面这些入口继续逛。</p>
+    <div class="nf-actions">
+        <a class="nf-btn nf-btn-primary" href="/"><svg class="site-icon"><use href="#ic-arrow-right"></use></svg> 回到主页</a>
+        <button type="button" class="nf-btn" id="nf-search"><svg class="site-icon"><use href="#ic-search"></use></svg> 搜索内容</button>
+    </div>
+    <nav class="nf-links" aria-label="常用入口">
+        <a class="nf-link" href="/posts/"><svg class="site-icon"><use href="#ic-doc"></use></svg> 文章</a>
+        <a class="nf-link" href="/notes/"><svg class="site-icon"><use href="#ic-book"></use></svg> 笔记</a>
+        <a class="nf-link" href="/dynamic/"><svg class="site-icon"><use href="#ic-chat"></use></svg> 动态</a>
+        <a class="nf-link" href="/site-nav/"><svg class="site-icon"><use href="#ic-link"></use></svg> 网站导航</a>
+        <a class="nf-link" href="/downloads/"><svg class="site-icon"><use href="#ic-download"></use></svg> 下载</a>
+    </nav>
+    {{- with $recent }}
+    <section class="nf-recent">
+        <h2 class="nf-recent-title"><svg class="site-icon"><use href="#ic-flame"></use></svg> 最近文章</h2>
+        <ul class="nf-recent-list">
+            {{- range . }}
+            <li>
+                <a href="{{ .RelPermalink }}">
+                    <span class="nf-recent-name">{{ .Title }}</span>
+                    <span class="nf-recent-date">{{ .Date.Format "2006-01-02" }}</span>
+                </a>
+            </li>
+            {{- end }}
+        </ul>
+    </section>
+    {{- end }}
+</div>
+
+<script>
+(function () {
+    var btn = document.getElementById('nf-search');
+    if (!btn) return;
+    btn.addEventListener('click', function (event) {
+        event.stopPropagation();
+        var box = document.getElementById('search-container');
+        var input = document.getElementById('search-input');
+        if (box) box.classList.add('open');
+        if (input) input.focus();
+        if (window.MCRYII_LoadSearch) window.MCRYII_LoadSearch().catch(function () {});
+    });
+})();
+</script>
+{{ end }}

@@ -5,7 +5,7 @@ main.main { max-width: 920px !important; }
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: #d4af37;
+    color: var(--accent);
     text-decoration: none;
     font-size: 0.85rem;
     font-weight: 600;
@@ -23,15 +23,15 @@ main.main { max-width: 920px !important; }
     font-family: Consolas, monospace;
 }
 .note-meta-bar .note-tag {
-    background: rgba(212, 175, 55, 0.12);
-    border: 1px solid rgba(212, 175, 55, 0.3);
-    color: #d4af37;
+    background: rgba(var(--accent-rgb), 0.12);
+    border: 1px solid var(--line);
+    color: var(--accent);
     border-radius: 999px;
     padding: 1px 10px;
 }
 /* 代码块增强：编辑器风格 */
 .post-content pre {
-    border: 1px solid rgba(212, 175, 55, 0.22);
+    border: 1px solid var(--line);
     border-radius: 14px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
     position: relative;
@@ -55,8 +55,8 @@ main.main { max-width: 920px !important; }
         <div class="note-meta-bar">
             <span>№ {{ .Params.num }}</span>
             <span>{{ .Date.Format "2006-01-02" }}</span>
-            <span>{{ .ReadingTime }} min read</span>
-            <span class="note-tag">ESP32</span>
+            <span>阅读约 {{ .ReadingTime }} 分钟</span>
+            <span class="note-tag">{{ .Params.group }}</span>
         </div>
     </header>
     <div class="post-content">

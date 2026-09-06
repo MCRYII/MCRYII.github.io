@@ -1,0 +1,12 @@
+{{- $attrs := slice (slice "loading" "lazy") (slice "decoding" "async") -}}
+{{- $src := .Destination -}}
+{{- if and (not (strings.HasPrefix $src "http://")) (not (strings.HasPrefix $src "https://")) (strings.HasPrefix $src "/") -}}
+  {{- /* 注意：不要对 $src 做 urlize——它会把路径转小写，导致 fileExists 在大小写敏感的 Linux 构建机上匹配失败、宽高被静默丢弃 */ -}}
+  {{- $file := printf "static%s" $src -}}
+  {{- if fileExists $file -}}
+    {{- with imageConfig $file -}}
+      {{- $attrs = $attrs | append (slice "width" (string .Width)) | append (slice "height" (string .Height)) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+<img src="{{ $src | safeURL }}" alt="{{ .PlainText }}" {{ range $attr := $attrs }}{{ index $attr 0 }}="{{ index $attr 1 }}" {{ end }}{{ with .Title }}title="{{ . }}" {{ end }}/>

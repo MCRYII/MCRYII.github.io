@@ -12,7 +12,7 @@ cover:
 
 MCRYII 隆重登场！✪ω✪ 这张图是本地模型跑出来的，之后交给 GPT 修改（眼睛还有点瑕疵）。形象来源于之前的头像，所以特意加了萤石作为头上的发饰，还加上了dnd里面的二十面骰子（沉迷crpg）。
 
-![MCRYII](https://i.ibb.co/Xk7pHTBq/meitu.png)
+![MCRYII](/files/wallpapers/meitu.png)
 
 ![1000000799](/images/1000000799.jpg)
 

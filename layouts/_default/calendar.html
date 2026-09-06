@@ -26,14 +26,14 @@ main.main { max-width: none !important; }
     width: 34px;
     height: 34px;
     border-radius: 50%;
-    border: 1px solid rgba(212, 175, 55, 0.4);
-    background: rgba(212, 175, 55, 0.1);
-    color: #d4af37;
+    border: 1px solid rgba(var(--accent-rgb), 0.4);
+    background: rgba(var(--accent-rgb), 0.1);
+    color: var(--accent);
     font-size: 16px;
     cursor: pointer;
     margin-left: 8px;
 }
-.cal-big-nav button:hover { background: rgba(212, 175, 55, 0.25); }
+.cal-big-nav button:hover { background: rgba(var(--accent-rgb), 0.25); }
 .cal-big-nav .cal-today-btn {
     width: auto;
     height: 30px;
@@ -64,18 +64,18 @@ main.main { max-width: none !important; }
     border: 1px solid transparent;
     transition: all 0.15s;
 }
-.cal-big-cell:hover { background: rgba(212, 175, 55, 0.1); }
-.cal-big-cell.today { box-shadow: inset 0 0 0 1.5px rgba(212, 175, 55, 0.65); }
+.cal-big-cell:hover { background: rgba(var(--accent-rgb), 0.1); }
+.cal-big-cell.today { box-shadow: inset 0 0 0 1.5px rgba(var(--accent-rgb), 0.65); }
 .cal-big-cell.has-post {
-    color: #d4af37;
+    color: var(--accent);
     font-weight: 700;
-    border-color: rgba(212, 175, 55, 0.35);
-    background: rgba(212, 175, 55, 0.07);
+    border-color: rgba(var(--accent-rgb), 0.35);
+    background: rgba(var(--accent-rgb), 0.07);
 }
 .cal-big-cell.selected {
-    background: #d4af37;
+    background: var(--accent);
     color: #1b1405;
-    box-shadow: 0 4px 14px rgba(212, 175, 55, 0.4);
+    box-shadow: 0 4px 14px rgba(var(--accent-rgb), 0.4);
 }
 .cal-badge {
     position: absolute;
@@ -97,7 +97,7 @@ main.main { max-width: none !important; }
 }
 .cal-big-list {
     margin-top: 16px;
-    border-top: 1px dashed rgba(212, 175, 55, 0.3);
+    border-top: 1px dashed var(--line);
     padding-top: 12px;
 }
 .cal-big-list a {
@@ -108,7 +108,7 @@ main.main { max-width: none !important; }
     text-decoration: none;
     font-size: 0.9rem;
 }
-.cal-big-list a:hover { background: rgba(212, 175, 55, 0.1); color: #d4af37; }
+.cal-big-list a:hover { background: rgba(var(--accent-rgb), 0.1); color: var(--accent); }
 .cal-big-fest { padding: 8px 12px; font-size: 0.9rem; color: #e05c5c; }
 .cal-big-sched { padding: 8px 12px; font-size: 0.9rem; color: #4a90d9; }
 .cal-big-empty { color: #999; font-size: 0.85rem; padding: 10px 12px; }
@@ -134,7 +134,7 @@ main.main { max-width: none !important; }
     border-radius: 6px;
 }
 .cal-del:hover { background: rgba(200, 80, 80, 0.15); }
-.cal-up-title { margin-top: 12px; padding-top: 10px; border-top: 1px dashed rgba(212, 175, 55, 0.3); }
+.cal-up-title { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
 .cal-up-item { font-size: 0.82rem; color: #999; padding: 4px 0; }
 #cal-form label { display: block; font-size: 0.82rem; color: #999; margin: 8px 0 2px; }
 #cal-form input,
@@ -143,7 +143,7 @@ main.main { max-width: none !important; }
     box-sizing: border-box;
     padding: 6px 8px;
     border-radius: 8px;
-    border: 1px solid rgba(212, 175, 55, 0.35);
+    border: 1px solid var(--line);
     background: transparent;
     color: var(--primary);
     font-size: 0.88rem;
@@ -153,13 +153,13 @@ main.main { max-width: none !important; }
     width: 100%;
     padding: 8px;
     border-radius: 10px;
-    border: 1px solid rgba(212, 175, 55, 0.5);
-    background: rgba(212, 175, 55, 0.12);
-    color: #d4af37;
+    border: 1px solid rgba(var(--accent-rgb), 0.5);
+    background: rgba(var(--accent-rgb), 0.12);
+    color: var(--accent);
     font-weight: 600;
     cursor: pointer;
 }
-#cal-form button[type="submit"]:hover { background: rgba(212, 175, 55, 0.25); }
+#cal-form button[type="submit"]:hover { background: rgba(var(--accent-rgb), 0.25); }
 
 /* 提醒提示条 */
 .cal-remind-bar {
@@ -170,19 +170,19 @@ main.main { max-width: none !important; }
     z-index: 9999;
     background: #1b1405;
     color: #f4e8c1;
-    border: 1px solid rgba(212, 175, 55, 0.6);
+    border: 1px solid rgba(var(--accent-rgb), 0.6);
     border-radius: 12px;
     padding: 12px 18px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
     max-width: min(90vw, 460px);
 }
 .cal-remind-bar .cr-item { font-size: 0.9rem; margin-top: 5px; }
-.cal-remind-bar .cr-time { color: #d4af37; margin-left: 8px; font-size: 0.78rem; }
+.cal-remind-bar .cr-time { color: var(--accent); margin-left: 8px; font-size: 0.78rem; }
 .cal-remind-bar button {
     margin-top: 10px;
-    border: 1px solid rgba(212, 175, 55, 0.5);
+    border: 1px solid rgba(var(--accent-rgb), 0.5);
     background: transparent;
-    color: #d4af37;
+    color: var(--accent);
     border-radius: 8px;
     padding: 3px 16px;
     cursor: pointer;

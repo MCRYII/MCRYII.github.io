@@ -8,54 +8,102 @@ body.music-page main.main {
     min-height: calc(100vh - var(--header-height, 60px));
 }
 body.music-page {
+    /* 音乐页局部色彩令牌：默认暗色（原样子），浅色主题在下方覆盖 */
+    --ms-text: #eee;
+    --ms-dim: #9b96a8;
+    --ms-faint: rgba(230, 228, 240, 0.42);
+    --ms-aurora-opacity: 0.32;
+    --ms-vignette: radial-gradient(120% 100% at 50% 38%, transparent 52%, rgba(0, 0, 0, 0.55) 100%);
+    --ms-gold-text: color-mix(in srgb, var(--accent, #d4af37) 55%, #fff);
+    --ms-gold-fill: color-mix(in srgb, var(--accent, #d4af37) 55%, #fff);
+    --ms-title-grad: linear-gradient(110deg,
+        color-mix(in srgb, var(--accent, #d4af37) 42%, #f7edd2) 10%, var(--accent, #d4af37) 30%,
+        #fff7dd 50%, var(--accent, #d4af37) 70%,
+        color-mix(in srgb, var(--accent, #d4af37) 42%, #f7edd2) 90%);
+    --ms-track-line: rgba(255, 255, 255, 0.14);
+    --ms-ctl-bg: rgba(255, 255, 255, 0.05);
+    --ms-chip-bg: rgba(255, 255, 255, 0.06);
+    --ms-chip-hover: rgba(255, 255, 255, 0.12);
+    --ms-chip-border: rgba(255, 255, 255, 0.12);
+    --ms-row-bg: rgba(255, 255, 255, 0.03);
+    --ms-glass-bg: rgba(24, 21, 38, 0.72);
+    --ms-drawer-bg: rgba(14, 12, 22, 0.985);
+    --ms-mask-bg: rgba(0, 0, 0, 0.55);
+    --ms-play-hi: color-mix(in srgb, var(--accent, #d4af37) 55%, #fff);
+    --ms-play-icon: var(--accent-contrast, #241a02);
     background: radial-gradient(120% 95% at 50% 0%, rgba(32, 28, 52, 0.92), rgba(12, 11, 20, 0.97) 55%, #08070f 100%) #08070f !important;
+}
+html[data-theme="light"] body.music-page {
+    --ms-text: #33302a;
+    --ms-dim: #6f6a5e;
+    --ms-faint: rgba(52, 46, 32, 0.4);
+    --ms-aurora-opacity: 0.2;
+    --ms-vignette: radial-gradient(120% 100% at 50% 38%, transparent 55%, rgba(90, 74, 30, 0.1) 100%);
+    --ms-gold-text: var(--accent-deep, #7a5c00);
+    --ms-gold-fill: var(--accent, #d4af37);
+    --ms-title-grad: linear-gradient(110deg,
+        var(--accent-deep, #7a5c00) 10%, var(--accent, #d4af37) 30%,
+        color-mix(in srgb, var(--accent, #d4af37) 75%, #fff) 50%, var(--accent, #d4af37) 70%,
+        var(--accent-deep, #7a5c00) 90%);
+    --ms-track-line: rgba(60, 50, 20, 0.16);
+    --ms-ctl-bg: rgba(255, 255, 255, 0.55);
+    --ms-chip-bg: rgba(60, 50, 20, 0.05);
+    --ms-chip-hover: rgba(60, 50, 20, 0.1);
+    --ms-chip-border: rgba(60, 50, 20, 0.12);
+    --ms-row-bg: rgba(255, 255, 255, 0.6);
+    --ms-glass-bg: rgba(255, 252, 245, 0.8);
+    --ms-drawer-bg: rgba(252, 250, 244, 0.985);
+    --ms-mask-bg: rgba(70, 58, 25, 0.3);
+    --ms-play-hi: color-mix(in srgb, var(--accent, #d4af37) 75%, #fff);
+    --ms-play-icon: var(--accent-contrast, #241a02);
+    background: radial-gradient(120% 95% at 50% 0%,
+        color-mix(in srgb, var(--accent, #d4af37) 14%, #fdfbf4), #f7f3ea 55%, #f1ecdf 100%) #f7f3ea !important;
 }
 body.music-page .footer {
     display: none !important;
 }
 body.music-page #global-music-player { display: none !important; }
-/* 顶栏在音乐页上改成暗色玻璃风格，与舞台融为一体 */
-body.music-page .site-brand,
-body.music-page .nav-pill,
-body.music-page .site-actions {
+/* 顶栏在音乐页上改成暗色玻璃风格，与舞台融为一体（浅色主题用站点默认顶栏） */
+html:not([data-theme="light"]) body.music-page .site-brand,
+html:not([data-theme="light"]) body.music-page .nav-pill,
+html:not([data-theme="light"]) body.music-page .site-actions {
     background: rgba(24, 21, 38, 0.72);
-    border-color: rgba(212, 175, 55, 0.35);
+    border-color: rgba(var(--accent-rgb, 212, 175, 55), 0.35);
     box-shadow: 0 2px 14px rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(10px);
 }
-body.music-page .site-brand-link,
-body.music-page .nav-link,
-body.music-page .icon-btn,
-body.music-page .kbd-hint {
+html:not([data-theme="light"]) body.music-page .site-brand-link,
+html:not([data-theme="light"]) body.music-page .nav-link,
+html:not([data-theme="light"]) body.music-page .icon-btn,
+html:not([data-theme="light"]) body.music-page .kbd-hint {
     color: #e6d9ae;
 }
-body.music-page .nav-link:hover,
-body.music-page .nav-link.active,
-body.music-page .nav-dropdown-trigger:hover,
-body.music-page .nav-dropdown-trigger.active,
-body.music-page .icon-btn:hover {
-    background: rgba(212, 175, 55, 0.22);
-    color: #ffd75e;
+html:not([data-theme="light"]) body.music-page .nav-link:hover,
+html:not([data-theme="light"]) body.music-page .nav-link.active,
+html:not([data-theme="light"]) body.music-page .nav-dropdown-trigger:hover,
+html:not([data-theme="light"]) body.music-page .nav-dropdown-trigger.active,
+html:not([data-theme="light"]) body.music-page .icon-btn:hover {
+    background: rgba(var(--accent-rgb, 212, 175, 55), 0.22);
+    color: var(--ms-gold-text);
 }
-body.music-page .kbd-hint { border-color: rgba(212, 175, 55, 0.3); }
-body.music-page .nav-dropdown {
+html:not([data-theme="light"]) body.music-page .kbd-hint { border-color: rgba(var(--accent-rgb, 212, 175, 55), 0.3); }
+html:not([data-theme="light"]) body.music-page .nav-dropdown {
     background: rgba(24, 21, 38, 0.97);
-    border: 1px solid rgba(212, 175, 55, 0.25);
+    border: 1px solid rgba(var(--accent-rgb, 212, 175, 55), 0.25);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
 }
-body.music-page .nav-dropdown-item { color: #d9d2e8; }
-body.music-page .nav-dropdown-item:hover,
-body.music-page .nav-dropdown-item.active {
-    background: rgba(212, 175, 55, 0.16);
-    color: #ffd75e;
+html:not([data-theme="light"]) body.music-page .nav-dropdown-item { color: #d9d2e8; }
+html:not([data-theme="light"]) body.music-page .nav-dropdown-item:hover,
+html:not([data-theme="light"]) body.music-page .nav-dropdown-item.active {
+    background: rgba(var(--accent-rgb, 212, 175, 55), 0.16);
+    color: var(--ms-gold-text);
 }
-body.music-page .nav-drawer {
+html:not([data-theme="light"]) body.music-page .nav-drawer {
     background: rgba(20, 18, 32, 0.98);
     color: #e6d9ae;
 }
-body.music-page .drawer-link { color: #e6d9ae; }
-body.music-page .drawer-link:hover,
-body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); color: #ffd75e; }
+html:not([data-theme="light"]) body.music-page .drawer-link { color: #e6d9ae; }
+html:not([data-theme="light"]) body.music-page .drawer-link:hover,
+html:not([data-theme="light"]) body.music-page .drawer-link.active { background: rgba(var(--accent-rgb, 212, 175, 55), 0.16); color: var(--ms-gold-text); }
 
 .music-stage {
     position: relative;
@@ -65,8 +113,8 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
     flex-direction: column;
     align-items: center;
     padding: 18px 16px 34px;
-    background: radial-gradient(120% 95% at 50% 0%, rgba(32, 28, 52, 0.92), rgba(12, 11, 20, 0.97) 55%, #08070f 100%);
-    color: #eee;
+    background: transparent; /* 背景由 body.music-page 的令牌控制，舞台透明直接透出 */
+    color: var(--ms-text, #eee);
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -77,17 +125,16 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
     width: 52vmax;
     height: 52vmax;
     border-radius: 50%;
-    filter: blur(45px);
-    opacity: 0.32;
+    opacity: var(--ms-aurora-opacity, 0.32);
     animation: msDrift 26s ease-in-out infinite alternate;
     will-change: transform;
 }
 .ms-aurora i:nth-child(1) {
-    background: radial-gradient(circle, rgba(212, 175, 55, 0.6), transparent 62%);
+    background: radial-gradient(circle, rgba(var(--accent-rgb, 212, 175, 55), 0.6), transparent 50%);
     top: -30%; left: -16%;
 }
 .ms-aurora i:nth-child(2) {
-    background: radial-gradient(circle, rgba(124, 92, 226, 0.5), transparent 62%);
+    background: radial-gradient(circle, rgba(124, 92, 226, 0.5), transparent 50%);
     bottom: -34%; right: -18%;
     animation-delay: -10s; animation-duration: 32s;
 }
@@ -97,7 +144,7 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
 }
 .ms-vignette {
     position: absolute; inset: 0; pointer-events: none; z-index: 0;
-    background: radial-gradient(120% 100% at 50% 38%, transparent 52%, rgba(0, 0, 0, 0.55) 100%);
+    background: var(--ms-vignette);
 }
 .ms-particles { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
 
@@ -130,15 +177,15 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
 .ms-halo {
     position: absolute; inset: 3%; border-radius: 50%; z-index: 1;
     background: conic-gradient(from 0deg,
-        transparent 0 18%, rgba(212, 175, 55, 0.38) 28% 36%,
-        transparent 46% 68%, rgba(255, 215, 94, 0.28) 80% 90%, transparent 100%);
+        transparent 0 18%, rgba(var(--accent-rgb, 212, 175, 55), 0.38) 28% 36%,
+        transparent 46% 68%, rgba(var(--accent-rgb, 212, 175, 55), 0.28) 80% 90%, transparent 100%);
     filter: blur(14px);
     opacity: 0.85;
 }
 .ms-vinyl {
     position: absolute; inset: 12%; z-index: 2; border-radius: 50%;
     background: radial-gradient(circle at 50% 50%, #28282e 0 6%, #141416 7% 100%);
-    box-shadow: 0 0 64px rgba(212, 175, 55, 0.28), 0 20px 55px rgba(0, 0, 0, 0.65), inset 0 0 34px rgba(0, 0, 0, 0.85);
+    box-shadow: 0 0 64px rgba(var(--accent-rgb, 212, 175, 55), 0.28), 0 20px 55px rgba(0, 0, 0, 0.65), inset 0 0 34px rgba(0, 0, 0, 0.85);
     animation: msSpin 16s linear infinite, msVinylIn 0.65s cubic-bezier(0.2, 0.8, 0.3, 1.15) both;
     animation-play-state: paused, running;
     cursor: pointer;
@@ -146,7 +193,7 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
     will-change: transform;
 }
 .ms-vinyl.playing { animation-play-state: running, running; }
-.ms-vinyl:hover { box-shadow: 0 0 88px rgba(212, 175, 55, 0.5), 0 20px 55px rgba(0, 0, 0, 0.65), inset 0 0 34px rgba(0, 0, 0, 0.85); }
+.ms-vinyl:hover { box-shadow: 0 0 88px rgba(var(--accent-rgb, 212, 175, 55), 0.5), 0 20px 55px rgba(0, 0, 0, 0.65), inset 0 0 34px rgba(0, 0, 0, 0.85); }
 @keyframes msSpin { to { transform: rotate(360deg); } }
 @keyframes msVinylIn {
     from { opacity: 0; transform: scale(0.72); }
@@ -174,7 +221,7 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
     font-size: clamp(1.3rem, 3.6vw, 1.95rem);
     font-weight: 800;
     line-height: 1.3;
-    background: linear-gradient(110deg, #f5e6b0 10%, #d4af37 30%, #fff7dd 50%, #d4af37 70%, #f5e6b0 90%);
+    background: var(--ms-title-grad);
     background-size: 200% auto;
     -webkit-background-clip: text;
     background-clip: text;
@@ -183,16 +230,16 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
     word-break: break-word;
 }
 @keyframes msShimmer { to { background-position: 200% center; } }
-.ms-artist { margin-top: 6px; color: #9b96a8; font-size: 0.95rem; letter-spacing: 0.06em; }
+.ms-artist { margin-top: 6px; color: var(--ms-dim, #9b96a8); font-size: 0.95rem; letter-spacing: 0.06em; }
 .ms-badge {
     display: inline-flex; align-items: center; gap: 7px;
     margin-top: 11px; padding: 4px 13px; border-radius: 999px;
     font-size: 0.72rem; letter-spacing: 0.05em;
-    border: 1px solid rgba(212, 175, 55, 0.35);
-    color: #d4af37; background: rgba(212, 175, 55, 0.08);
+    border: 1px solid rgba(var(--accent-rgb, 212, 175, 55), 0.35);
+    color: var(--accent, #d4af37); background: rgba(var(--accent-rgb, 212, 175, 55), 0.08);
 }
 .ms-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; }
-.ms-eq i { width: 3px; background: #d4af37; border-radius: 2px; animation: msEq 0.9s ease-in-out infinite; }
+.ms-eq i { width: 3px; background: var(--accent, #d4af37); border-radius: 2px; animation: msEq 0.9s ease-in-out infinite; }
 .ms-eq i:nth-child(1) { height: 40%; }
 .ms-eq i:nth-child(2) { height: 100%; animation-delay: 0.16s; }
 .ms-eq i:nth-child(3) { height: 65%; animation-delay: 0.32s; }
@@ -217,43 +264,43 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
 .ms-lyric-line {
     padding: 7px 14px; text-align: center;
     font-size: clamp(0.92rem, 2.2vw, 1.06rem); line-height: 1.45;
-    color: rgba(230, 228, 240, 0.42);
+    color: var(--ms-faint, rgba(230, 228, 240, 0.42));
     transition: color 0.3s, transform 0.3s, text-shadow 0.3s;
     word-break: break-word;
 }
 .ms-lyric-line.active {
-    color: #ffd75e; font-weight: 700; transform: scale(1.05);
-    text-shadow: 0 0 18px rgba(212, 175, 55, 0.65);
+    color: var(--ms-gold-text); font-weight: 700; transform: scale(1.05);
+    text-shadow: 0 0 18px rgba(var(--accent-rgb, 212, 175, 55), 0.65);
 }
 .ms-lyric-empty {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
-    font-size: 0.95rem; letter-spacing: 0.22em; color: #8d879c;
+    font-size: 0.95rem; letter-spacing: 0.22em; color: var(--ms-dim, #8d879c);
 }
 
 /* ---- 进度条 ---- */
 .ms-progress { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 560px; margin-top: 14px; }
-.ms-time { font-size: 0.72rem; color: #9b96a8; font-variant-numeric: tabular-nums; min-width: 38px; text-align: center; }
+.ms-time { font-size: 0.72rem; color: var(--ms-dim, #9b96a8); font-variant-numeric: tabular-nums; min-width: 38px; text-align: center; }
 .ms-progress input[type="range"] {
     flex: 1; -webkit-appearance: none; appearance: none; height: 6px; border-radius: 99px; outline: none; cursor: pointer;
-    background: linear-gradient(90deg, #d4af37 var(--pct, 0%), rgba(255, 255, 255, 0.14) var(--pct, 0%));
+    background: linear-gradient(90deg, var(--ms-gold-fill) var(--pct, 0%), var(--ms-track-line) var(--pct, 0%));
 }
 .ms-progress input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; border: none;
-    background: #ffd75e; box-shadow: 0 0 12px rgba(212, 175, 55, 0.9);
+    background: var(--ms-gold-fill); box-shadow: 0 0 12px rgba(var(--accent-rgb, 212, 175, 55), 0.9);
 }
 .ms-progress input[type="range"]::-moz-range-thumb {
     width: 14px; height: 14px; border-radius: 50%; border: none;
-    background: #ffd75e; box-shadow: 0 0 12px rgba(212, 175, 55, 0.9);
+    background: var(--ms-gold-fill); box-shadow: 0 0 12px rgba(var(--accent-rgb, 212, 175, 55), 0.9);
 }
 
 /* ---- 控制区 ---- */
 .ms-controls { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
 .ms-ctl {
     width: 46px; height: 46px; border-radius: 50%;
-    border: 1px solid rgba(212, 175, 55, 0.25);
-    background: rgba(255, 255, 255, 0.05);
-    color: #eee; font-size: 17px; cursor: pointer;
+    border: 1px solid rgba(var(--accent-rgb, 212, 175, 55), 0.25);
+    background: var(--ms-ctl-bg);
+    color: var(--ms-text, #eee); font-size: 17px; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     transition: all 0.2s;
 }
@@ -261,43 +308,43 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
 .ms-play svg { width: 21px; height: 21px; }
 .ms-drawer-head svg { width: 17px; height: 17px; }
 .ms-ctl:hover {
-    border-color: rgba(212, 175, 55, 0.7); color: #ffd75e;
-    box-shadow: 0 0 16px rgba(212, 175, 55, 0.35); transform: translateY(-2px);
+    border-color: rgba(var(--accent-rgb, 212, 175, 55), 0.7); color: var(--ms-gold-text);
+    box-shadow: 0 0 16px rgba(var(--accent-rgb, 212, 175, 55), 0.35); transform: translateY(-2px);
 }
-.ms-ctl.active { background: rgba(212, 175, 55, 0.2); color: #ffd75e; }
+.ms-ctl.active { background: rgba(var(--accent-rgb, 212, 175, 55), 0.2); color: var(--ms-gold-text); }
 .ms-play {
     width: 64px; height: 64px;
-    background: radial-gradient(circle at 35% 30%, #ffd75e, #d4af37 72%);
-    color: #1b1405 !important; font-size: 22px; border: none;
-    box-shadow: 0 0 28px rgba(212, 175, 55, 0.45);
+    background: radial-gradient(circle at 35% 30%, var(--ms-play-hi), var(--accent, #d4af37) 72%);
+    color: var(--ms-play-icon) !important; font-size: 22px; border: none;
+    box-shadow: 0 0 28px rgba(var(--accent-rgb, 212, 175, 55), 0.45);
 }
-.ms-play:hover { transform: scale(1.06); box-shadow: 0 0 38px rgba(212, 175, 55, 0.65); }
+.ms-play:hover { transform: scale(1.06); box-shadow: 0 0 38px rgba(var(--accent-rgb, 212, 175, 55), 0.65); }
 .ms-volwrap { display: flex; align-items: center; gap: 8px; }
 .ms-volwrap input[type="range"] {
     -webkit-appearance: none; appearance: none; width: 90px; height: 5px; border-radius: 99px; outline: none; cursor: pointer;
-    background: linear-gradient(90deg, #d4af37 var(--pct, 70%), rgba(255, 255, 255, 0.14) var(--pct, 70%));
+    background: linear-gradient(90deg, var(--ms-gold-fill) var(--pct, 70%), var(--ms-track-line) var(--pct, 70%));
 }
 .ms-volwrap input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; border: none;
-    background: #ffd75e; box-shadow: 0 0 10px rgba(212, 175, 55, 0.9);
+    background: var(--ms-gold-fill); box-shadow: 0 0 10px rgba(var(--accent-rgb, 212, 175, 55), 0.9);
 }
 .ms-volwrap input[type="range"]::-moz-range-thumb {
     width: 12px; height: 12px; border-radius: 50%; border: none;
-    background: #ffd75e; box-shadow: 0 0 10px rgba(212, 175, 55, 0.9);
+    background: var(--ms-gold-fill); box-shadow: 0 0 10px rgba(var(--accent-rgb, 212, 175, 55), 0.9);
 }
 
 /* ---- 歌单抽屉 ---- */
 .ms-mask {
     position: fixed; inset: 0; z-index: 10030;
-    background: rgba(0, 0, 0, 0.55);
+    background: var(--ms-mask-bg, rgba(0, 0, 0, 0.55));
     opacity: 0; pointer-events: none; transition: opacity 0.3s;
 }
 .ms-mask.show { opacity: 1; pointer-events: auto; }
 .ms-drawer {
     position: fixed; top: 0; right: 0; bottom: 0; z-index: 10040;
     width: min(420px, 94vw);
-    background: rgba(14, 12, 22, 0.985);
-    border-left: 1px solid rgba(212, 175, 55, 0.25);
+    background: var(--ms-drawer-bg);
+    border-left: 1px solid rgba(var(--accent-rgb, 212, 175, 55), 0.25);
     box-shadow: -20px 0 60px rgba(0, 0, 0, 0.5);
     transform: translateX(102%);
     transition: transform 0.35s cubic-bezier(0.22, 0.8, 0.3, 1);
@@ -312,17 +359,17 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
 }
 .ms-pls-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 12px 0; }
 .ms-pls-tabs .ms-pl-tab {
-    background: rgba(255, 255, 255, 0.06);
-    color: #aaa;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: var(--ms-chip-bg);
+    color: var(--ms-dim, #aaa);
+    border: 1px solid var(--ms-chip-border);
     border-radius: 999px;
     padding: 4px 12px;
     font-size: 0.75rem;
     cursor: pointer;
     transition: all 0.15s;
 }
-.ms-pls-tabs .ms-pl-tab:hover { background: rgba(255, 255, 255, 0.12); }
-.ms-pls-tabs .ms-pl-tab.active { background: rgba(212, 175, 55, 0.22); color: #ffd75e; border-color: rgba(212, 175, 55, 0.45); }
+.ms-pls-tabs .ms-pl-tab:hover { background: var(--ms-chip-hover); }
+.ms-pls-tabs .ms-pl-tab.active { background: rgba(var(--accent-rgb, 212, 175, 55), 0.22); color: var(--ms-gold-text); border-color: rgba(var(--accent-rgb, 212, 175, 55), 0.45); }
 #ms-tool-btn {
     position: fixed;
     top: 70px;
@@ -333,14 +380,14 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
     gap: 6px;
     padding: 6px 14px;
     border-radius: 999px;
-    background: rgba(24, 21, 38, 0.8);
-    border: 1px solid rgba(212, 175, 55, 0.35);
-    color: #e6d9ae;
+    background: var(--ms-glass-bg);
+    border: 1px solid rgba(var(--accent-rgb, 212, 175, 55), 0.35);
+    color: var(--ms-gold-text);
     text-decoration: none;
     font-size: 0.8rem;
     backdrop-filter: blur(8px);
 }
-#ms-tool-btn:hover { color: #ffd75e; }
+#ms-tool-btn:hover { color: var(--ms-gold-text); }
 .ms-drawer-close { margin-left: auto; background: none; border: none; color: #aaa; font-size: 17px; cursor: pointer; transition: color 0.2s; }
 .ms-drawer-close:hover { color: #ffd75e; }
 .ms-drawer-list { margin-top: 10px; overflow-y: auto; flex: 1; padding-right: 4px; }
@@ -350,27 +397,27 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
     display: flex; align-items: center; gap: 12px;
     width: 100%; padding: 10px 12px; margin-bottom: 6px;
     border-radius: 12px; border: 1px solid transparent;
-    background: rgba(255, 255, 255, 0.03);
-    color: #ddd; cursor: pointer; text-align: left; font-family: inherit;
+    background: var(--ms-row-bg);
+    color: var(--ms-text, #ddd); cursor: pointer; text-align: left; font-family: inherit;
     transition: all 0.2s;
     animation: msRowIn 0.35s both;
 }
-.ms-drow:hover { background: rgba(212, 175, 55, 0.1); border-color: rgba(212, 175, 55, 0.3); }
-.ms-drow.active { background: rgba(212, 175, 55, 0.14); border-color: rgba(212, 175, 55, 0.55); color: #ffd75e; }
+.ms-drow:hover { background: rgba(var(--accent-rgb, 212, 175, 55), 0.1); border-color: rgba(var(--accent-rgb, 212, 175, 55), 0.3); }
+.ms-drow.active { background: rgba(var(--accent-rgb, 212, 175, 55), 0.14); border-color: rgba(var(--accent-rgb, 212, 175, 55), 0.55); color: var(--ms-gold-text); }
 @keyframes msRowIn { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
 .ms-drow-index {
     width: 26px; height: 26px; flex-shrink: 0; border-radius: 8px;
-    background: rgba(255, 255, 255, 0.06); color: #aaa;
+    background: var(--ms-chip-bg); color: var(--ms-dim, #aaa);
     font-size: 0.72rem; font-weight: 700;
     display: flex; align-items: center; justify-content: center;
 }
-.ms-drow.active .ms-drow-index { background: rgba(212, 175, 55, 0.28); color: #ffd75e; }
+.ms-drow.active .ms-drow-index { background: rgba(var(--accent-rgb, 212, 175, 55), 0.28); color: var(--ms-gold-text); }
 .ms-drow-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .ms-drow-title { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ms-drow-artist { font-size: 0.7rem; color: #8d879c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ms-drow-artist { font-size: 0.7rem; color: var(--ms-dim, #8d879c); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ms-drow-eq { width: 22px; height: 16px; display: none; align-items: flex-end; justify-content: center; gap: 2px; flex-shrink: 0; }
 .ms-drow.active .ms-drow-eq { display: inline-flex; }
-.ms-drow-eq i { width: 3px; background: #d4af37; border-radius: 2px; animation: msEq 0.9s ease-in-out infinite; }
+.ms-drow-eq i { width: 3px; background: var(--accent, #d4af37); border-radius: 2px; animation: msEq 0.9s ease-in-out infinite; }
 .ms-drow-eq i:nth-child(1) { height: 50%; }
 .ms-drow-eq i:nth-child(2) { height: 100%; animation-delay: 0.16s; }
 .ms-drow-eq i:nth-child(3) { height: 70%; animation-delay: 0.32s; }
@@ -407,7 +454,7 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
             <div class="ms-halo" aria-hidden="true"></div>
             <div class="ms-vinyl" id="ms-vinyl" title="点击查看歌词">
                 <div class="ms-grooves" aria-hidden="true"></div>
-                <div class="ms-cover"><img id="ms-cover" src="/images/player-cover.jpg" alt="封面"></div>
+                <div class="ms-cover"><img id="ms-cover" src="/images/player-cover.jpg" alt="封面" width="256" height="256" decoding="async"></div>
                 <div class="ms-hole" aria-hidden="true"></div>
             </div>
         </div>
@@ -488,15 +535,34 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
     var drawerOpen = false;
     var pCtx = null, particles = [];
     var vizAnalyser = null;
+    var vizCtx = null;
     var freqData = new Uint8Array(256);
     var vizWasPlaying = false;
     var stageW = 0, stageH = 0, vizSize = 0;
     var lastCur = '', lastDur = '', lastPct = -1;
     var vizColors = [], vizWidths = [];
-    for (var q = 0; q <= 16; q++) {
-        var vv = q / 16;
-        vizColors[q] = 'rgba(212, 175, 55,' + (0.25 + vv * 0.75).toFixed(3) + ')';
-        vizWidths[q] = 2 + vv * 3;
+    for (var q = 0; q <= 16; q++) vizWidths[q] = 2 + (q / 16) * 3;
+    function buildVizColors(rgb) {
+        for (var q = 0; q <= 16; q++) {
+            var vv = q / 16;
+            vizColors[q] = 'rgba(' + rgb + ',' + (0.25 + vv * 0.75).toFixed(3) + ')';
+        }
+    }
+    buildVizColors('212, 175, 55');
+    /* 画布颜色跟随顶栏调色板/深浅色切换：rAF 里做字符串比对，变了才重建 */
+    var rootEl = document.documentElement;
+    var lastThemeKey = null;
+    var particleRgb = '212, 175, 55';
+    var particleAlpha = 1;
+    function syncThemeColors() {
+        var key = (rootEl.dataset.palette || '') + '|' + (rootEl.dataset.theme || '');
+        if (key === lastThemeKey) return;
+        lastThemeKey = key;
+        var rgb = (getComputedStyle(rootEl).getPropertyValue('--accent-rgb') || '').trim();
+        if (!/^\d+\s*,\s*\d+\s*,\s*\d+$/.test(rgb)) rgb = '212, 175, 55';
+        particleRgb = rgb;
+        particleAlpha = rootEl.dataset.theme === 'light' ? 0.45 : 1;
+        buildVizColors(rgb);
     }
     var ICONS = {
         play: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>',
@@ -699,7 +765,7 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
     /* ================= 背景粒子 ================= */
     function sizeParticles() {
         if (!pCanvas) return;
-        var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        var dpr = 1; /* 尘埃粒子无需高清采样，1x 足够且省一半填充量 */
         stageW = stage.clientWidth; stageH = stage.clientHeight;
         var w = stageW, h = stageH;
         pCanvas.width = Math.round(w * dpr);
@@ -708,7 +774,7 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
         pCanvas.style.height = h + 'px';
         pCtx = pCanvas.getContext('2d');
         pCtx.scale(dpr, dpr);
-        var n = Math.min(24, Math.max(14, Math.round(w / 48)));
+        var n = Math.min(16, Math.max(12, Math.round(w / 48)));
         particles = [];
         for (var i = 0; i < n; i++) {
             particles.push({
@@ -734,8 +800,8 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
             pt.y -= pt.vy;
             if (pt.y < -8) { pt.y = h + 8; pt.x = Math.random() * w; }
             pt.tw += pt.ts;
-            var alpha = Math.max(0.05, pt.a * (0.5 + 0.5 * Math.sin(pt.tw)));
-            ctx.fillStyle = 'rgba(212, 175, 55,' + alpha.toFixed(3) + ')';
+            var alpha = Math.max(0.05, pt.a * (0.5 + 0.5 * Math.sin(pt.tw))) * particleAlpha;
+            ctx.fillStyle = 'rgba(' + particleRgb + ',' + alpha.toFixed(3) + ')';
             ctx.beginPath();
             ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);
             ctx.fill();
@@ -780,7 +846,7 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
         var playing = !!(getPlayer() && getPlayer().getState().playing);
         if (!playing || document.hidden) {
             if (vizWasPlaying) {
-                var ctx0 = vizCanvas.getContext('2d');
+                var ctx0 = vizCtx || (vizCtx = vizCanvas.getContext('2d'));
                 ctx0.setTransform(1, 0, 0, 1, 0, 0);
                 ctx0.clearRect(0, 0, vizCanvas.width, vizCanvas.height);
                 vizWasPlaying = false;
@@ -793,7 +859,7 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
             vizCanvas.width = Math.round(size * dpr);
             vizCanvas.height = Math.round(size * dpr);
         }
-        var ctx = vizCanvas.getContext('2d');
+        var ctx = vizCtx || (vizCtx = vizCanvas.getContext('2d'));
         ctx.clearRect(0, 0, vizCanvas.width, vizCanvas.height);
         ctx.save();
         ctx.scale(dpr, dpr);
@@ -833,14 +899,22 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
 
     /* ================= 主循环 ================= */
     var raf = null;
-    function tick() {
+    var lastFrame = 0;
+    function tick(now) {
         raf = null;
         if (!document.body.contains(stage)) return;
+        now = now || performance.now();
         if (!document.hidden) {
-            drawParticles();
-            drawViz();
-            syncUI();
-            syncList();
+            syncThemeColors();
+            var playing = !!(getPlayer() && getPlayer().getState().playing);
+            /* 暂停时降到 ~15fps：粒子缓漂保留，频谱/UI 停止高频刷新 */
+            if (now - lastFrame >= (playing ? 0 : 66)) {
+                lastFrame = now;
+                drawParticles();
+                drawViz();
+                syncUI();
+                syncList();
+            }
         }
         raf = requestAnimationFrame(tick);
     }
@@ -901,7 +975,7 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
     $('ms-drawer-close').addEventListener('click', function () { setDrawer(false); });
     mask.addEventListener('click', function () { setDrawer(false); });
 
-    document.addEventListener('keydown', function (e) {
+    var msKeyHandler = function (e) {
         if (e.key === 'Escape' && drawerOpen) { setDrawer(false); return; }
         var tag = (e.target && (e.target.tagName || '')).toLowerCase();
         if (tag === 'input' || tag === 'textarea' || (e.target && e.target.isContentEditable)) return;
@@ -936,7 +1010,8 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
             case 'm': case 'M': muteBtn.click(); break;
             case 'l': case 'L': setLyricsOpen(!lyricsOpen); break;
         }
-    });
+    };
+    document.addEventListener('keydown', msKeyHandler);
 
     document.addEventListener('pointerdown', onGesture);
     document.addEventListener('keydown', onGesture);
@@ -957,12 +1032,13 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
             plsTabs.appendChild(b);
         });
     }
-    window.addEventListener('mcryii:player', function () {
+    function msPlayerSync() {
         if (!ready()) return;
         syncUI();
         syncList();
         renderPlsTabs();
-    });
+    }
+    window.addEventListener('mcryii:player', msPlayerSync);
     (function () {
         var btn = document.getElementById('ms-tool-btn');
         if (btn && ['localhost', '127.0.0.1'].includes(location.hostname)) {
@@ -970,9 +1046,28 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
         }
     })();
 
+    /* PJAX 换页清理：移除页面级监听，避免重复进入 /music/ 后监听器累积 */
+    var msDead = false;
+    var msBootTimer = null;
+    (window.MCRYII_PageUnsubscribers = window.MCRYII_PageUnsubscribers || []).push(function () {
+        msDead = true;
+        if (msBootTimer) { clearInterval(msBootTimer); msBootTimer = null; }
+        document.removeEventListener('keydown', msKeyHandler);
+        document.removeEventListener('pointerdown', onGesture);
+        document.removeEventListener('keydown', onGesture);
+        window.removeEventListener('mcryii:player', msPlayerSync);
+        window.removeEventListener('resize', msResizeHandler);
+    });
+
     /* ================= 启动 ================= */
+    function msResizeHandler() {
+        sizeParticles();
+        if (vizCanvas) vizSize = vizCanvas.clientWidth;
+    }
     function boot() {
+        if (msDead) return;
         refreshAudio();
+        syncThemeColors();
         if (audio) { vol.value = audio.volume; syncVolIcon(); }
         syncModeBtn();
         onTrackChange();
@@ -981,18 +1076,16 @@ body.music-page .drawer-link.active { background: rgba(212, 175, 55, 0.16); colo
         syncUI();
         sizeParticles();
         if (vizCanvas) vizSize = vizCanvas.clientWidth;
-        window.addEventListener('resize', function () {
-            sizeParticles();
-            if (vizCanvas) vizSize = vizCanvas.clientWidth;
-        });
+        window.addEventListener('resize', msResizeHandler);
         tick();
     }
     if (ready()) {
         boot();
     } else {
         var tries = 0;
-        var timer = setInterval(function () {
-            if (ready() || ++tries > 40) { clearInterval(timer); boot(); }
+        msBootTimer = setInterval(function () {
+            if (msDead) { clearInterval(msBootTimer); msBootTimer = null; return; }
+            if (ready() || ++tries > 40) { clearInterval(msBootTimer); msBootTimer = null; boot(); }
         }, 150);
     }
 })();

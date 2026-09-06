@@ -14,7 +14,7 @@
     padding: 14px;
     border-radius: 16px;
     background: #ffffff;
-    border: 1px solid rgba(212, 175, 55, 0.25);
+    border: 1px solid rgba(var(--accent-rgb), 0.25);
     text-decoration: none;
     color: var(--primary);
     transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
@@ -22,15 +22,15 @@
 html[data-theme="dark"] .friend-card { background: #262216; }
 .friend-card:hover {
     transform: translateY(-3px);
-    border-color: rgba(212, 175, 55, 0.7);
-    box-shadow: 0 10px 24px rgba(212, 175, 55, 0.16);
+    border-color: rgba(var(--accent-rgb), 0.7);
+    box-shadow: 0 10px 24px rgba(var(--accent-rgb), 0.16);
 }
 .friend-avatar {
     width: 44px;
     height: 44px;
     border-radius: 50%;
     object-fit: cover;
-    border: 2px solid rgba(212, 175, 55, 0.4);
+    border: 2px solid rgba(var(--accent-rgb), 0.4);
     flex-shrink: 0;
 }
 .friend-info {
@@ -63,7 +63,7 @@ html[data-theme="dark"] .friend-card { background: #262216; }
             </header>
             <div class="post-content">
                 {{ .Content }}
-                {{- $friends := site.Data.friends.friends }}
+                {{- $friends := hugo.Data.friends.friends }}
                 {{- if $friends }}
                 <div class="friend-grid">
                     {{- range $friends }}

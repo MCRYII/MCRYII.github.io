@@ -32,24 +32,22 @@
 }
 .ps-toc #TableOfContents a:hover,
 .ps-toc #TableOfContents a.active {
-    background: rgba(212, 175, 55, 0.12);
-    color: #d4af37;
+    background: rgba(var(--accent-rgb), 0.12);
+    color: var(--accent);
 }
 </style>
 
 <aside class="side-col side-col-right">
-    <!-- 目录 -->
+    <!-- 目录（无目录时整卡隐藏，避免空态占位） -->
+    {{- $toc := .TableOfContents }}
+    {{- if and $toc (findRE "<ul" $toc) }}
     <div class="side-card">
         <div class="side-card-title">目录</div>
         <div class="ps-toc">
-            {{- $toc := .TableOfContents }}
-            {{- if and $toc (findRE "<ul" $toc) }}
             {{ $toc | safeHTML }}
-            {{- else }}
-            <p class="ps-toc-empty">当前页面没有目录</p>
-            {{- end }}
         </div>
     </div>
+    {{- end }}
 
     <!-- 最近更新 -->
     <div class="side-card">

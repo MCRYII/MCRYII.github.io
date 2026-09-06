@@ -6,3 +6,5 @@ static/bookmarks-local.json
 .claude/
 __pycache__/
 static/images/thumbs/
+.workbuddy/
+.zcode/

@@ -22,8 +22,8 @@
     height: 3px;
     margin: 14px auto 0;
     border-radius: 3px;
-    background: linear-gradient(90deg, transparent, #d4af37, transparent);
-    box-shadow: 0 0 10px rgba(212, 175, 55, 0.45);
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.45);
 }
 .post-single .post-meta {
     display: flex;
@@ -49,15 +49,15 @@
     margin-top: 12px;
     padding: 6px 16px;
     border-radius: 999px;
-    background: rgba(212, 175, 55, 0.12);
-    border: 1px solid rgba(212, 175, 55, 0.5);
-    color: #d4af37;
+    background: rgba(var(--accent-rgb), 0.12);
+    border: 1px solid rgba(var(--accent-rgb), 0.5);
+    color: var(--accent);
     text-decoration: none;
     font-size: 0.82rem;
     font-weight: 700;
     transition: all 0.2s;
 }
-.ps-tool-edit:hover { background: rgba(212, 175, 55, 0.25); }
+.ps-tool-edit:hover { background: rgba(var(--accent-rgb), 0.25); }
 </style>
 <div class="three-col">
     {{ partial "posts-sidebar-left.html" . }}
@@ -112,6 +112,7 @@
                 {{- if (.Param "ShowPostNavLinks") }}
                 {{- partial "post_nav_links.html" . }}
                 {{- end }}
+                {{- partial "related-posts.html" . }}
                 {{- if (and site.Params.ShowShareButtons (ne .Params.disableShare true)) }}
                 {{- partial "share_icons.html" . -}}
                 {{- end }}

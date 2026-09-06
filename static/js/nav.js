@@ -69,6 +69,7 @@
     var searchContainer = document.getElementById('search-container');
     function openSearch() {
         if (!searchContainer) return;
+        if (window.MCRYII_LoadSearch) window.MCRYII_LoadSearch().catch(function () {});
         searchContainer.classList.add('open');
         var input = document.getElementById('search-input');
         if (input) {

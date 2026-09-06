@@ -32,6 +32,7 @@
         thread.dataset.fitWatched = '1';
 
         var pending = null;
+        var observers = [];
         function schedule() {
             if (pending) clearTimeout(pending);
             pending = setTimeout(function() {
@@ -42,7 +43,9 @@
                         var doc = iframe.contentDocument;
                         if (doc && doc.body && !doc.body.dataset.fitObserved) {
                             doc.body.dataset.fitObserved = '1';
-                            new MutationObserver(schedule).observe(doc.body, {
+                            var obs = new MutationObserver(schedule);
+                            observers.push(obs);
+                            obs.observe(doc.body, {
                                 childList: true,
                                 subtree: true,
                                 attributes: true
@@ -65,7 +68,13 @@
         setTimeout(function() { clearInterval(check); }, 20000);
 
         // 兜底：内容变化后周期性校准
-        setInterval(schedule, 3000);
+        var fitTimer = setInterval(schedule, 3000);
+
+        // PJAX 换页清理：旧文章的校准定时器/观察器随页面卸载，避免逐篇累积
+        (window.MCRYII_PageUnsubscribers = window.MCRYII_PageUnsubscribers || []).push(function () {
+            clearInterval(fitTimer);
+            observers.forEach(function (obs) { obs.disconnect(); });
+        });
     }
 
     function init() {

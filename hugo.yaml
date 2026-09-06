@@ -4,7 +4,16 @@ title: 'MCRYII的博客'
 theme: 'PaperMod'
 
 params:
-  assetsVersion: '20260803'
+  # 站点描述：搜索引擎摘要与分享卡片文案（全站 meta description）
+  description: 'MCRYII的个人博客：记录我的学习、思考与见闻——技术笔记、AI 绘画、游戏与工具分享。'
+  # 默认分享卡片图（og:image），页面自带 cover 时自动用页面封面
+  images:
+    - /images/home-hero.jpg
+  twitterCard: summary_large_image
+  assetsVersion: '20260906-7'
+  ShowPostNavLinks: true
+  mainSections:
+    - posts
   homeInfoParams:
     Title: 欢迎来到MCRYII的博客
     Content: 这里记录我的学习、思考和见闻。
@@ -42,3 +51,7 @@ outputs:
     - HTML
     - RSS
     - JSON
+
+# HTML 压缩器会把模板里 safeHTML 输出的内联 SVG 转义成文本（下载页图标 bug），只禁 HTML 压缩
+minify:
+  disableHTML: true

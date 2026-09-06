@@ -17,7 +17,7 @@ const VISION_SCRIPT =
   );
 const DASHSCOPE_BASE_URL =
   process.env.DASHSCOPE_BASE_URL || "https://dashscope.aliyuncs.com/compatible-mode/v1";
-const VISION_MODEL = process.env.VISION_MODEL || "qwen3.5-omni-plus";
+const VISION_MODEL = process.env.VISION_MODEL || "qwen3.5-omni-plus-2026-03-15";
 
 function getApiKey() {
   if (process.env.DASHSCOPE_API_KEY) return process.env.DASHSCOPE_API_KEY;

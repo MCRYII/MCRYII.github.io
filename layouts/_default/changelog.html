@@ -9,7 +9,7 @@
     top: 6px;
     bottom: 6px;
     width: 2px;
-    background: rgba(212, 175, 55, 0.25);
+    background: rgba(var(--accent-rgb), 0.25);
     border-radius: 2px;
 }
 .cl-item {
@@ -27,8 +27,8 @@
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background: #d4af37;
-    box-shadow: 0 0 8px rgba(212, 175, 55, 0.6);
+    background: var(--accent);
+    box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.6);
 }
 .cl-date {
     font-size: 0.76rem;
@@ -62,7 +62,7 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: rgba(212, 175, 55, 0.7);
+    background: rgba(var(--accent-rgb), 0.7);
 }
 </style>
 <div class="three-col">
@@ -76,7 +76,7 @@
                 {{ .Content }}
                 <p>记录本站功能与体验的更新：</p>
                 <ul class="cl-list">
-                    {{- range site.Data.changelog.entries }}
+                    {{- range hugo.Data.changelog.entries }}
                     <li class="cl-item">
                         <span class="cl-date">{{ .date }}</span>
                         <div>
