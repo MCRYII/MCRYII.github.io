@@ -1,4 +1,4 @@
-﻿public/
+public/
 docs/
 resources/
 .hugo_build.lock
@@ -8,3 +8,4 @@ __pycache__/
 static/images/thumbs/
 .workbuddy/
 .zcode/
+config.local.json

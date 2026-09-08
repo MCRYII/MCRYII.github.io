@@ -1,6 +1,8 @@
 {{- define "main" }}
+{{- /* 数据卡与侧栏「站点统计」同一口径：文章只数 posts 栏目，建站天数按最早文章日期 */}}
+{{- $sitePosts := where site.RegularPages "Section" "posts" }}
 {{- $oldest := now }}
-{{- range site.RegularPages }}{{ if and (gt .Date.Unix 0) (lt .Date.Unix $oldest.Unix) }}{{ $oldest = .Date }}{{ end }}{{ end }}
+{{- range $sitePosts }}{{ if and (gt .Date.Unix 0) (lt .Date.Unix $oldest.Unix) }}{{ $oldest = .Date }}{{ end }}{{ end }}
 {{- $days := div (sub now.Unix $oldest.Unix) 86400 }}
 <style>
 /* 首页全屏 Hero 背景：专用固定层，PJAX 离开主页时随 <main> 一起销毁 */
@@ -113,7 +115,7 @@ html[data-theme="dark"] .home-hero-bg::after {
     <div class="home-clouds" aria-hidden="true"><i></i><i></i><i></i></div>
     <div class="home-stats">
         <div class="home-stat"><b>{{ $days }}</b><span>天</span><em>建站航程</em></div>
-        <div class="home-stat"><b>{{ len site.RegularPages }}</b><span>篇</span><em>文章</em></div>
+        <div class="home-stat"><b>{{ len $sitePosts }}</b><span>篇</span><em>文章</em></div>
         <div class="home-stat"><b>{{ len site.Taxonomies.tags }}</b><span>个</span><em>标签</em></div>
     </div>
     <div class="home-runway" aria-hidden="true"></div>

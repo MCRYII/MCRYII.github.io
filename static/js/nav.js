@@ -36,6 +36,8 @@
             cancelClose();
             closeAllDropdowns(item);
             item.classList.add('is-open');
+            // 记录 hover 打开时间：触屏 tap 会先合成 mouseenter 再立刻 click，靠时间差区分真鼠标和触屏
+            item._hoverOpenedAt = Date.now();
             var trigger = item.querySelector('[data-dropdown-trigger]');
             if (trigger) trigger.setAttribute('aria-expanded', 'true');
         });
@@ -50,6 +52,12 @@
         if (item) {
             e.stopPropagation();
             var wasOpen = item.classList.contains('is-open');
+            // 触屏 tap：mouseenter 合成事件刚展开过菜单，这次 click 是想打开它，保持展开而不是关掉
+            var justHovered = wasOpen && item._hoverOpenedAt && (Date.now() - item._hoverOpenedAt < 600);
+            if (justHovered) {
+                item.dataset.clickOpen = '1';
+                return;
+            }
             closeAllDropdowns();
             if (!wasOpen) {
                 item.classList.add('is-open');
@@ -98,7 +106,8 @@
         if (e.key === 'Escape') {
             closeSearch();
             closeAllDropdowns();
-            closeDrawer();
+            // 抽屉没开时不动滚动锁：恐龙游戏等也用 body 锁滚动，无条件 closeDrawer 会把它们的锁误清掉
+            if (drawer && drawer.classList.contains('open')) closeDrawer();
         }
     });
     document.addEventListener('click', function (e) {
@@ -107,6 +116,32 @@
             closeSearch();
         }
     });
+    // 点击搜索结果跳转后关闭弹窗：搜索框挂在 <main> 之外，
+    // PJAX 换页不会清理它，不关会把旧结果带到新页面
+    if (searchContainer) {
+        searchContainer.addEventListener('click', function (e) {
+            if (e.target.closest && e.target.closest('a')) closeSearch();
+        });
+    }
+
+    // iOS Safari 不理 body overflow:hidden，改用 fixed 定位锁滚动（记录位移，解锁时还原）
+    var lockScrollY = 0;
+    function lockBodyScroll() {
+        if (document.body.style.position === 'fixed') return;
+        lockScrollY = window.scrollY || window.pageYOffset;
+        document.body.style.position = 'fixed';
+        document.body.style.top = -lockScrollY + 'px';
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+    }
+    function unlockBodyScroll() {
+        if (document.body.style.position !== 'fixed') return;
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        window.scrollTo(0, lockScrollY);
+    }
 
     // 移动端抽屉
     var menuSwitch = document.getElementById('nav-menu-switch');
@@ -116,12 +151,12 @@
     function openDrawer() {
         if (drawer) drawer.classList.add('open');
         if (overlay) overlay.classList.add('open');
-        document.body.style.overflow = 'hidden';
+        lockBodyScroll();
     }
     function closeDrawer() {
         if (drawer) drawer.classList.remove('open');
         if (overlay) overlay.classList.remove('open');
-        document.body.style.overflow = '';
+        unlockBodyScroll();
     }
     if (menuSwitch) menuSwitch.addEventListener('click', function (e) {
         e.stopPropagation();
@@ -149,6 +184,50 @@
         }
     });
 
+    // 磁吸标签游标（Magnetic Glider）
+    var navPill = document.querySelector('.nav-pill');
+    var navIndicator = navPill ? navPill.querySelector('.nav-indicator') : null;
+    var navItems = navPill ? navPill.querySelectorAll('.nav-item') : [];
+
+    function moveIndicator(targetEl, hasActiveGlow) {
+        if (!navIndicator || !targetEl) return;
+        var width = targetEl.offsetWidth;
+        if (width === 0) return; // 元素隐藏或未排版时忽略
+        navIndicator.style.transform = 'translate3d(' + targetEl.offsetLeft + 'px, 0, 0)';
+        navIndicator.style.width = width + 'px';
+        navIndicator.classList.add('is-active');
+        navIndicator.classList.toggle('has-active', !!hasActiveGlow);
+    }
+
+    function resetIndicator() {
+        if (!navIndicator || !navPill) return;
+        var activeItem = null;
+        for (var i = 0; i < navItems.length; i++) {
+            var item = navItems[i];
+            if (item.querySelector('.nav-link.active') || item.querySelector('.nav-dropdown-trigger.active')) {
+                activeItem = item;
+                break;
+            }
+        }
+        if (activeItem) {
+            moveIndicator(activeItem, true);
+        } else {
+            navIndicator.classList.remove('is-active', 'has-active');
+        }
+    }
+
+    if (navPill && navIndicator) {
+        navItems.forEach(function (item) {
+            item.addEventListener('mouseenter', function () {
+                moveIndicator(item, false);
+            });
+        });
+        navPill.addEventListener('mouseleave', function () {
+            resetIndicator();
+        });
+        window.addEventListener('resize', resetIndicator, { passive: true });
+    }
+
     // 导航高亮同步（PJAX 切页后由 global-nav.js 调用）
     window.__syncNavActive = function () {
         var path = window.location.pathname;
@@ -162,11 +241,18 @@
             var trigger = dd.querySelector('[data-dropdown-trigger]');
             if (trigger) trigger.classList.toggle('active', hasActive);
         });
+        // 磁吸游标平滑滑动至激活项
+        resetIndicator();
     };
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', window.__syncNavActive);
+        document.addEventListener('DOMContentLoaded', function () {
+            window.__syncNavActive();
+            // 确保字体渲染完成后的精确位置校准
+            setTimeout(resetIndicator, 100);
+        });
     } else {
         window.__syncNavActive();
+        setTimeout(resetIndicator, 100);
     }
 })();

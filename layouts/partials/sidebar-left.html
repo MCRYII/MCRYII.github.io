@@ -2,8 +2,14 @@
 {{- $postCount := len $posts -}}
 {{- $catCount := len .Site.Taxonomies.categories -}}
 {{- $tagCount := len .Site.Taxonomies.tags -}}
+{{- /* 总字数把笔记也算上，只统计帖子会小得离谱 */ -}}
 {{- $words := 0 -}}
 {{- range $posts }}{{ $words = add $words .WordCount }}{{ end -}}
+{{- range where .Site.RegularPages "Section" "notes" }}{{ $words = add $words .WordCount }}{{ end -}}
+{{- /* 运行天数与首页「建站航程」同一口径：按最早文章日期动态计算，不再写死日期 */ -}}
+{{- $oldest := now -}}
+{{- range $posts }}{{ if and (gt .Date.Unix 0) (lt .Date.Unix $oldest.Unix) }}{{ $oldest = .Date }}{{ end }}{{ end -}}
+{{- $runDays := div (sub now.Unix $oldest.Unix) 86400 -}}
 {{- $sortedPosts := sort $posts "Date" "desc" -}}
 {{- $lastPost := "" -}}
 {{- range first 1 $sortedPosts }}{{ $lastPost = . }}{{ end -}}
@@ -52,7 +58,7 @@
             <li><span>分类</span><b>{{ $catCount }}</b></li>
             <li><span>标签</span><b>{{ $tagCount }}</b></li>
             <li><span>总字数</span><b>{{ $words }}</b></li>
-            <li><span>运行天数</span><b class="run-days" data-start="2026-06-01">-</b></li>
+            <li><span>运行天数</span><b class="run-days">{{ $runDays }} 天</b></li>
             <li><span>最后更新</span><b>{{ with $lastPost }}{{ .Date.Format "2006-01-02" }}{{ end }}</b></li>
         </ul>
     </div>
@@ -105,14 +111,5 @@
         window.removeEventListener('mcryii:player', sync);
         if (window.__sideMusicTimer) { clearInterval(window.__sideMusicTimer); window.__sideMusicTimer = null; }
     });
-})();
-
-// 运行天数
-(function () {
-    var el = document.querySelector('.run-days');
-    if (!el) return;
-    var start = new Date(el.dataset.start);
-    var days = Math.floor((Date.now() - start.getTime()) / 86400000);
-    el.textContent = days + ' 天';
 })();
 </script>

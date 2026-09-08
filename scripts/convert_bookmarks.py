@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""把浏览器导出的书签 HTML 转换为 Hugo data/bookmarks.json
+"""把浏览器导出的书签 HTML 转换为 static/bookmarks.json（网站导航页 fetch '/bookmarks.json' 读这份）
 
 用法:
     python scripts/convert_bookmarks.py [书签文件路径] [输出路径]
-默认读取桌面 favorites_2026_7_31.html，输出到 data/bookmarks.json
+默认读取桌面 favorites_2026_7_31.html，输出到 static/bookmarks.json
 """
 import json
 import os
@@ -12,8 +12,7 @@ from html.parser import HTMLParser
 
 DEFAULT_SRC = r"C:\Users\MCRYII\Desktop\favorites_2026_7_31.html"
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEFAULT_OUT = os.path.join(PROJECT_ROOT, "data", "bookmarks.json")
-STATIC_OUT = os.path.join(PROJECT_ROOT, "static", "bookmarks.json")
+DEFAULT_OUT = os.path.join(PROJECT_ROOT, "static", "bookmarks.json")
 
 
 class BookmarkParser(HTMLParser):
@@ -115,13 +114,9 @@ def main():
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=1)
-    # 同时输出一份到 static，供网站导航页验证后拉取
-    with open(STATIC_OUT, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False)
 
     print("categories:", len(out_cats))
     print("total links:", total)
-    print("static copy saved to", STATIC_OUT)
     for c in out_cats:
         print("-", c["name"], len(c["links"]))
     print("saved to", out)

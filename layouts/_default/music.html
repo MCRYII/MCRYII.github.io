@@ -977,8 +977,13 @@ html:not([data-theme="light"]) body.music-page .drawer-link.active { background:
 
     var msKeyHandler = function (e) {
         if (e.key === 'Escape' && drawerOpen) { setDrawer(false); return; }
+        // 组合键（如 Ctrl/Alt+方向键）不劫持
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
         var tag = (e.target && (e.target.tagName || '')).toLowerCase();
-        if (tag === 'input' || tag === 'textarea' || (e.target && e.target.isContentEditable)) return;
+        if (tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target && e.target.isContentEditable)) return;
+        // 焦点在按钮/链接上时，空格/回车/方向键还给浏览器默认行为（激活按钮、移动焦点），否则键盘用户没法操作歌单和控制键
+        if ((tag === 'button' || tag === 'a') &&
+            (e.key === ' ' || e.key === 'Enter' || e.key.indexOf('Arrow') === 0)) return;
         var p = getPlayer();
         switch (e.key) {
             case ' ':

@@ -11,6 +11,104 @@
 ></div>
 <script async defer src="https://cusdis.com/js/cusdis.es.js"></script>
 
+<!-- Cusdis 主题同步：评论 iframe 是 srcdoc 同源文档，内部颜色写死浅色（Tailwind dark: 类只跟系统偏好走），
+     这里按站点当前深浅色/色板把令牌色注入 iframe，并在主题切换时重新注入 -->
+<script>
+(function() {
+    var STYLE_ID = 'mcryii-cusdis-theme';
+
+    function themeColors() {
+        var cs = getComputedStyle(document.documentElement);
+        var bodyCs = getComputedStyle(document.body);
+        var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        return {
+            dark: dark,
+            text: bodyCs.color,
+            muted: dark ? 'rgba(230, 225, 211, .55)' : 'rgba(60, 60, 60, .62)',
+            line: (cs.getPropertyValue('--line') || '').trim(),
+            accent: (cs.getPropertyValue('--accent') || '').trim(),
+            accentContrast: (cs.getPropertyValue('--accent-contrast') || '').trim(),
+            fieldBg: dark ? 'rgba(255, 255, 255, .05)' : '#ffffff'
+        };
+    }
+
+    function buildCss(c) {
+        return [
+            // color-scheme 必须带 !important：Cusdis 自带的 :root{color-scheme:light} 在后面会把同权重规则盖掉，
+            // 浅色 scheme 下 Chrome 会把透明 iframe 画布涂成白色
+            ':root { color-scheme: ' + (c.dark ? 'dark' : 'light') + ' !important; }',
+            'html, body { background: transparent !important; }',
+            'body { color: ' + c.text + ' !important; }',
+            'label { color: ' + c.text + ' !important; }',
+            'input, textarea { background: ' + c.fieldBg + ' !important; border: 1px solid ' + c.line + ' !important; color: ' + c.text + ' !important; border-radius: 8px !important; }',
+            'input:focus, textarea:focus { outline: none !important; border-color: ' + c.accent + ' !important; }',
+            'button { background: ' + c.accent + ' !important; color: ' + c.accentContrast + ' !important; border: none !important; border-radius: 999px !important; padding: 8px 24px !important; font-weight: 700 !important; cursor: pointer; }',
+            'a { color: ' + c.accent + ' !important; }',
+            '.text-gray-500 { color: ' + c.muted + ' !important; }'
+        ].join('\n');
+    }
+
+    function apply(thread) {
+        var iframe = thread.querySelector('iframe');
+        if (!iframe) return false;
+        var doc;
+        try { doc = iframe.contentDocument; } catch (e) { return false; }
+        if (!doc || !doc.documentElement || !doc.head) return false;
+        var style = doc.getElementById(STYLE_ID);
+        if (!style) {
+            style = doc.createElement('style');
+            style.id = STYLE_ID;
+            doc.head.appendChild(style);
+        }
+        style.textContent = buildCss(themeColors());
+        return true;
+    }
+
+    function watch(thread) {
+        if (thread.dataset.themeWatched) return;
+        thread.dataset.themeWatched = '1';
+
+        // 等 iframe 出现并渲染完成
+        var check = setInterval(function () {
+            if (apply(thread)) {
+                clearInterval(check);
+                var iframe = thread.querySelector('iframe');
+                if (iframe) iframe.addEventListener('load', function () { apply(thread); });
+            }
+        }, 300);
+        setTimeout(function () { clearInterval(check); }, 20000);
+
+        // 站点切换深浅色/色板时重新注入（调色板切换无事件广播，用属性观察）
+        var attrObs = new MutationObserver(function () { apply(thread); });
+        attrObs.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['data-theme', 'data-palette']
+        });
+
+        // Cusdis 可能重建 iframe（重渲染会清掉注入的样式），换新 iframe 时补注入
+        var frameObs = new MutationObserver(function () { apply(thread); });
+        frameObs.observe(thread, { childList: true, subtree: true });
+
+        (window.MCRYII_PageUnsubscribers = window.MCRYII_PageUnsubscribers || []).push(function () {
+            clearInterval(check);
+            attrObs.disconnect();
+            frameObs.disconnect();
+        });
+    }
+
+    function init() {
+        var thread = document.getElementById('cusdis_thread');
+        if (thread) watch(thread);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+</script>
+
 <!-- Cusdis 高度自适应：iframe 内容同源（srcdoc），直接按内部高度撑开，去掉滚动条 -->
 <script>
 (function() {

@@ -27,7 +27,17 @@ from tkinter import filedialog, messagebox, scrolledtext, simpledialog, ttk
 from PIL import Image, ImageTk
 
 # ==================== 配置 ====================
-BLOG_ROOT = r"D:\Downloads\Programs\myblog-new"
+# 优先从 config.local.json 读取机器相关路径，不存在则用默认值
+_local_cfg = {}
+_local_cfg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.local.json")
+if os.path.isfile(_local_cfg_path):
+    try:
+        with open(_local_cfg_path, "r", encoding="utf-8") as _f:
+            _local_cfg = json.load(_f)
+    except Exception:
+        pass
+
+BLOG_ROOT = _local_cfg.get("blog_root", r"D:\Downloads\Programs\myblog-new")
 POSTS_BASE = os.path.join(BLOG_ROOT, "content", "posts")
 IMAGES_DIR = os.path.join(BLOG_ROOT, "static", "images")
 DEFAULT_COVER = os.path.join(IMAGES_DIR, "default-cover.png")
@@ -38,11 +48,11 @@ MUSIC_DATA_FILE = os.path.join(BLOG_ROOT, "data", "music.json")
 MUSIC_EXTS = (".mp3", ".m4a", ".ogg", ".flac", ".wav")
 WEB_UPLOAD_MAX_MB = 20  # 网页版上传上限（base64 会放大内存占用，大文件请用桌面版）
 FILES_DIR = os.path.join(BLOG_ROOT, "static", "files")
-COMFY_ROOT = r"D:\Downloads\Programs\ComfyUI-aki-v3\ComfyUI"
-COMFY_PYTHON = r"D:\Downloads\Programs\ComfyUI-aki-v3\python\python.exe"
+COMFY_ROOT = _local_cfg.get("comfy_root", r"D:\Downloads\Programs\ComfyUI-aki-v3\ComfyUI")
+COMFY_PYTHON = _local_cfg.get("comfy_python", r"D:\Downloads\Programs\ComfyUI-aki-v3\python\python.exe")
 COMFY_OUTPUT_DIR = os.path.join(COMFY_ROOT, "output")
 COMFY_HOST = "127.0.0.1"
-COMFY_PORT = 8188
+COMFY_PORT = _local_cfg.get("comfy_port", 8188)
 COMFY_API_URL = "http://{}:{}".format(COMFY_HOST, COMFY_PORT)
 COMFY_IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
 AI_DEFAULT_NEGATIVE = "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry"
@@ -1630,6 +1640,8 @@ select:focus { outline:none; border-color:var(--gold); }
 #music-items .mu-idx { color:var(--muted); font-size:.75rem; width:22px; text-align:right; flex-shrink:0; }
 #music-items .mu-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 #music-items .mu-size { color:var(--muted); font-size:.75rem; flex-shrink:0; }
+.mu-lrc { font-size:.7rem; font-weight:700; padding:2px 6px; border-radius:4px; border:1px solid var(--border); background:none; cursor:pointer; flex-shrink:0; color:var(--muted); }
+.mu-lrc.has { color:#4caf50; border-color:#4caf50; }
 .mu-btn { flex-shrink:0; }
 .mu-grip { color:var(--muted); cursor:grab; flex-shrink:0; padding:2px 4px; user-select:none; }
 .mu-grip:active { cursor:grabbing; }
@@ -1888,6 +1900,7 @@ select:focus { outline:none; border-color:var(--gold); }
       <div id="music-files">
         <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap;">
           <input type="file" id="m-music-file" class="hidden-file" accept="audio/*">
+          <input type="file" id="m-lrc-file" class="hidden-file" accept=".lrc">
           <button class="btn gold" id="btn-music-up"><svg class="ic"><use href="#ic-upload"/></svg>上传音乐</button>
           <select id="m-pls-add" style="display:none; background:var(--input); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 8px; max-width:260px;"></select>
           <button class="btn sm" id="btn-pls-add" style="display:none"><svg class="ic ic-sm"><use href="#ic-plus"/></svg>加入歌单</button>
@@ -2824,6 +2837,36 @@ select:focus { outline:none; border-color:var(--gold); }
                 '<span class="mu-idx">' + (i + 1) + '</span>' +
                 '<span class="mu-name">' + esc((f.artist ? f.artist + ' - ' : '') + f.title) + '</span>' +
                 '<span class="mu-size">' + fmtSize(f.size) + '</span>';
+            var lrcBtn = document.createElement('button');
+            lrcBtn.className = 'mu-lrc' + (f.has_lrc ? ' has' : '');
+            lrcBtn.textContent = '词';
+            lrcBtn.title = f.has_lrc ? '已有歌词，点击替换' : '上传歌词 (.lrc)';
+            lrcBtn.addEventListener('click', function () {
+                var inp = $('m-lrc-file');
+                inp.onchange = function () {
+                    var file = this.files[0];
+                    if (!file) return;
+                    var reader = new FileReader();
+                    reader.onload = function () {
+                        api('/api/music', { method: 'POST', body: JSON.stringify({ action: 'upload_lrc', song: f.name, data: reader.result }) }).then(function (r) {
+                            if (r.error) { alert(r.error); return; }
+                            loadMusic();
+                            setStatus('已上传歌词 ' + f.name.replace(/\.[^.]+$/, '.lrc'));
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                    this.value = '';
+                    this.onchange = null;
+                };
+                inp.click();
+            });
+            li.appendChild(lrcBtn);
+            var up = document.createElement('button');
+            up.className = 'btn sm mu-btn';
+            up.title = '上移';
+            up.innerHTML = '<svg class="ic ic-sm"><use href="#ic-up"/></svg>';
+            up.addEventListener('click', function () { moveMusic(f.name, 'up'); });
+            li.appendChild(up);
             var grip = li.querySelector('.mu-grip');
             grip.addEventListener('dragstart', function (e) {
                 dragSong = f.name;
@@ -2855,12 +2898,6 @@ select:focus { outline:none; border-color:var(--gold); }
                 li.classList.remove('mu-dragging');
                 li.classList.remove('mu-drag-over');
             });
-            var up = document.createElement('button');
-            up.className = 'btn sm mu-btn';
-            up.title = '上移';
-            up.innerHTML = '<svg class="ic ic-sm"><use href="#ic-up"/></svg>';
-            up.addEventListener('click', function () { moveMusic(f.name, 'up'); });
-            li.appendChild(up);
             var down = document.createElement('button');
             down.className = 'btn sm mu-btn';
             down.title = '下移';
@@ -3736,7 +3773,9 @@ class BlogWebHandler(BaseHTTPRequestHandler):
                         size = os.path.getsize(os.path.join(MUSIC_DIR, f))
                     except OSError:
                         pass
-                    files.append({"name": f, "artist": artist, "title": title or f, "size": size})
+                    lrc_name = os.path.splitext(f)[0] + ".lrc"
+                    has_lrc = os.path.isfile(os.path.join(MUSIC_DIR, lrc_name))
+                    files.append({"name": f, "artist": artist, "title": title or f, "size": size, "has_lrc": has_lrc})
                 self._json({"files": files, "playlists": music_data["playlists"]})
             else:
                 self._json({"error": "not found"}, 404)
@@ -4107,6 +4146,25 @@ class BlogWebHandler(BaseHTTPRequestHandler):
                 return
             order.insert(to, order.pop(i))
             save_music_data(data)
+            self._json({"ok": True})
+        elif action == "upload_lrc":
+            song = os.path.basename((p.get("song") or "").strip())
+            if not song:
+                self._json({"error": "未指定歌曲"}, 400)
+                return
+            lrc_name = os.path.splitext(song)[0] + ".lrc"
+            raw = p.get("data") or ""
+            try:
+                blob = base64.b64decode(raw.split(",", 1)[-1])
+            except Exception:
+                self._json({"error": "歌词数据无效"}, 400)
+                return
+            if not blob:
+                self._json({"error": "歌词数据为空"}, 400)
+                return
+            dest = os.path.join(MUSIC_DIR, lrc_name)
+            with open(dest, "wb") as f:
+                f.write(blob)
             self._json({"ok": True})
         else:
             self._json({"error": "未知操作"}, 400)

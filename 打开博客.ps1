@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'SilentlyContinue'
 $port = 1313
 $url = "http://localhost:$port/"
-$blog = 'D:\Downloads\Programs\myblog-new'
+$wslBlog = '/home/mcryii/myblog-new'
 
 function Test-Port($p) {
     try {
@@ -14,16 +14,14 @@ function Test-Port($p) {
     }
 }
 
-# Always restart hugo to avoid stale template cache issues
-Get-Process hugo -ErrorAction SilentlyContinue | Stop-Process -Force
-& python scripts/gen_thumbs.py 2>$null
-for ($i = 0; $i -lt 20 -and (Test-Port $port); $i++) {
-    Start-Sleep -Milliseconds 300
+# 若端口未响应，调用 WSL 启动后台 Hugo 服务
+if (-not (Test-Port $port)) {
+    Start-Process -FilePath "wsl.exe" -ArgumentList "-d", "Ubuntu-24.04", "--cd", $wslBlog, "bash", "./run.sh", "--daemon" -WindowStyle Hidden
+    for ($i = 0; $i -lt 25; $i++) {
+        Start-Sleep -Milliseconds 600
+        if (Test-Port $port) { break }
+    }
 }
-Start-Process -FilePath 'hugo' -ArgumentList 'server', '-D', '--port', "$port" `
-    -WorkingDirectory $blog -WindowStyle Hidden
-for ($i = 0; $i -lt 20; $i++) {
-    Start-Sleep -Milliseconds 1000
-    if (Test-Port $port) { break }
-}
+
 Start-Process $url
+

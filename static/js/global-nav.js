@@ -8,6 +8,12 @@
 
     var loading = false;
 
+    // 给首次整页加载的历史记录补上 pjax 标记，
+    // 否则 PJAX 跳转后按"返回"会因 e.state 为空而内容与 URL 错位
+    if (!history.state || !history.state.pjax) {
+        history.replaceState({ pjax: true }, '', window.location.href);
+    }
+
     var LOOPBACK = ['localhost', '127.0.0.1', '::1'];
 
     // 本地预览时 localhost 与 127.0.0.1 互通，统一到当前地址
@@ -119,7 +125,7 @@
             if (!img.hasAttribute('loading')) img.setAttribute('loading', 'lazy');
         });
         if (window.mediumZoom) {
-            window.mediumZoom(curMain.querySelectorAll('.post-content img, .post-single img, .home-info img'));
+            window.mediumZoom(curMain.querySelectorAll('.post-content img'));
         }
 
         // 先更新 URL，再执行依赖路径判断的初始化（如首页打字效果）

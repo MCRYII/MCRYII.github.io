@@ -149,7 +149,7 @@
 }
 </style>
 
-{{- $recent := first 3 (sort (where site.RegularPages "Section" "posts") "Date" "desc") -}}
+{{- $recent := first 3 (shuffle (where site.RegularPages "Section" "posts")) -}}
 <div class="nf-wrap">
     <p class="nf-code">404</p>
     <h1 class="nf-title">这一页迷路了</h1>
@@ -167,7 +167,7 @@
     </nav>
     {{- with $recent }}
     <section class="nf-recent">
-        <h2 class="nf-recent-title"><svg class="site-icon"><use href="#ic-flame"></use></svg> 最近文章</h2>
+        <h2 class="nf-recent-title"><svg class="site-icon"><use href="#ic-flame"></use></svg> 随便看看</h2>
         <ul class="nf-recent-list">
             {{- range . }}
             <li>

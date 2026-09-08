@@ -20,6 +20,25 @@
     var touchStartY = 0;
     var lastPoint = null;
 
+    // iOS Safari 不理 body overflow:hidden，改用 fixed 定位锁滚动（记录位移，解锁时还原）
+    var lockScrollY = 0;
+    function lockBodyScroll() {
+        if (document.body.style.position === 'fixed') return;
+        lockScrollY = window.scrollY || window.pageYOffset;
+        document.body.style.position = 'fixed';
+        document.body.style.top = -lockScrollY + 'px';
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+    }
+    function unlockBodyScroll() {
+        if (document.body.style.position !== 'fixed') return;
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        window.scrollTo(0, lockScrollY);
+    }
+
     function isHome() {
         return window.location.pathname === '/' || window.location.pathname === '/index.html';
     }
@@ -51,7 +70,7 @@
         lastPoint = { x: x, y: y };
         var c = readColors();
         layer.style.background = c.bg;
-        document.body.style.overflow = 'hidden';
+        lockBodyScroll();
         layer.hidden = false;
         layer.style.clipPath = 'circle(0px at ' + x + 'px ' + y + 'px)';
         // 强制一次回流，让初始 clip-path 先生效再过渡
@@ -97,7 +116,7 @@
             layer.hidden = true;
             layer.style.clipPath = '';
             layer.style.transition = '';
-            document.body.style.overflow = '';
+            unlockBodyScroll();
             state = 'closed';
         }, 500);
     }
