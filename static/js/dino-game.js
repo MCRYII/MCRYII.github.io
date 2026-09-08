@@ -9,15 +9,22 @@
     if (window.__dinoGameBound) return;
     window.__dinoGameBound = true;
 
-    var WHEEL_THRESHOLD = 220;   // 滚轮累计下滑量（px）
-    var TOUCH_THRESHOLD = 70;    // 手指下拉距离（px）
+    var WHEEL_THRESHOLD = 320;   // 首次提示滚轮量（px）
+    var TOUCH_THRESHOLD = 90;    // 首次提示手指下拉量（px）
+    var WHEEL_SWEEP_MAX = 520;   // 跟手展开满屏所需滚轮量（px）
+    var TOUCH_SWEEP_MAX = 240;   // 跟手展开满屏所需触控下拉量（px）
     var HI_KEY = 'mcryii-dino-hi';
+    var RUN_WHEEL_MAX = 4800;    // 跑道助跑所需滚轮累计量（提速一倍至4800，黄金手感约10~14下）
+    var RUN_TOUCH_MAX = 1200;    // 跑道助跑所需触控下拉量（提速一倍至1200）
 
     var state = 'closed';        // closed | opening | open | closing
     var hintShown = false;
-    var wheelAccum = 0;
-    var wheelTimer = null;
+    var runAccum = 0;
+    var lastInputTime = 0;
+    var bottomReachedTime = 0;   // 触底时间戳（用于过滤滚轮触底惯性）
     var touchStartY = 0;
+    var touchLastY = 0;
+    var takeoffDone = false;
     var lastPoint = null;
 
     // iOS Safari 不理 body overflow:hidden，改用 fixed 定位锁滚动（记录位移，解锁时还原）
@@ -52,36 +59,48 @@
     function readColors() {
         var cs = getComputedStyle(document.documentElement);
         var dark = document.documentElement.dataset.theme === 'dark';
+        var palette = document.documentElement.dataset.palette || 'gold';
         return {
             accent: cs.getPropertyValue('--accent').trim() || '#d4af37',
             deep: cs.getPropertyValue('--accent-deep').trim() || '#7a5c00',
             contrast: cs.getPropertyValue('--accent-contrast').trim() || '#241a02',
             rgb: cs.getPropertyValue('--accent-rgb').trim() || '212, 175, 55',
             bg: (dark ? cs.getPropertyValue('--card-bg-dark') : cs.getPropertyValue('--card-bg')).trim() || '#fff',
-            dark: dark
+            dark: dark,
+            palette: palette,
+            themeKey: (dark ? 'dark' : 'light') + '|' + palette
         };
     }
 
-    // ---------- 打开 / 关闭（圆形扩散过渡） ----------
+    // ---------- 打开 / 关闭（极度丝滑的圆形扩散过渡） ----------
     function openGame(x, y) {
         var layer = document.getElementById('dino-layer');
         if (!layer || state !== 'closed') return;
         state = 'opening';
-        lastPoint = { x: x, y: y };
+        var cx = (typeof x === 'number' && x >= 0) ? x : window.innerWidth / 2;
+        var cy = (typeof y === 'number' && y >= 0) ? y : window.innerHeight / 2;
+        lastPoint = { x: cx, y: cy };
         var c = readColors();
         layer.style.background = c.bg;
         lockBodyScroll();
         layer.hidden = false;
-        layer.style.clipPath = 'circle(0px at ' + x + 'px ' + y + 'px)';
-        // 强制一次回流，让初始 clip-path 先生效再过渡
+        layer.style.clipPath = 'circle(0px at ' + cx + 'px ' + cy + 'px)';
         void layer.offsetWidth;
-        layer.style.transition = 'clip-path 0.55s cubic-bezier(0.22, 0.61, 0.36, 1)';
-        layer.style.clipPath = 'circle(142vmax at ' + x + 'px ' + y + 'px)';
-        // 展开动画期间就接好输入，避免玩家点了没反应
+        // 0.85s 超柔和减速缓动（如丝般顺滑展开铺满全屏）
+        layer.style.transition = 'clip-path 0.85s cubic-bezier(0.16, 1, 0.3, 1)';
+        layer.style.clipPath = 'circle(142vmax at ' + cx + 'px ' + cy + 'px)';
+
         layer.onpointerdown = function (e) {
-            if (e.target.closest('#dino-close') || e.target.closest('#dino-theme')) return;
-            pressAction();
+            if (e.target.closest('#dino-close') || e.target.closest('#dino-theme') || e.target.closest('#dino-switch')) return;
+            handlePress();
         };
+        layer.onpointermove = function (e) {
+            handlePointerMove(e);
+        };
+        layer.onpointerleave = function (e) {
+            handlePointerLeave(e);
+        };
+
         var closeBtn = document.getElementById('dino-close');
         if (closeBtn) closeBtn.onclick = function (e) { e.stopPropagation(); closeGame(); };
         var themeBtn = document.getElementById('dino-theme');
@@ -89,16 +108,23 @@
             e.stopPropagation();
             var headerToggle = document.getElementById('theme-toggle');
             if (headerToggle) headerToggle.click();
-            pal = readColors(); // 立即换色，下一帧重绘
-            layer.style.background = pal.bg;
+            pal = readColors();
+            if (layer) layer.style.background = pal.bg;
+            handleTheme(pal);
         };
+        var switchBtn = document.getElementById('dino-switch');
+        if (switchBtn) switchBtn.onclick = function (e) {
+            e.stopPropagation();
+            if (window.__gameManager) window.__gameManager.cycleGame();
+        };
+
         setTimeout(function () {
             if (state !== 'opening') return;
             state = 'open';
             layer.style.clipPath = '';
             layer.style.transition = '';
             startGame();
-        }, 600);
+        }, 880);
     }
 
     function closeGame() {
@@ -106,9 +132,15 @@
         if (!layer || state !== 'open') return;
         state = 'closing';
         stopGame();
+        layer.onpointermove = null;
+        layer.onpointerleave = null;
         var p = lastPoint || { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+        var maxR = Math.ceil(Math.hypot(
+            Math.max(p.x, window.innerWidth - p.x),
+            Math.max(p.y, window.innerHeight - p.y)
+        ));
         layer.style.transition = 'clip-path 0.45s cubic-bezier(0.4, 0, 1, 1)';
-        layer.style.clipPath = 'circle(142vmax at ' + p.x + 'px ' + p.y + 'px)';
+        layer.style.clipPath = 'circle(' + maxR + 'px at ' + p.x + 'px ' + p.y + 'px)';
         void layer.offsetWidth;
         layer.style.clipPath = 'circle(0px at ' + p.x + 'px ' + p.y + 'px)';
         setTimeout(function () {
@@ -118,7 +150,9 @@
             layer.style.transition = '';
             unlockBodyScroll();
             state = 'closed';
-        }, 500);
+            runAccum = 0;
+            takeoffDone = false;
+        }, 480);
     }
 
     // ---------- 触发提示 ----------
@@ -126,57 +160,118 @@
         var hint = document.getElementById('dino-hint');
         if (!hint || hint.classList.contains('show')) return;
         hint.classList.add('show');
-        setTimeout(function () { hint.classList.remove('show'); }, 2200);
+        setTimeout(function () { hint.classList.remove('show'); }, 2600);
     }
 
-    function trigger(x, y) {
-        if (state !== 'closed' || !isHome()) return;
-        if (!document.getElementById('dino-layer')) return;
-        if (!hintShown) {
-            hintShown = true;
-            showHint();
+    // ---------- 底部下滑手势检测（驱动跑道冲刺） ----------
+    document.addEventListener('wheel', function (e) {
+        if (e.ctrlKey || !isHome()) return;
+        if (state !== 'closed') return;
+        if (!atBottom()) return;
+
+        // 过滤刚滚到底部的残余滚轮惯性（必须停稳超过 250ms 才开始接收助跑手势）
+        if (runAccum === 0 && bottomReachedTime && (performance.now() - bottomReachedTime < 250)) {
             return;
         }
-        openGame(x, y);
-    }
 
-    // ---------- 手势检测 ----------
-    document.addEventListener('wheel', function (e) {
-        if (e.ctrlKey || state !== 'closed' || !isHome()) return;
-        if (!atBottom()) { wheelAccum = 0; return; }
-        if (e.deltaY <= 0) { wheelAccum = 0; return; }
-        wheelAccum += e.deltaY;
-        if (wheelTimer) clearTimeout(wheelTimer);
-        wheelTimer = setTimeout(function () { wheelAccum = 0; }, 500);
-        if (wheelAccum >= WHEEL_THRESHOLD) {
-            wheelAccum = 0;
-            trigger(e.clientX, e.clientY);
+        lastInputTime = performance.now();
+        if (e.deltaY > 0) {
+            var clamped = Math.min(e.deltaY, 90);
+            runAccum = Math.min(RUN_WHEEL_MAX, runAccum + clamped);
+        } else if (e.deltaY < 0) {
+            var clampedUp = Math.max(e.deltaY, -110);
+            runAccum = Math.max(0, runAccum + clampedUp * 1.5);
         }
     }, { passive: true });
 
     document.addEventListener('touchstart', function (e) {
-        if (state !== 'closed' || !isHome()) return;
-        if (!atBottom()) return;
+        if (!isHome() || state !== 'closed' || !atBottom()) return;
         touchStartY = e.touches[0].clientY;
+        touchLastY = touchStartY;
+        lastInputTime = performance.now();
     }, { passive: true });
 
     document.addEventListener('touchmove', function (e) {
-        if (state !== 'closed' || !isHome() || !touchStartY) return;
-        var dy = e.touches[0].clientY - touchStartY;
-        if (dy >= TOUCH_THRESHOLD) {
-            touchStartY = 0;
-            trigger(e.touches[0].clientX, e.touches[0].clientY);
+        if (!isHome() || state !== 'closed') return;
+        if (!atBottom()) { touchStartY = 0; return; }
+
+        if (runAccum === 0 && bottomReachedTime && (performance.now() - bottomReachedTime < 250)) {
+            return;
         }
+
+        var curY = e.touches[0].clientY;
+        var dy = curY - touchLastY;
+        touchLastY = curY;
+        lastInputTime = performance.now();
+
+        if (dy > 0) {
+            if (e.cancelable) e.preventDefault();
+            var clampedDy = Math.min(dy, 60);
+            runAccum = Math.min(RUN_WHEEL_MAX, runAccum + clampedDy * (RUN_WHEEL_MAX / RUN_TOUCH_MAX));
+        } else if (dy < 0) {
+            var clampedUpDy = Math.max(dy, -80);
+            runAccum = Math.max(0, runAccum + clampedUpDy * 2);
+        }
+    }, { passive: false });
+
+    document.addEventListener('touchend', function () {
+        touchStartY = 0;
     }, { passive: true });
 
+    function handlePress() {
+        if (window.__gameManager) {
+            var active = window.__gameManager.getActive();
+            if (active && active.pressAction) {
+                active.pressAction();
+                return;
+            }
+        }
+        pressAction();
+    }
+
+    function handlePointerMove(e) {
+        if (window.__gameManager) {
+            var active = window.__gameManager.getActive();
+            if (active && active.onPointerMove) active.onPointerMove(e);
+        }
+    }
+
+    function handlePointerLeave(e) {
+        if (window.__gameManager) {
+            var active = window.__gameManager.getActive();
+            if (active && active.onPointerLeave) active.onPointerLeave(e);
+        }
+    }
+
+    function handleTheme(p) {
+        if (window.__gameManager) {
+            var active = window.__gameManager.getActive();
+            if (active && active.setPal) active.setPal(p);
+        }
+    }
+
     document.addEventListener('keydown', function (e) {
-        if (state !== 'open' && state !== 'opening') return;
+        if (state !== 'open') return;
         if (e.code === 'Escape') { e.preventDefault(); closeGame(); return; }
+        if (window.__gameManager) {
+            var active = window.__gameManager.getActive();
+            if (active && active.onKeyDown) {
+                active.onKeyDown(e);
+                return;
+            }
+        }
         if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); pressAction(); return; }
         if (e.code === 'ArrowDown') { e.preventDefault(); setDuck(true); return; }
     });
     document.addEventListener('keyup', function (e) {
-        if (state !== 'open' && state !== 'opening') return;
+        if (state !== 'open') return;
+        if (window.__gameManager) {
+            var active = window.__gameManager.getActive();
+            if (active && active.onKeyUp) {
+                active.onKeyUp(e);
+                return;
+            }
+        }
         if (e.code === 'ArrowDown') setDuck(false);
     });
 
@@ -257,34 +352,106 @@
         '..........WWW.....WWW.........'
     ];
 
+    // 专属空中飞行悬浮姿态：两腿不交替迈步，两只小脚整齐收拢悬空，翅膀上下扇动
+    var CAT_FLY_A = [
+        '......WW........WW......',
+        '.....WWWW.....WWWW......',
+        '.....WWWWWWWWWWWWWW.....',
+        '...wWWWWWWWWWWWWWWWWW...',
+        '..wwWWWWWWWWWWWWWWWWW...',
+        '.wwwWkkWWeWWWWWeWWkkW...',
+        'wwwwWWWWWeWWWWWeWWWWW...',
+        'wwwwWWWbbWWWWWWWbbWWW...',
+        'wwwWWWWWWWmWmWmWWWWWW...',
+        '...WWWWWWWWmmmWWWWWWW...',
+        '...WWWWWWWWWWWWWWWWWW...',
+        '...WWWWWWWWWWWWWWWWWW...',
+        '...WWWWWWWWWWWWWWWWWW...',
+        '...WWWWWWWWWWWWWWWWWW...',
+        '.....WWWWWWWWWWWWWW.....',
+        '......WWWWWWWWWWWW......',
+        '........WW....WW........',
+        '........................'
+    ];
+    var CAT_FLY_B = [
+        '......WW........WW......',
+        '.....WWWW.....WWWW......',
+        '.....WWWWWWWWWWWWWW.....',
+        '....WWWWWWWWWWWWWWWWW...',
+        '....WWWWWWWWWWWWWWWWW...',
+        '....WkkWWeWWWWWeWWkkW...',
+        '....WWWWWeWWWWWeWWWWW...',
+        '....WWWbbWWWWWWWbbWWW...',
+        '...WWWWWWWmWmWmWWWWWW...',
+        'wwwwWWWWWWWmmmWWWWWWW...',
+        'wwwwWWWWWWWWWWWWWWWWW...',
+        'wwwwWWWWWWWWWWWWWWWWW...',
+        'wwwWWWWWWWWWWWWWWWWWW...',
+        '.wwWWWWWWWWWWWWWWWWWW...',
+        '.....WWWWWWWWWWWWWW.....',
+        '......WWWWWWWWWWWW......',
+        '........WW....WW........',
+        '........................'
+    ];
+
+    function startDino() {
+        hi = parseInt(localStorage.getItem(HI_KEY) || '0', 10) || 0;
+        resetRun();
+        lastTs = 0;
+        if (raf) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(loop);
+    }
+
+    function stopDino() {
+        if (raf) cancelAnimationFrame(raf);
+        raf = 0;
+    }
+
     function startGame() {
         canvas = document.getElementById('dino-canvas');
         var layer = document.getElementById('dino-layer');
         if (!canvas || !layer) return;
         ctx = canvas.getContext('2d');
         pal = readColors();
-        hi = parseInt(localStorage.getItem(HI_KEY) || '0', 10) || 0;
         resize();
-        resetRun();
-        lastTs = 0;
-        raf = requestAnimationFrame(loop);
+        if (window.__gameManager) {
+            window.__gameManager.updateSwitchBtn();
+            var active = window.__gameManager.getActive();
+            if (active && active.start) {
+                active.start(canvas, ctx, pal);
+                return;
+            }
+        }
+        startDino();
     }
 
     function stopGame() {
-        if (raf) cancelAnimationFrame(raf);
-        raf = 0;
+        if (window.__gameManager) {
+            var active = window.__gameManager.getActive();
+            if (active && active.stop) {
+                active.stop();
+                return;
+            }
+        }
+        stopDino();
     }
 
     function resize() {
         dpr = Math.min(window.devicePixelRatio || 1, 2);
         W = window.innerWidth;
         H = window.innerHeight;
-        canvas.width = W * dpr;
-        canvas.height = H * dpr;
-        canvas.style.width = W + 'px';
-        canvas.style.height = H + 'px';
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (canvas) {
+            canvas.width = W * dpr;
+            canvas.height = H * dpr;
+            canvas.style.width = W + 'px';
+            canvas.style.height = H + 'px';
+            if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
         groundY = Math.round(H * 0.82);
+        if (window.__gameManager) {
+            var active = window.__gameManager.getActive();
+            if (active && active.resize) active.resize(W, H, groundY);
+        }
     }
 
     function resetRun() {
@@ -497,67 +664,72 @@
         }
     }
 
-    function drawPtero(o) {
+    function drawPtero(o, targetCtx, targetPal) {
+        var cx = (targetCtx && targetCtx.canvas) ? targetCtx : ctx;
+        var p = (targetPal && targetPal.rgb) ? targetPal : pal;
         var x = o.x, y = o.y;
-        ctx.fillStyle = pal.deep;
+        cx.fillStyle = p.deep;
         // 身体
-        ctx.beginPath();
-        ctx.ellipse(x + 20, y + 12, 15, 6, 0, 0, Math.PI * 2);
-        ctx.fill();
+        cx.beginPath();
+        cx.ellipse(x + 20, y + 12, 15, 6, 0, 0, Math.PI * 2);
+        cx.fill();
         // 喙
-        ctx.beginPath();
-        ctx.moveTo(x + 33, y + 9);
-        ctx.lineTo(x + 46, y + 13);
-        ctx.lineTo(x + 33, y + 15);
-        ctx.closePath();
-        ctx.fill();
+        cx.beginPath();
+        cx.moveTo(x + 33, y + 9);
+        cx.lineTo(x + 46, y + 13);
+        cx.lineTo(x + 33, y + 15);
+        cx.closePath();
+        cx.fill();
         // 翅膀（两帧）
-        ctx.beginPath();
+        cx.beginPath();
         if (o.frame === 0) {
-            ctx.moveTo(x + 8, y + 11);
-            ctx.lineTo(x + 22, y - 8);
-            ctx.lineTo(x + 34, y + 11);
+            cx.moveTo(x + 8, y + 11);
+            cx.lineTo(x + 22, y - 8);
+            cx.lineTo(x + 34, y + 11);
         } else {
-            ctx.moveTo(x + 8, y + 12);
-            ctx.lineTo(x + 22, y + 28);
-            ctx.lineTo(x + 34, y + 12);
+            cx.moveTo(x + 8, y + 12);
+            cx.lineTo(x + 22, y + 28);
+            cx.lineTo(x + 34, y + 12);
         }
-        ctx.closePath();
-        ctx.fill();
+        cx.closePath();
+        cx.fill();
         // 眼睛
-        ctx.fillStyle = pal.bg;
-        ctx.fillRect(x + 27, y + 9, 3, 3);
+        cx.fillStyle = p.bg;
+        cx.fillRect(x + 27, y + 9, 3, 3);
     }
 
-    function drawCloud(c) {
+    function drawCloud(c, targetCtx, targetPal) {
+        var cx = (targetCtx && targetCtx.canvas) ? targetCtx : ctx;
+        var p = (targetPal && targetPal.rgb) ? targetPal : pal;
         var s = c.s;
-        ctx.strokeStyle = 'rgba(' + pal.rgb + ', 0.4)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(c.x, c.y, 10 * s, Math.PI * 1.1, Math.PI * 1.9);
-        ctx.arc(c.x + 16 * s, c.y - 4 * s, 9 * s, Math.PI, Math.PI * 1.95);
-        ctx.arc(c.x + 32 * s, c.y, 8 * s, Math.PI * 1.05, Math.PI * 1.9);
-        ctx.stroke();
+        cx.strokeStyle = 'rgba(' + p.rgb + ', 0.4)';
+        cx.lineWidth = 2;
+        cx.beginPath();
+        cx.arc(c.x, c.y, 10 * s, Math.PI * 1.1, Math.PI * 1.9);
+        cx.arc(c.x + 16 * s, c.y - 4 * s, 9 * s, Math.PI, Math.PI * 1.95);
+        cx.arc(c.x + 32 * s, c.y, 8 * s, Math.PI * 1.05, Math.PI * 1.9);
+        cx.stroke();
     }
 
-    function drawText(text, x, y, size, align, color) {
-        ctx.fillStyle = color;
-        ctx.font = 'bold ' + size + 'px "Segoe UI", "Microsoft YaHei", sans-serif';
-        ctx.textAlign = align;
-        ctx.fillText(text, x, y);
+    function drawText(text, x, y, size, align, color, targetCtx) {
+        var cx = (targetCtx && targetCtx.canvas) ? targetCtx : ctx;
+        cx.fillStyle = color;
+        cx.font = 'bold ' + size + 'px "Segoe UI", "Microsoft YaHei", sans-serif';
+        cx.textAlign = align;
+        cx.fillText(text, x, y);
     }
 
     function draw() {
-        // 主题/色板若在游戏期间被切换（含游戏外 Alt+T），立即同步颜色
-        var darkNow = document.documentElement.dataset.theme === 'dark';
-        if (darkNow !== pal.dark) {
+        // 主题/色板若在游戏期间被切换（含游戏外 Alt+T 或色板点击），立即同步颜色
+        var curThemeKey = (document.documentElement.dataset.theme || 'light') + '|' + (document.documentElement.dataset.palette || 'gold');
+        if (!pal || curThemeKey !== pal.themeKey) {
             pal = readColors();
             var bgLayer = document.getElementById('dino-layer');
             if (bgLayer) bgLayer.style.background = pal.bg;
         }
         ctx.clearRect(0, 0, W, H);
         // 云
-        clouds.forEach(drawCloud);
+        clouds.forEach(function (c) { drawCloud(c); });
         // 地面
         ctx.strokeStyle = 'rgba(' + pal.rgb + ', 0.75)';
         ctx.lineWidth = 2;
@@ -588,17 +760,36 @@
             var cx = W / 2, cy = H / 2;
             drawText('G A M E   O V E R', cx, cy - 20, Math.max(22, Math.min(40, W * 0.035)), 'center', pal.accent);
             drawText('按空格 / 点击 重新开始 · Esc 退出', cx, cy + 24, Math.max(13, Math.min(17, W * 0.013)), 'center', 'rgba(' + pal.rgb + ', 0.8)');
-            // 重启小图标（三角+圆环）
+            // 重启小图标（精准咬合的顺时针循环箭头）
+            var arcCx = cx;
+            var arcCy = cy + 70;
+            var arcR = 15;
+            var startA = Math.PI * 0.25;
+            var endA = Math.PI * 1.82;
+
             ctx.strokeStyle = pal.accent;
             ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
             ctx.beginPath();
-            ctx.arc(cx, cy + 70, 16, Math.PI * 0.4, Math.PI * 2.2);
+            ctx.arc(arcCx, arcCy, arcR, startA, endA, false);
             ctx.stroke();
+
+            // 终点切线方向动态对接三角形箭头
+            var endX = arcCx + arcR * Math.cos(endA);
+            var endY = arcCy + arcR * Math.sin(endA);
+            var tangent = endA + Math.PI / 2;
+            var tipX = endX + 8 * Math.cos(tangent);
+            var tipY = endY + 8 * Math.sin(tangent);
+            var leftX = endX + 5.5 * Math.cos(tangent - Math.PI * 0.72);
+            var leftY = endY + 5.5 * Math.sin(tangent - Math.PI * 0.72);
+            var rightX = endX + 5.5 * Math.cos(tangent + Math.PI * 0.72);
+            var rightY = endY + 5.5 * Math.sin(tangent + Math.PI * 0.72);
+
             ctx.fillStyle = pal.accent;
             ctx.beginPath();
-            ctx.moveTo(cx + 16, cy + 56);
-            ctx.lineTo(cx + 26, cy + 63);
-            ctx.lineTo(cx + 14, cy + 69);
+            ctx.moveTo(tipX, tipY);
+            ctx.lineTo(leftX, leftY);
+            ctx.lineTo(rightX, rightY);
             ctx.closePath();
             ctx.fill();
         }
@@ -614,21 +805,122 @@
         raf = requestAnimationFrame(loop);
     }
 
+    // ---------- 导出共享绘制能力与像素数据 ----------
+    window.__dinoShared = {
+        CAT_A: CAT_A,
+        CAT_B: CAT_B,
+        CAT_DUCK_A: CAT_DUCK_A,
+        CAT_DUCK_B: CAT_DUCK_B,
+        CAT_FLY_A: CAT_FLY_A,
+        CAT_FLY_B: CAT_FLY_B,
+        CAT_BODY: CAT_BODY,
+        CAT_FACE: CAT_FACE,
+        cellsOf: cellsOf,
+        drawMascot: drawMascot,
+        drawCloud: drawCloud,
+        drawText: drawText,
+        drawPtero: drawPtero,
+        readColors: readColors
+    };
+
+    // ---------- 恐龙跑酷适配器 ----------
+    var dinoGame = {
+        name: '恐龙跑酷',
+        start: function (cv, cx, p) {
+            canvas = cv;
+            ctx = cx;
+            pal = p;
+            resize();
+            startDino();
+        },
+        stop: function () {
+            stopDino();
+        },
+        resize: function (newW, newH, gy) {
+            groundY = gy;
+        },
+        setPal: function (p) {
+            pal = p;
+        },
+        pressAction: function () {
+            pressAction();
+        },
+        onKeyDown: function (e) {
+            if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); pressAction(); return; }
+            if (e.code === 'ArrowDown') { e.preventDefault(); setDuck(true); return; }
+        },
+        onKeyUp: function (e) {
+            if (e.code === 'ArrowDown') setDuck(false);
+        }
+    };
+
+    // ---------- 通用游戏管理器 ----------
+    window.__gameManager = window.__gameManager || {
+        gameList: ['fly', 'dino'],
+        games: {},
+        current: 'fly',
+        register: function (id, gameObj) {
+            this.games[id] = gameObj;
+            if (this.gameList.indexOf(id) === -1) this.gameList.push(id);
+        }
+    };
+    window.__gameManager.register('dino', dinoGame);
+
+    window.__gameManager.getActive = function () {
+        return this.games[this.current] || this.games['fly'] || this.games['dino'];
+    };
+
+    window.__gameManager.updateSwitchBtn = function () {
+        var btn = document.getElementById('dino-switch');
+        if (!btn) return;
+        var active = this.getActive();
+        var label = active ? active.name : '小游戏';
+        var labelEl = btn.querySelector('.dino-switch-name');
+        if (labelEl) labelEl.textContent = label;
+        btn.setAttribute('title', '点击切换小游戏（当前：' + label + '）');
+    };
+
+    window.__gameManager.switchGame = function (id) {
+        if (!this.games[id] || id === this.current) return;
+        var old = this.getActive();
+        if (old && old.stop) old.stop();
+        this.current = id;
+        this.updateSwitchBtn();
+        var cur = this.getActive();
+        if (cur && cur.start) {
+            var cv = document.getElementById('dino-canvas');
+            var cx = cv ? cv.getContext('2d') : null;
+            if (cx && cv) {
+                cx.clearRect(0, 0, cv.width, cv.height);
+            }
+            cur.start(cv, cx, readColors());
+        }
+    };
+
+    window.__gameManager.cycleGame = function () {
+        var idx = this.gameList.indexOf(this.current);
+        var nextIdx = (idx + 1) % this.gameList.length;
+        this.switchGame(this.gameList[nextIdx]);
+    };
+
     window.addEventListener('resize', function () {
         if (state === 'open') resize();
-        flyCtx = null; // 触发飞行画布重设尺寸
+        flySize();
         flyUpdate();
     });
 
-    // ---------- 下滑航程：飞行猫（滚动驱动滑翔，落地后提示起飞） ----------
-    var flyCv = null, flyCtx = null, flyPal = null, flyOn = false, flyFrame = 0, flyY = -80, flyTrail = [], flyLandShown = false;
+    // ---------- 下滑航程：飞行猫（右侧滑翔 → 中央特写 → 俯冲起跑线 → 跑道狂奔冲刺 → 尽头起飞进入游戏） ----------
+    var flyCv = null, flyCtx = null, flyPal = null, flyOn = false, flyFrame = 0;
+    var flyX = -400, flyY = -200, flyScale = 2.4;
+    var flyTrail = [];
+    var dustParticles = [];
 
     function flySize() {
-        if (!flyCtx) return;
+        if (!flyCv) return;
         var dpr = Math.min(window.devicePixelRatio || 1, 2);
-        flyCv.width = 150 * dpr;
+        flyCv.width = window.innerWidth * dpr;
         flyCv.height = window.innerHeight * dpr;
-        flyCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (flyCtx) flyCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
 
     function flyLoop() {
@@ -638,34 +930,166 @@
             return;
         }
         flyFrame++;
+
         // 主题/色板跟随
-        var darkNow = document.documentElement.dataset.theme === 'dark';
-        if (!flyPal || darkNow !== flyPal.dark) flyPal = readColors();
-        // 滚动进度 0→1：从画面上方一路滑到跑道
-        var max = document.documentElement.scrollHeight - window.innerHeight;
+        var curThemeKey = (document.documentElement.dataset.theme || 'light') + '|' + (document.documentElement.dataset.palette || 'gold');
+        if (!flyPal || curThemeKey !== flyPal.themeKey) flyPal = readColors();
+
+        var W = window.innerWidth;
+        var H = window.innerHeight;
+
+        // 页面纵向滚动进度 0 -> 1
+        var max = document.documentElement.scrollHeight - H;
         var p = max > 0 ? Math.min(1, window.scrollY / max) : 0;
-        var target = -70 + p * (window.innerHeight - 20);
-        var bob = p >= 1 ? 0 : Math.sin(flyFrame * 0.09) * 7;
-        flyY += (target + bob - flyY) * 0.16;
-        var catX = window.innerWidth > 900 ? 96 : 66;
-        // 金色轨迹
-        if (flyFrame % 2 === 0) {
-            flyTrail.push(flyY + 20);
-            if (flyTrail.length > 24) flyTrail.shift();
+        var isBottom = atBottom();
+
+        if (isBottom) {
+            if (!bottomReachedTime) bottomReachedTime = performance.now();
+        } else {
+            bottomReachedTime = 0;
         }
-        flyCtx.clearRect(0, 0, 150, window.innerHeight);
-        flyTrail.forEach(function (ty, i) {
-            flyCtx.fillStyle = 'rgba(' + flyPal.rgb + ', ' + (0.04 + 0.3 * i / flyTrail.length).toFixed(3) + ')';
-            flyCtx.fillRect(catX + 18, ty, 5, 3);
-        });
-        var grid = (flyFrame % 20 < 10) ? CAT_A : CAT_B;
-        drawMascot(flyCtx, grid, catX, flyY, 2.4, flyPal);
-        // 降落到底：提示起飞
-        if (p >= 1 && !flyLandShown && state === 'closed') {
-            flyLandShown = true;
-            hintShown = true;
-            showHint();
+
+        // 如果用户停止滑动超过 1200ms，且尚未触发起飞，runAccum 自动向 0 平滑衰减
+        if (runAccum > 0 && performance.now() - lastInputTime > 1200 && !takeoffDone) {
+            runAccum = Math.max(0, runAccum - 3);
         }
+
+        var runP = Math.max(0, Math.min(1, runAccum / RUN_WHEEL_MAX));
+
+        // 动态测量跑道真实位置（像素级精准贴合跑道上边缘）
+        var runwayEl = document.querySelector('.home-runway');
+        var runwayTop = H - 64;
+        if (runwayEl) {
+            var rRect = runwayEl.getBoundingClientRect();
+            runwayTop = rRect.top;
+        }
+
+        // 跑道左端起跑线参数（正常体型 scale: 2.4）
+        var normScale = 2.4;
+        // 猫像素高 18 格，脚底紧贴跑道上边缘：
+        var startY = runwayTop - 18 * normScale;
+        var groundY = runwayTop;
+
+        // 中央大特写参数
+        var heroScale = Math.min(5.8, Math.max(3.8, W * 0.005 * 2.4));
+        var heroX = (W - 24 * heroScale) / 2;
+        var heroY = H * 0.35;
+
+        var startX = Math.max(32, Math.round(W * 0.08));
+
+        // 跑道右端终点参数
+        var endX = W - Math.max(68, Math.round(W * 0.1));
+
+        var targetX, targetY, targetScale;
+        var isRunning = false;
+
+        if (!isBottom) {
+            // 【阶段 1】页面正常滚动中：猫在右侧滑翔下落
+            targetScale = normScale;
+            targetX = W - (W > 900 ? 110 : 80);
+            var bob = Math.sin(flyFrame * 0.09) * 7;
+            targetY = -70 + p * (H - 90) + bob;
+        } else if (runP <= 0.001) {
+            // 【阶段 2】滚到底端且未继续下滑：飞向屏幕正中央放大特写！
+            targetScale = heroScale;
+            targetX = heroX;
+            targetY = heroY + Math.sin(flyFrame * 0.08) * 8;
+
+            if (!hintShown) {
+                hintShown = true;
+                showHint();
+            }
+        } else if (runP < 0.20) {
+            // 【阶段 3 前半程】：从中央特写俯冲飞往左侧起跑线
+            var subU = runP / 0.20;
+            var t = subU * subU * (3 - 2 * subU); // smoothstep 平滑过渡
+            targetScale = heroScale + (normScale - heroScale) * t;
+            targetX = heroX + (startX - heroX) * t;
+            targetY = heroY + (startY - heroY) * t;
+        } else {
+            // 【阶段 3 后半程】：在跑道上向右全力冲刺狂奔！
+            var dashU = (runP - 0.20) / 0.80;
+            targetScale = normScale;
+            targetX = startX + dashU * (endX - startX);
+            targetY = startY;
+            isRunning = true;
+
+            // 产生脚底金色扬尘粒子（踩在跑道线上）
+            if (flyFrame % 2 === 0) {
+                dustParticles.push({
+                    x: flyX + 10 * normScale,
+                    y: groundY - 1,
+                    vx: -2 - Math.random() * 2.5,
+                    vy: -Math.random() * 1.5,
+                    life: 1.0
+                });
+            }
+        }
+
+        // 坐标平滑跟随逼近目标（黄金步频，矫健前行）
+        if (flyX < -300) {
+            flyX = targetX;
+            flyY = targetY;
+            flyScale = targetScale;
+        } else {
+            var lerpSpeed = isRunning ? 0.20 : 0.14;
+            flyX += (targetX - flyX) * lerpSpeed;
+            flyY += (targetY - flyY) * lerpSpeed;
+            flyScale += (targetScale - flyScale) * 0.16;
+        }
+
+        // 【阶段 4】到达跑道右侧尽头：纵身跃起滞空缓冲，随后丝滑展开游戏
+        if (runP >= 1 && !takeoffDone) {
+            takeoffDone = true;
+            // 顺势向斜上方弹跳跃起 50px
+            targetY = startY - 50;
+            targetX = endX + 16;
+            setTimeout(function () {
+                openGame(flyX + 12 * normScale, flyY + 9 * normScale);
+            }, 140);
+        }
+
+        // 清空画布
+        flyCtx.clearRect(0, 0, W, H);
+
+        // 绘制滑翔金色轨迹（非奔跑且非特写阶段）
+        if (!isBottom) {
+            if (flyFrame % 2 === 0) {
+                flyTrail.push({ x: flyX + 18, y: flyY + 20 });
+                if (flyTrail.length > 22) flyTrail.shift();
+            }
+            flyTrail.forEach(function (tp, i) {
+                flyCtx.fillStyle = 'rgba(' + flyPal.rgb + ', ' + (0.04 + 0.3 * i / flyTrail.length).toFixed(3) + ')';
+                flyCtx.fillRect(tp.x, tp.y, 5, 3);
+            });
+        } else {
+            flyTrail = [];
+        }
+
+        // 绘制奔跑金色扬尘
+        for (var d = dustParticles.length - 1; d >= 0; d--) {
+            var dp = dustParticles[d];
+            dp.x += dp.vx;
+            dp.y += dp.vy;
+            dp.life -= 0.05;
+            if (dp.life <= 0) {
+                dustParticles.splice(d, 1);
+            } else {
+                flyCtx.fillStyle = 'rgba(' + flyPal.rgb + ', ' + (dp.life * 0.6).toFixed(2) + ')';
+                flyCtx.fillRect(dp.x, dp.y, 4, 3);
+            }
+        }
+
+        // 选择姿态帧（狂奔冲刺时矫健踏步，空中/特写/起飞时收爪悬浮展开双翼）
+        var grid;
+        if (isRunning && !takeoffDone) {
+            grid = (Math.floor(runAccum / 28) % 2 === 0) ? CAT_A : CAT_B;
+        } else {
+            grid = (flyFrame % 20 < 10) ? CAT_FLY_A : CAT_FLY_B;
+        }
+
+        drawMascot(flyCtx, grid, flyX, flyY, flyScale, flyPal);
+
         requestAnimationFrame(flyLoop);
     }
 
@@ -676,14 +1100,16 @@
             flyCtx = null;
             return;
         }
-        var active = isHome() && state === 'closed' && window.scrollY > 40 && window.innerWidth > 560;
+        var active = isHome() && state === 'closed' && window.scrollY > 30;
         flyCv.classList.toggle('on', active);
         if (active && !flyOn) {
             if (!flyCtx) {
                 flyCtx = flyCv.getContext('2d');
                 flySize();
-                flyY = -80;
+                flyX = -400;
+                flyY = -200;
                 flyTrail = [];
+                dustParticles = [];
             }
             flyOn = true;
             requestAnimationFrame(flyLoop);
@@ -696,4 +1122,20 @@
     } else {
         window.addEventListener('scroll', function () { flyUpdate(); }, { passive: true });
     }
+
+    // 监听深浅主题与色板切换（实时生效，无需刷新页面）
+    var themeObserver = new MutationObserver(function () {
+        var newPal = readColors();
+        flyPal = newPal;
+        pal = newPal;
+        var bgLayer = document.getElementById('dino-layer');
+        if (bgLayer && (state === 'open' || state === 'opening')) {
+            bgLayer.style.background = newPal.bg;
+        }
+        handleTheme(newPal);
+    });
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-theme', 'data-palette']
+    });
 })();

@@ -2508,6 +2508,34 @@ html[data-theme="dark"] .dino-layer {
     touch-action: none;
     cursor: pointer;
 }
+#dino-switch {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 9501;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 42px;
+    padding: 0 16px;
+    border: 1px solid rgba(var(--accent-rgb), 0.35);
+    border-radius: 999px;
+    background: rgba(var(--accent-rgb), 0.1);
+    color: var(--accent);
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    transition: background 0.2s var(--ease-out), transform 0.2s var(--ease-out);
+    user-select: none;
+}
+#dino-switch:hover {
+    background: rgba(var(--accent-rgb), 0.22);
+    transform: translateY(-1px);
+}
+#dino-switch svg {
+    flex-shrink: 0;
+}
 #dino-close,
 #dino-theme {
     position: fixed;
@@ -2534,6 +2562,7 @@ html[data-theme="dark"] .dino-layer {
 #dino-theme:hover { background: rgba(var(--accent-rgb), 0.22); }
 </style>
 <script src="/js/dino-game.js?v={{ site.Params.assetsVersion }}" defer></script>
+<script src="/js/fly-game.js?v={{ site.Params.assetsVersion }}" defer></script>
 
 <!-- ==================== 全局局部刷新（PJAX），让播放器跨页面不断播 ==================== -->
 <script src="/js/nav.js?v={{ site.Params.assetsVersion }}" defer></script>

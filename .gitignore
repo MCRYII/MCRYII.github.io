@@ -9,3 +9,4 @@ static/images/thumbs/
 .workbuddy/
 .zcode/
 config.local.json
+*.old.*
