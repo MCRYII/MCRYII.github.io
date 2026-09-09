@@ -10,3 +10,4 @@ static/images/thumbs/
 .zcode/
 config.local.json
 *.old.*
+指南.md
