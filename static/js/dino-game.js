@@ -401,6 +401,48 @@
         '........................'
     ];
 
+    // 受击/失败晕眩姿态（紧闭 > < 痛痛眼 + 加宽腮红 + ω嘴）
+    var CAT_HIT = [
+        '......WW........WW......',
+        '.....WWWW.....WWWW......',
+        '.....WWWWWWWWWWWWWW.....',
+        '...wWWWWWWWWWWWWWWWWW...',
+        '..wwWWWWWWWWWWWWWWWWW...',
+        '.wwwWkkWeWWWWWWWeWkkW...',
+        'wwwwWWWWWeWWWWWeWWWWW...',
+        'wwwwWWbbeWWWWWWWebbWW...',
+        'wwwWWWWWWWmWmWmWWWWWW...',
+        '...WWWWWWWWmmmWWWWWWW...',
+        '...WWWWWWWWWWWWWWWWWW...',
+        '...WWWWWWWWWWWWWWWWWW...',
+        '...WWWWWWWWWWWWWWWWWW...',
+        '...WWWWWWWWWWWWWWWWWW...',
+        '.....WWWWWWWWWWWWWW.....',
+        '......WWWWWWWWWWWW......',
+        '........WW....WW........',
+        '........WW....WW........'
+    ];
+    var CAT_FLY_HIT = [
+        '......WW........WW......',
+        '.....WWWW.....WWWW......',
+        '.....WWWWWWWWWWWWWW.....',
+        '....WWWWWWWWWWWWWWWWW...',
+        '....WWWWWWWWWWWWWWWWW...',
+        '....WkkWeWWWWWWWeWkkW...',
+        '....WWWWWeWWWWWeWWWWW...',
+        '....WWbbeWWWWWWWebbWW...',
+        '...WWWWWWWmWmWmWWWWWW...',
+        'wwwwWWWWWWWmmmWWWWWWW...',
+        'wwwwWWWWWWWWWWWWWWWWW...',
+        'wwwwWWWWWWWWWWWWWWWWW...',
+        'wwwWWWWWWWWWWWWWWWWWW...',
+        '.wwWWWWWWWWWWWWWWWWWW...',
+        '.....WWWWWWWWWWWWWW.....',
+        '......WWWWWWWWWWWW......',
+        '........WW....WW........',
+        '........................'
+    ];
+
     function startDino() {
         hi = parseInt(localStorage.getItem(HI_KEY) || '0', 10) || 0;
         resetRun();
@@ -644,6 +686,10 @@
     function drawDino() {
         var s = dino.scale;
         var x = dino.x;
+        if (gameOver) {
+            drawMascot(ctx, CAT_HIT, x, dino.y - CAT_HIT.length * s, s, pal);
+            return;
+        }
         if (dino.duck && !dino.jumping) {
             var dg = dino.legFrame ? CAT_DUCK_A : CAT_DUCK_B;
             drawMascot(ctx, dg, x, groundY - dg.length * s, s, pal);
@@ -820,6 +866,8 @@
         CAT_DUCK_B: CAT_DUCK_B,
         CAT_FLY_A: CAT_FLY_A,
         CAT_FLY_B: CAT_FLY_B,
+        CAT_HIT: CAT_HIT,
+        CAT_FLY_HIT: CAT_FLY_HIT,
         CAT_BODY: CAT_BODY,
         CAT_FACE: CAT_FACE,
         cellsOf: cellsOf,
@@ -863,7 +911,7 @@
 
     // ---------- 通用游戏管理器 ----------
     window.__gameManager = window.__gameManager || {
-        gameList: ['fly', 'dino'],
+        gameList: ['fly', 'dino', 'mole'],
         games: {},
         current: 'fly',
         register: function (id, gameObj) {

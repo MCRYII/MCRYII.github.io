@@ -378,7 +378,12 @@
 
         // 吉祥物飞行猫（专属飞行形态：收拢后肢滑翔 + 大翅膀上下扇动 + 动态俯仰倾角）
         if (cat && shared.drawMascot) {
-            var grid = (frameCount % 14 < 7) ? CAT_FLY_UP : CAT_FLY_DOWN;
+            var grid;
+            if (gameOver && shared.CAT_FLY_HIT) {
+                grid = shared.CAT_FLY_HIT;
+            } else {
+                grid = (frameCount % 14 < 7) ? CAT_FLY_UP : CAT_FLY_DOWN;
+            }
             var cx = cat.x + cat.w / 2;
             var cy = cat.y + cat.h / 2;
             ctx.save();
@@ -543,7 +548,7 @@
 
     // 注册到通用游戏管理器
     window.__gameManager = window.__gameManager || {
-        gameList: ['fly', 'dino'],
+        gameList: ['fly', 'dino', 'mole'],
         games: {},
         current: 'fly',
         register: function (id, gameObj) {
