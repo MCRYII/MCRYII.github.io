@@ -10,7 +10,7 @@ params:
   images:
     - /images/home-hero.jpg
   twitterCard: summary_large_image
-  assetsVersion: '20260909-2'
+  assetsVersion: '20260909-4'
   ShowPostNavLinks: true
   mainSections:
     - posts
