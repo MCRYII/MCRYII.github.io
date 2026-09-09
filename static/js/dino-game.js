@@ -50,10 +50,10 @@
         return window.location.pathname === '/' || window.location.pathname === '/index.html';
     }
 
-    // 主页内容可滚动，须先滚到底部，继续下滑才算触发手势
+    // 主页内容可滚动，须先滚到底部，继续滑动才算触发手势（放宽至 15px 兼容移动端地址栏浮动）
     function atBottom() {
         var max = document.documentElement.scrollHeight - window.innerHeight;
-        return max <= 0 || window.scrollY >= max - 5;
+        return max <= 0 || window.scrollY >= max - 15;
     }
 
     function readColors() {
@@ -200,17 +200,24 @@
         }
 
         var curY = e.touches[0].clientY;
-        var dy = curY - touchLastY;
+        // 移动端触控：手指向上划（curY < touchLastY，即 touchDelta > 0）代表顺着浏览方向继续向前冲刺
+        var touchDelta = touchLastY - curY;
         touchLastY = curY;
         lastInputTime = performance.now();
 
-        if (dy > 0) {
+        if (touchDelta > 0) {
+            // 手指持续向上推：推进跑道冲刺并起飞，阻止移动端原生过度滚动与页面反弹
             if (e.cancelable) e.preventDefault();
-            var clampedDy = Math.min(dy, 60);
-            runAccum = Math.min(RUN_WHEEL_MAX, runAccum + clampedDy * (RUN_WHEEL_MAX / RUN_TOUCH_MAX));
-        } else if (dy < 0) {
-            var clampedUpDy = Math.max(dy, -80);
-            runAccum = Math.max(0, runAccum + clampedUpDy * 2);
+            var clamped = Math.min(touchDelta, 60);
+            runAccum = Math.min(RUN_WHEEL_MAX, runAccum + clamped * (RUN_WHEEL_MAX / RUN_TOUCH_MAX));
+        } else if (touchDelta < 0) {
+            // 手指往下拉：若已有冲刺蓄力，优先平滑回退冲刺（防误触）
+            if (runAccum > 0) {
+                if (e.cancelable) e.preventDefault();
+                var clampedDown = Math.max(touchDelta, -80);
+                runAccum = Math.max(0, runAccum + clampedDown * 2);
+            }
+            // 若 runAccum 为 0，不 preventDefault，允许移动端原生平滑向页面上方回滚
         }
     }, { passive: false });
 
